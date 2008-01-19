@@ -46,11 +46,48 @@ static inline void uci_list_del(struct uci_list *ptr)
 	next->prev = prev;
 }
 
+static void uci_drop_option(struct uci_option *option)
+{
+	if (!option)
+		return;
+	if (option->name)
+		free(option->name);
+	if (option->value)
+		free(option->value);
+	free(option);
+}
+
+static struct uci_option *uci_add_option(struct uci_section *section, const char *name, const char *value)
+{
+	struct uci_config *cfg = section->config;
+	struct uci_context *ctx = cfg->ctx;
+	struct uci_option *option = NULL;
+
+	UCI_TRAP_SAVE(ctx, error);
+	option = (struct uci_option *) uci_malloc(ctx, sizeof(struct uci_option));
+	option->name = uci_strdup(ctx, name);
+	option->value = uci_strdup(ctx, value);
+	uci_list_add(&section->options, &option->list);
+	UCI_TRAP_RESTORE(ctx);
+
+error:
+	uci_drop_option(option);
+	UCI_THROW(ctx, ctx->errno);
+	return NULL;
+}
+
 static void uci_drop_section(struct uci_section *section)
 {
+	struct uci_option *opt;
+
 	if (!section)
 		return;
-	/* TODO: drop options */
+
+	uci_foreach_entry(option, &section->options, opt) {
+		uci_list_del(&opt->list);
+		uci_drop_option(opt);
+	}
+
 	if (section->name)
 		free(section->name);
 	if (section->type)
@@ -63,15 +100,15 @@ static struct uci_section *uci_add_section(struct uci_config *cfg, const char *t
 	struct uci_section *section = NULL;
 	struct uci_context *ctx = cfg->ctx;
 
-	UCI_TRAP_SAVE(ctx, error)
+	UCI_TRAP_SAVE(ctx, error);
 	section = (struct uci_section *) uci_malloc(ctx, sizeof(struct uci_section));
 	section->config = cfg;
 	uci_list_init(&section->list);
 	uci_list_init(&section->options);
-	uci_list_add(&cfg->sections, &section->list);
 	section->type = uci_strdup(ctx, type);
 	if (name)
 		section->name = uci_strdup(ctx, name);
+	uci_list_add(&cfg->sections, &section->list);
 	UCI_TRAP_RESTORE(ctx);
 
 	return section;
@@ -88,9 +125,12 @@ static void uci_drop_file(struct uci_config *cfg)
 
 	if(!cfg)
 		return;
+
 	uci_foreach_entry(section, &cfg->sections, s) {
+		uci_list_del(&s->list);
 		uci_drop_section(s);
 	}
+
 	if (cfg->name)
 		free(cfg->name);
 	free(cfg);
@@ -101,7 +141,7 @@ static struct uci_config *uci_alloc_file(struct uci_context *ctx, const char *na
 {
 	struct uci_config *cfg = NULL;
 
-	UCI_TRAP_SAVE(ctx, error)
+	UCI_TRAP_SAVE(ctx, error);
 	cfg = (struct uci_config *) uci_malloc(ctx, sizeof(struct uci_config));
 	uci_list_init(&cfg->list);
 	uci_list_init(&cfg->sections);
