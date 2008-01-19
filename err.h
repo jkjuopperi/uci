@@ -13,7 +13,7 @@
  */
 
 /*
- * functions for debug and error handling
+ * functions for debug and error handling, for internal use only
  */
 
 #ifdef DEBUG
@@ -59,5 +59,4 @@
 		UCI_THROW(ctx, UCI_ERR_INVAL);	\
 	}				\
 } while (0)
-
 

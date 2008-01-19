@@ -50,7 +50,7 @@ extern struct uci_context *uci_alloc(void);
  * uci_perror: Print the last uci error that occured
  * @ctx: uci context
  * @str: string to print before the error message
- */ 
+ */
 extern void uci_perror(struct uci_context *ctx, const char *str);
 
 /**
@@ -74,7 +74,7 @@ int uci_cleanup(struct uci_context *ctx);
 struct uci_context
 {
 	struct uci_list root;
-	
+
 	/* for error handling only */
 	struct uci_parse_context *pctx;
 
@@ -126,7 +126,6 @@ struct uci_option
 
 #define uci_list_entry(type, ptr) \
 	((struct uci_#type *) ((char *)(ptr) - offsetof(struct uci_#type,list)))
-
 
 #define uci_foreach_entry(type, list, ptr)		\
 	for(ptr = uci_list_entry(type, (list)->next);	\

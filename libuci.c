@@ -42,7 +42,7 @@ static const char *uci_errstr[] = {
 static void *uci_malloc(struct uci_context *ctx, size_t size)
 {
 	void *ptr;
-	
+
 	ptr = malloc(size);
 	if (!ptr)
 		UCI_THROW(ctx, UCI_ERR_MEM);
@@ -63,6 +63,20 @@ static void *uci_realloc(struct uci_context *ctx, void *ptr, size_t size)
 	return ptr;
 }
 
+/*
+ * UCI wrapper for strdup, which uses exception handling
+ */
+static char *uci_strdup(struct uci_context *ctx, const char *str)
+{
+	char *ptr;
+
+	ptr = strdup(str);
+	if (!ptr)
+		UCI_THROW(ctx, UCI_ERR_MEM);
+
+	return ptr;
+}
+
 #include "list.c"
 #include "parse.c"
 
@@ -71,10 +85,11 @@ static void *uci_realloc(struct uci_context *ctx, void *ptr, size_t size)
 struct uci_context *uci_alloc(void)
 {
 	struct uci_context *ctx;
-	
+
 	ctx = (struct uci_context *) malloc(sizeof(struct uci_context));
 	memset(ctx, 0, sizeof(struct uci_context));
-	
+	uci_list_init(&ctx->root);
+
 	return ctx;
 }
 
@@ -93,7 +108,7 @@ void uci_perror(struct uci_context *ctx, const char *str)
 		err = UCI_ERR_INVAL;
 	else
 		err = ctx->errno;
-	
+
 	if ((err < 0) || (err >= UCI_ERR_LAST))
 		err = UCI_ERR_UNKNOWN;
 
