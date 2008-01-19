@@ -1,2 +1,3 @@
 parsetest
 *.o
+.*.swp
