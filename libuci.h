@@ -127,12 +127,13 @@ struct uci_option
 #define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 #endif
 
-#define uci_list_entry(type, ptr) \
-	((struct uci_#type *) ((char *)(ptr) - offsetof(struct uci_#type,list)))
+#define uci_list_empty(list) (list->next == ptr)
+#define uci_list_entry(_type, _ptr) \
+	((struct uci_ ## _type *) ((char *)(_ptr) - offsetof(struct uci_ ## _type,list)))
 
-#define uci_foreach_entry(type, list, ptr)		\
-	for(ptr = uci_list_entry(type, (list)->next);	\
-		&ptr->list != list;			\
-		ptr = uci_list_entry(type, ptr->list.next))
+#define uci_foreach_entry(_type, _list, _ptr)		\
+	for(_ptr = uci_list_entry(_type, (_list)->next);	\
+		&_ptr->list != (_list);			\
+		_ptr = uci_list_entry(_type, _ptr->list.next))
 
 #endif

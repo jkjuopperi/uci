@@ -50,6 +50,7 @@ static void uci_drop_section(struct uci_section *section)
 {
 	if (!section)
 		return;
+	/* TODO: drop options */
 	if (section->name)
 		free(section->name);
 	if (section->type)
@@ -83,9 +84,13 @@ error:
 
 static void uci_drop_file(struct uci_config *cfg)
 {
-	/* TODO: free children */
+	struct uci_section *s;
+
 	if(!cfg)
 		return;
+	uci_foreach_entry(section, &cfg->sections, s) {
+		uci_drop_section(s);
+	}
 	if (cfg->name)
 		free(cfg->name);
 	free(cfg);
