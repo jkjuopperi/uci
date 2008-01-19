@@ -80,12 +80,19 @@ static void uci_parse_cleanup(struct uci_context *ctx)
 	free(pctx);
 }
 
+/*
+ * move the string pointer forward until a non-whitespace character or
+ * EOL is reached
+ */
 static void skip_whitespace(char **str)
 {
 	while (**str && isspace(**str))
 		*str += 1;
 }
 
+/*
+ * parse a double quoted string argument from the command line
+ */
 static char *parse_double_quote(char **str)
 {
 	char *val;
@@ -112,12 +119,18 @@ static char *parse_double_quote(char **str)
 	return NULL;
 }
 
+/*
+ * parse a single quoted string argument from the command line
+ */
 static char *parse_single_quote(char **str)
 {
 	/* TODO: implement */
 	return NULL;
 }
 
+/*
+ * extract the next word from the command line (unquoted argument)
+ */
 static char *parse_unquoted(char **str)
 {
 	char *val;
@@ -135,6 +148,9 @@ static char *parse_unquoted(char **str)
 	return val;
 }
 
+/*
+ * extract the next argument from the command line
+ */
 static char *next_arg(struct uci_context *ctx, char **str, bool required)
 {
 	char *val;
@@ -159,6 +175,10 @@ static char *next_arg(struct uci_context *ctx, char **str, bool required)
 	return val;
 }
 
+/*
+ * verify that the end of the line or command is reached.
+ * throw an error if extra arguments are given on the command line
+ */ 
 static void assert_eol(struct uci_context *ctx, char **str)
 {
 	char *tmp;
@@ -170,6 +190,9 @@ static void assert_eol(struct uci_context *ctx, char **str)
 	}
 }
 
+/*
+ * parse the 'config' uci command (open a section)
+ */
 static void uci_parse_config(struct uci_context *ctx, char **str)
 {
 	char *type, *name;
@@ -188,6 +211,9 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 	DPRINTF("Section<%s>: %s\n", type, name);
 }
 
+/*
+ * parse the 'option' uci command (open a value)
+ */
 static void uci_parse_option(struct uci_context *ctx, char **str)
 {
 	char *name, *value;
@@ -201,6 +227,9 @@ static void uci_parse_option(struct uci_context *ctx, char **str)
 	DPRINTF("\tOption: %s=\"%s\"\n", name, value);
 }
 
+/*
+ * parse a complete input line, split up combined commands by ';'
+ */
 static void uci_parse_line(struct uci_context *ctx)
 {
 	struct uci_parse_context *pctx = ctx->pctx;

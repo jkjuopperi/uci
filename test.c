@@ -1,5 +1,4 @@
 /*
- * libuci - Library for the Unified Configuration Interface
  * Copyright (C) 2008 Felix Fietkau <nbd@openwrt.org>
  *
  * This program is free software; you can redistribute it and/or modify
