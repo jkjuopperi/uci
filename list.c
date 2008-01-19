@@ -35,8 +35,18 @@ static inline void uci_list_add(struct uci_list *head, struct uci_list *ptr)
 	__uci_list_add(head->prev, head, ptr);
 }
 
+static inline void uci_list_del(struct uci_list *ptr)
+{
+	struct uci_list *next, *prev;
 
-static struct uci_config *uci_add_file(struct uci_context *ctx, const char *name)
+	next = ptr->next;
+	prev = ptr->prev;
+
+	prev->next = next;
+	next->prev = prev;
+}
+
+static struct uci_config *uci_alloc_file(struct uci_context *ctx, const char *name)
 {
 	struct uci_config *cfg;
 
@@ -44,7 +54,16 @@ static struct uci_config *uci_add_file(struct uci_context *ctx, const char *name
 	uci_list_init(&cfg->list);
 	uci_list_init(&cfg->sections);
 	cfg->name = uci_strdup(ctx, name);
-	uci_list_add(&ctx->root, &cfg->list);
+	cfg->ctx = ctx;
 
 	return cfg;
+}
+
+static void uci_drop_file(struct uci_config *cfg)
+{
+	/* TODO: free children */
+	uci_list_del(&cfg->list);
+	if (cfg->name)
+		free(cfg->name);
+	free(cfg);
 }

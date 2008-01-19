@@ -89,6 +89,7 @@ struct uci_parse_context
 	int byte;
 
 	/* private: */
+	struct uci_config *cfg;
 	FILE *file;
 	char *buf;
 	int bufsz;

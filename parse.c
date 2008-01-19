@@ -72,6 +72,8 @@ static void uci_parse_cleanup(struct uci_context *ctx)
 	if (!pctx)
 		return;
 
+	if (pctx->cfg)
+		uci_drop_file(pctx->cfg);
 	if (pctx->buf)
 		free(pctx->buf);
 	if (pctx->file)
@@ -277,11 +279,17 @@ int uci_parse(struct uci_context *ctx, const char *name)
 	if (!pctx->file)
 		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 
+	pctx->cfg = uci_alloc_file(ctx, name);
+
 	while (!feof(pctx->file)) {
 		uci_getln(ctx);
 		if (*(pctx->buf))
 			uci_parse_line(ctx);
 	}
+
+	/* add to main config file list */
+	uci_list_add(&ctx->root, &pctx->cfg->list);
+	pctx->cfg = NULL;
 
 	/* if no error happened, we can get rid of the parser context now */
 	uci_parse_cleanup(ctx);
