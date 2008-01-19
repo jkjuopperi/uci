@@ -126,25 +126,47 @@ static char *parse_unquoted(char **str)
 
 	while (**str && !isspace(**str))
 		*str += 1;
-	**str = 0;
-	*str += 1;
+
+	if (**str) {
+		**str = 0;
+		*str += 1;
+	}
 
 	return val;
 }
 
-static char *next_arg(char **str)
+static char *next_arg(struct uci_context *ctx, char **str, bool required)
 {
+	char *val;
 	skip_whitespace(str);
 
 	switch (**str) {
 		case '"':
-			return parse_double_quote(str);
+			val = parse_double_quote(str);
 		case '\'':
-			return parse_single_quote(str);
+			val = parse_single_quote(str);
 		case 0:
-			return NULL;
+			val = NULL;
 		default:
-			return parse_unquoted(str);
+			val = parse_unquoted(str);
+	}
+	
+	if (required && !val) {
+		ctx->pctx->byte = *str - ctx->pctx->buf;
+		UCI_THROW(ctx, UCI_ERR_PARSE);
+	}
+
+	return val;
+}
+
+static void assert_eol(struct uci_context *ctx, char **str)
+{
+	char *tmp;
+
+	tmp = next_arg(ctx, str, false);
+	if (tmp) {
+		ctx->pctx->byte = tmp - ctx->pctx->buf;
+		UCI_THROW(ctx, UCI_ERR_PARSE);
 	}
 }
 
@@ -159,13 +181,10 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 		UCI_THROW(ctx, UCI_ERR_PARSE);
 	}
 
-	type = next_arg(str);
-	if (!type) {
-		ctx->pctx->byte = *str - ctx->pctx->buf;
-		UCI_THROW(ctx, UCI_ERR_PARSE);
-	}
-		
-	name = next_arg(str);
+	type = next_arg(ctx, str, true);
+	name = next_arg(ctx, str, false);
+	assert_eol(ctx, str);	
+
 	DPRINTF("Section<%s>: %s\n", type, name);
 }
 
@@ -175,17 +194,9 @@ static void uci_parse_option(struct uci_context *ctx, char **str)
 	
 	*str += strlen(*str) + 1;
 	
-	name = next_arg(str);
-	if (!name) {
-		ctx->pctx->byte = *str - ctx->pctx->buf;
-		UCI_THROW(ctx, UCI_ERR_PARSE);
-	}
-
-	value = next_arg(str);
-	if (!value) {
-		ctx->pctx->byte = *str - ctx->pctx->buf;
-		UCI_THROW(ctx, UCI_ERR_PARSE);
-	}
+	name = next_arg(ctx, str, true);
+	value = next_arg(ctx, str, true);
+	assert_eol(ctx, str);	
 
 	DPRINTF("\tOption: %s=\"%s\"\n", name, value);
 }
