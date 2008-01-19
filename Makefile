@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-O2 -Wall -pedantic -std=gnu99
+CFLAGS=-O2 -Wall -pedantic -std=gnu99 -Wno-unused -Werror
 
 all: parsetest
 parsetest: libuci.o test.o
