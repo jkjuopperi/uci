@@ -72,8 +72,10 @@ static void uci_parse_cleanup(struct uci_context *ctx)
 	if (!pctx)
 		return;
 
-	if (pctx->cfg)
+	if (pctx->cfg) {
+		uci_list_del(&pctx->cfg->list);
 		uci_drop_file(pctx->cfg);
+	}
 	if (pctx->buf)
 		free(pctx->buf);
 	if (pctx->file)

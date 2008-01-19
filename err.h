@@ -38,7 +38,7 @@
  * functions from other uci functions is only allowed at the end of the
  * calling function.
  */
-#define UCI_HANDLE_ERR(ctx) do { 		\
+#define UCI_HANDLE_ERR(ctx) do {	\
 	int __val;			\
 	if (!ctx)			\
 		return UCI_ERR_INVAL;	\
@@ -48,6 +48,26 @@
 		return __val;		\
 	}				\
 } while (0)
+
+/*
+ * In a block enclosed by UCI_TRAP_SAVE and UCI_TRAP_RESTORE, all exceptions
+ * are intercepted and redirected to the label specified in 'handler'
+ * after UCI_TRAP_RESTORE, or when reaching the 'handler' label, the old
+ * exception handler is restored
+ */
+#define UCI_TRAP_SAVE(ctx, handler) do {   \
+	jmp_buf	__old_trap;		\
+	int __val;			\
+	memcpy(__old_trap, ctx->trap, sizeof(ctx->trap)); \
+	__val = setjmp(ctx->trap);	\
+	if (__val) {			\
+		ctx->errno = __val;	\
+		memcpy(ctx->trap, __old_trap, sizeof(ctx->trap)); \
+		goto handler;		\
+	}
+#define UCI_TRAP_RESTORE(ctx)		\
+	memcpy(ctx->trap, __old_trap, sizeof(ctx->trap)); \
+} while(0)
 
 /*
  * check the specified condition.

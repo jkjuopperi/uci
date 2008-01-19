@@ -46,24 +46,68 @@ static inline void uci_list_del(struct uci_list *ptr)
 	next->prev = prev;
 }
 
-static struct uci_config *uci_alloc_file(struct uci_context *ctx, const char *name)
+static void uci_drop_section(struct uci_section *section)
 {
-	struct uci_config *cfg;
+	if (!section)
+		return;
+	if (section->name)
+		free(section->name);
+	if (section->type)
+		free(section->type);
+	free(section);
+}
 
-	cfg = (struct uci_config *) uci_malloc(ctx, sizeof(struct uci_config));
-	uci_list_init(&cfg->list);
-	uci_list_init(&cfg->sections);
-	cfg->name = uci_strdup(ctx, name);
-	cfg->ctx = ctx;
+static struct uci_section *uci_add_section(struct uci_config *cfg, const char *type, const char *name)
+{
+	struct uci_section *section = NULL;
+	struct uci_context *ctx = cfg->ctx;
 
-	return cfg;
+	UCI_TRAP_SAVE(ctx, error)
+	section = (struct uci_section *) uci_malloc(ctx, sizeof(struct uci_section));
+	section->config = cfg;
+	uci_list_init(&section->list);
+	uci_list_init(&section->options);
+	uci_list_add(&cfg->sections, &section->list);
+	section->type = uci_strdup(ctx, type);
+	if (name)
+		section->name = uci_strdup(ctx, name);
+	UCI_TRAP_RESTORE(ctx);
+
+	return section;
+
+error:
+	uci_drop_section(section);
+	UCI_THROW(ctx, ctx->errno);
+	return NULL;
 }
 
 static void uci_drop_file(struct uci_config *cfg)
 {
 	/* TODO: free children */
-	uci_list_del(&cfg->list);
+	if(!cfg)
+		return;
 	if (cfg->name)
 		free(cfg->name);
 	free(cfg);
 }
+
+
+static struct uci_config *uci_alloc_file(struct uci_context *ctx, const char *name)
+{
+	struct uci_config *cfg = NULL;
+
+	UCI_TRAP_SAVE(ctx, error)
+	cfg = (struct uci_config *) uci_malloc(ctx, sizeof(struct uci_config));
+	uci_list_init(&cfg->list);
+	uci_list_init(&cfg->sections);
+	cfg->name = uci_strdup(ctx, name);
+	cfg->ctx = ctx;
+	UCI_TRAP_RESTORE(ctx);
+	return cfg;
+
+error:
+	uci_drop_file(cfg);
+	UCI_THROW(ctx, ctx->errno);
+	return NULL;
+}
+

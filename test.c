@@ -20,11 +20,11 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Failed to allocate uci context");
 		return 1;
 	}
-	
+
 	if (uci_parse(ctx, argv[1])) {
 		uci_perror(ctx, "uci_parse");
 		return 1;
 	}
-	
+
 	return 0;
 }
