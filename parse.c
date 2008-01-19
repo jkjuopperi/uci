@@ -163,12 +163,16 @@ static char *next_arg(struct uci_context *ctx, char **str, bool required)
 	switch (**str) {
 		case '"':
 			val = parse_double_quote(str);
+			break;
 		case '\'':
 			val = parse_single_quote(str);
+			break;
 		case 0:
 			val = NULL;
+			break;
 		default:
 			val = parse_unquoted(str);
+			break;
 	}
 
 	if (required && !val) {
