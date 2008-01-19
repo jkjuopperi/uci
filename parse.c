@@ -11,7 +11,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
- 
+
 /*
  * This file contains the code for parsing uci config files
  */
@@ -34,7 +34,7 @@ static void uci_getln(struct uci_context *ctx)
 		pctx->buf = uci_malloc(ctx, LINEBUF);
 		pctx->bufsz = LINEBUF;
 	}
-	
+
 	ofs = 0;
 	do {
 		p = &pctx->buf[ofs];
@@ -43,7 +43,7 @@ static void uci_getln(struct uci_context *ctx)
 		p = fgets(p, pctx->bufsz - ofs, pctx->file);
 		if (!p || !p[ofs])
 			return;
-		
+
 		ofs += strlen(p);
 		if (pctx->buf[ofs - 1] == '\n') {
 			pctx->line++;
@@ -67,7 +67,7 @@ static void uci_getln(struct uci_context *ctx)
 static void uci_parse_cleanup(struct uci_context *ctx)
 {
 	struct uci_parse_context *pctx;
-	
+
 	pctx = ctx->pctx;
 	if (!pctx)
 		return;
@@ -96,17 +96,17 @@ static void skip_whitespace(char **str)
 static char *parse_double_quote(char **str)
 {
 	char *val;
-	
+
 	*str += 1;
 	val = *str;
 	while (**str) {
-			
+
 		/* skip escaped characters */
 		if (**str == '\\') {
 			*str += 2;
 			continue;
 		}
-		
+
 		/* check for the end of the quoted string */
 		if (**str == '"') {
 			**str = 0;
@@ -134,7 +134,7 @@ static char *parse_single_quote(char **str)
 static char *parse_unquoted(char **str)
 {
 	char *val;
-	
+
 	val = *str;
 
 	while (**str && !isspace(**str))
@@ -154,8 +154,8 @@ static char *parse_unquoted(char **str)
 static char *next_arg(struct uci_context *ctx, char **str, bool required)
 {
 	char *val;
-	skip_whitespace(str);
 
+	skip_whitespace(str);
 	switch (**str) {
 		case '"':
 			val = parse_double_quote(str);
@@ -166,7 +166,7 @@ static char *next_arg(struct uci_context *ctx, char **str, bool required)
 		default:
 			val = parse_unquoted(str);
 	}
-	
+
 	if (required && !val) {
 		ctx->pctx->byte = *str - ctx->pctx->buf;
 		UCI_THROW(ctx, UCI_ERR_PARSE);
@@ -178,13 +178,13 @@ static char *next_arg(struct uci_context *ctx, char **str, bool required)
 /*
  * verify that the end of the line or command is reached.
  * throw an error if extra arguments are given on the command line
- */ 
+ */
 static void assert_eol(struct uci_context *ctx, char **str)
 {
 	char *tmp;
 
 	tmp = next_arg(ctx, str, false);
-	if (tmp) {
+	if (tmp && *tmp) {
 		ctx->pctx->byte = tmp - ctx->pctx->buf;
 		UCI_THROW(ctx, UCI_ERR_PARSE);
 	}
@@ -196,9 +196,9 @@ static void assert_eol(struct uci_context *ctx, char **str)
 static void uci_parse_config(struct uci_context *ctx, char **str)
 {
 	char *type, *name;
-	
+
 	*str += strlen(*str) + 1;
-	
+
 	if (!*str) {
 		ctx->pctx->byte = *str - ctx->pctx->buf;
 		UCI_THROW(ctx, UCI_ERR_PARSE);
@@ -206,7 +206,7 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 
 	type = next_arg(ctx, str, true);
 	name = next_arg(ctx, str, false);
-	assert_eol(ctx, str);	
+	assert_eol(ctx, str);
 
 	DPRINTF("Section<%s>: %s\n", type, name);
 }
@@ -217,12 +217,12 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 static void uci_parse_option(struct uci_context *ctx, char **str)
 {
 	char *name, *value;
-	
+
 	*str += strlen(*str) + 1;
-	
+
 	name = next_arg(ctx, str, true);
 	value = next_arg(ctx, str, true);
-	assert_eol(ctx, str);	
+	assert_eol(ctx, str);
 
 	DPRINTF("\tOption: %s=\"%s\"\n", name, value);
 }
@@ -234,14 +234,14 @@ static void uci_parse_line(struct uci_context *ctx)
 {
 	struct uci_parse_context *pctx = ctx->pctx;
 	char *word, *brk;
-	
+
 	for (word = strtok_r(pctx->buf, ";", &brk);
 		 word;
 		 word = strtok_r(NULL, ";", &brk)) {
-			
+
 		char *pbrk;
 		word = strtok_r(word, " \t", &pbrk);
-		
+
 		switch(word[0]) {
 			case 'c':
 				if ((word[1] == 0) || !strcmp(word + 1, "onfig"))
@@ -262,7 +262,7 @@ static void uci_parse_line(struct uci_context *ctx)
 int uci_parse(struct uci_context *ctx, const char *name)
 {
 	struct uci_parse_context *pctx;
-	
+
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, name != NULL);
 
@@ -271,7 +271,7 @@ int uci_parse(struct uci_context *ctx, const char *name)
 
 	pctx = (struct uci_parse_context *) uci_malloc(ctx, sizeof(struct uci_parse_context));
 	ctx->pctx = pctx;
-	
+
 	/* TODO: use /etc/config/ */
 	pctx->file = fopen(name, "r");
 	if (!pctx->file)
