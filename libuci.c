@@ -70,7 +70,7 @@
 } while (0)
 
 
-static char *uci_errstr[] = {
+static const char *uci_errstr[] = {
 	[UCI_OK] =           "Success",
 	[UCI_ERR_MEM] =      "Out of memory",
 	[UCI_ERR_INVAL] =    "Invalid argument",
