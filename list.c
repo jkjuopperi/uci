@@ -121,7 +121,7 @@ error:
 	return NULL;
 }
 
-static void uci_drop_file(struct uci_config *cfg)
+static void uci_drop_config(struct uci_config *cfg)
 {
 	struct uci_section *s;
 
@@ -139,7 +139,7 @@ static void uci_drop_file(struct uci_config *cfg)
 }
 
 
-static struct uci_config *uci_alloc_file(struct uci_context *ctx, const char *name)
+static struct uci_config *uci_alloc_config(struct uci_context *ctx, const char *name)
 {
 	struct uci_config *cfg = NULL;
 
@@ -153,9 +153,29 @@ static struct uci_config *uci_alloc_file(struct uci_context *ctx, const char *na
 	return cfg;
 
 error:
-	uci_drop_file(cfg);
+	uci_drop_config(cfg);
 	UCI_THROW(ctx, ctx->errno);
 	return NULL;
+}
+
+int uci_unload(struct uci_context *ctx, const char *name)
+{
+	struct uci_config *cfg;
+
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, name != NULL);
+
+	uci_foreach_entry(config, &ctx->root, cfg) {
+		if (!strcmp(cfg->name, name))
+			goto found;
+	}
+	UCI_THROW(ctx, UCI_ERR_NOTFOUND);
+
+found:
+	uci_list_del(&cfg->list);
+	uci_drop_config(cfg);
+
+	return 0;
 }
 
 char **uci_list_configs(struct uci_context *ctx)

@@ -28,6 +28,12 @@ static void uci_usage(int argc, char **argv)
 	exit(255);
 }
 
+static void uci_show_file(const char *name)
+{
+	uci_load(ctx, name);
+	uci_unload(ctx, name);
+}
+
 static int uci_show(int argc, char **argv)
 {
 	char **configs = uci_list_configs(ctx);
@@ -38,6 +44,7 @@ static int uci_show(int argc, char **argv)
 
 	for (p = configs; *p; p++) {
 		fprintf(stderr, "# config: %s\n", *p);
+		uci_show_file(*p);
 	}
 
 	return 0;

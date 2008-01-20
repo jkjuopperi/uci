@@ -100,7 +100,7 @@ void uci_free(struct uci_context *ctx)
 
 	uci_cleanup(ctx);
 	uci_foreach_entry(config, &ctx->root, cfg) {
-		uci_drop_file(cfg);
+		uci_drop_config(cfg);
 	}
 	free(ctx);
 	return;

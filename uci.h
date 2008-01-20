@@ -70,6 +70,14 @@ extern void uci_perror(struct uci_context *ctx, const char *str);
 extern int uci_load(struct uci_context *ctx, const char *name);
 
 /**
+ * uci_unload: Unload a config file from the uci context
+ *
+ * @ctx: uci context
+ * @name: name of the config file
+ */
+extern int uci_unload(struct uci_context *ctx, const char *name);
+
+/**
  * uci_cleanup: Clean up after an error
  *
  * @ctx: uci context

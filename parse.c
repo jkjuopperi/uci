@@ -80,7 +80,7 @@ static void uci_parse_cleanup(struct uci_context *ctx)
 	ctx->pctx = NULL;
 	if (pctx->cfg) {
 		uci_list_del(&pctx->cfg->list);
-		uci_drop_file(pctx->cfg);
+		uci_drop_config(pctx->cfg);
 	}
 	if (pctx->buf)
 		free(pctx->buf);
@@ -314,6 +314,11 @@ int uci_load(struct uci_context *ctx, const char *name)
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, name != NULL);
 
+	UCI_TRAP_SAVE(ctx, ignore);
+	uci_unload(ctx, name);
+	UCI_TRAP_RESTORE(ctx);
+
+ignore:
 	/* make sure no memory from previous parse attempts is leaked */
 	uci_parse_cleanup(ctx);
 
@@ -345,7 +350,7 @@ int uci_load(struct uci_context *ctx, const char *name)
 	if (!pctx->file)
 		UCI_THROW(ctx, UCI_ERR_IO);
 
-	pctx->cfg = uci_alloc_file(ctx, name);
+	pctx->cfg = uci_alloc_config(ctx, name);
 
 	while (!feof(pctx->file)) {
 		uci_getln(ctx);
