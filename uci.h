@@ -84,8 +84,6 @@ struct uci_context
 	/* private: */
 	int errno;
 	jmp_buf trap;
-	jmp_buf trap_saved;
-	int saved;
 };
 
 struct uci_parse_context
