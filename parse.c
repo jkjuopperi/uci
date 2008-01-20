@@ -16,7 +16,10 @@
  * This file contains the code for parsing uci config files
  */
 
+#include <sys/types.h>
 #include <sys/stat.h>
+#include <stdbool.h>
+#include <stdio.h>
 #include <ctype.h>
 
 #define LINEBUF	128
@@ -95,62 +98,107 @@ static void skip_whitespace(char **str)
 		*str += 1;
 }
 
+static inline void addc(char **dest, char **src)
+{
+	**dest = **src;
+	*dest += 1;
+	*src += 1;
+}
+
+static inline void parse_backslash(char **str, char **target)
+{
+	/* skip backslash */
+	*str += 1;
+	/* FIXME: decode escaped characters? */
+	addc(target, str);
+}
+
 /*
  * parse a double quoted string argument from the command line
  */
-static char *parse_double_quote(char **str)
+static void parse_double_quote(struct uci_context *ctx, char **str, char **target)
 {
-	char *val;
+	char c;
 
+	/* skip quote character */
 	*str += 1;
-	val = *str;
-	while (**str) {
 
-		/* skip escaped characters */
-		if (**str == '\\') {
-			*str += 2;
+	while ((c = **str)) {
+		switch(c) {
+		case '\\':
+			parse_backslash(str, target);
 			continue;
-		}
-
-		/* check for the end of the quoted string */
-		if (**str == '"') {
-			**str = 0;
+		case '"':
+			**target = 0;
 			*str += 1;
-			return val;
+			return;
+		default:
+			addc(target, str);
+			break;
 		}
-		*str += 1;
 	}
-
-	return NULL;
+	ctx->pctx->byte = *str - ctx->pctx->buf;
+	UCI_THROW(ctx, UCI_ERR_PARSE);
 }
 
 /*
  * parse a single quoted string argument from the command line
  */
-static char *parse_single_quote(char **str)
+static void parse_single_quote(struct uci_context *ctx, char **str, char **target)
 {
-	/* TODO: implement */
-	return NULL;
+	char c;
+	/* skip quote character */
+	*str += 1;
+
+	while ((c = **str)) {
+		switch(c) {
+		case '\'':
+			**target = 0;
+			*str += 1;
+			return;
+		default:
+			addc(target, str);
+		}
+	}
+	ctx->pctx->byte = *str - ctx->pctx->buf;
+	UCI_THROW(ctx, UCI_ERR_PARSE);
 }
 
 /*
- * extract the next word from the command line (unquoted argument)
+ * parse a string from the command line and detect the quoting style
  */
-static char *parse_unquoted(char **str)
+static void parse_str(struct uci_context *ctx, char **str, char **target)
 {
-	char *val;
+	do {
+		switch(**str) {
+		case '\\':
+			parse_backslash(str, target);
+			continue;
+		case '\'':
+			parse_single_quote(ctx, str, target);
+			break;
+		case '"':
+			parse_double_quote(ctx, str, target);
+			break;
+		case 0:
+			goto done;
+		default:
+			addc(target, str);
+			break;
+		}
+	} while (**str && !isspace(**str));
+done:
 
-	val = *str;
-
-	while (**str && !isspace(**str))
+	/* 
+	 * if the string was unquoted and we've stopped at a whitespace
+	 * character, skip to the next one, because the whitespace will
+	 * be overwritten by a null byte here
+	 */
+	if (**str)
 		*str += 1;
 
-	if (**str) {
-		**str = 0;
-		*str += 1;
-	}
-
-	return val;
+	/* terminate the parsed string */
+	**target = 0;
 }
 
 /*
@@ -159,29 +207,17 @@ static char *parse_unquoted(char **str)
 static char *next_arg(struct uci_context *ctx, char **str, bool required)
 {
 	char *val;
+	char *ptr;
 
+	val = ptr = *str;
 	skip_whitespace(str);
-	switch (**str) {
-		case '"':
-			val = parse_double_quote(str);
-			break;
-		case '\'':
-			val = parse_single_quote(str);
-			break;
-		case 0:
-			val = NULL;
-			break;
-		default:
-			val = parse_unquoted(str);
-			break;
-	}
-
-	if (required && !val) {
+	parse_str(ctx, str, &ptr);
+	if (required && !*val) {
 		ctx->pctx->byte = *str - ctx->pctx->buf;
 		UCI_THROW(ctx, UCI_ERR_PARSE);
 	}
 
-	return val;
+	return uci_strdup(ctx, val);
 }
 
 /*
@@ -216,8 +252,6 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 	type = next_arg(ctx, str, true);
 	name = next_arg(ctx, str, false);
 	assert_eol(ctx, str);
-
-	DPRINTF("Section<%s>: %s\n", type, name);
 }
 
 /*
@@ -273,6 +307,7 @@ int uci_load(struct uci_context *ctx, const char *name)
 	struct uci_parse_context *pctx;
 	struct stat statbuf;
 	char *filename;
+	bool confpath;
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, name != NULL);
@@ -288,10 +323,12 @@ int uci_load(struct uci_context *ctx, const char *name)
 	case '/':
 		/* absolute/relative path outside of /etc/config */
 		filename = (char *) name;
+		confpath = false;
 		break;
 	default:
 		filename = uci_malloc(ctx, strlen(name) + sizeof(UCI_CONFDIR) + 2);
 		sprintf(filename, UCI_CONFDIR "/%s", name);
+		confpath = true;
 		break;
 	}
 
@@ -300,6 +337,9 @@ int uci_load(struct uci_context *ctx, const char *name)
 		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 
 	pctx->file = fopen(filename, "r");
+	if (filename != name)
+		free(filename);
+
 	if (!pctx->file)
 		UCI_THROW(ctx, UCI_ERR_IO);
 
@@ -307,7 +347,7 @@ int uci_load(struct uci_context *ctx, const char *name)
 
 	while (!feof(pctx->file)) {
 		uci_getln(ctx);
-		if (*(pctx->buf))
+		if (pctx->buf[0])
 			uci_parse_line(ctx);
 	}
 
@@ -315,10 +355,9 @@ int uci_load(struct uci_context *ctx, const char *name)
 	uci_list_add(&ctx->root, &pctx->cfg->list);
 	pctx->cfg = NULL;
 
-	/* if no error happened, we can get rid of the parser context now */
+	/* no error happened, we can get rid of the parser context now */
 	uci_parse_cleanup(ctx);
 
 	return 0;
 }
-
 
