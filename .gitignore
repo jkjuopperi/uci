@@ -1,3 +1,4 @@
 uci
 *.[oa]
 .*.swp
+.gdb*
