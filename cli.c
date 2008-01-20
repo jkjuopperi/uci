@@ -28,10 +28,32 @@ static void uci_usage(int argc, char **argv)
 	exit(255);
 }
 
+static void uci_show_section(struct uci_section *p)
+{
+	struct uci_option *o;
+	const char *cname, *sname;
+
+	cname = p->config->name;
+	sname = p->name;
+	uci_foreach_entry(option, &p->options, o) {
+		printf("%s.%s.%s=%s\n", cname, sname, o->name, o->value);
+	}
+}
+
 static void uci_show_file(const char *name)
 {
 	struct uci_config *cfg;
-	uci_load(ctx, name, &cfg);
+	struct uci_section *p;
+
+	if (uci_load(ctx, name, &cfg) != UCI_OK) {
+		uci_perror(ctx, "uci_load");
+		return;
+	}
+
+	uci_list_empty(&cfg->sections);
+	uci_foreach_entry(section, &cfg->sections, p) {
+		uci_show_section(p);
+	}
 	uci_unload(ctx, name);
 }
 

@@ -24,10 +24,10 @@ static inline void uci_list_init(struct uci_list *ptr)
 /* inserts a new list entry between two consecutive entries */
 static inline void __uci_list_add(struct uci_list *prev, struct uci_list *next, struct uci_list *ptr)
 {
-	prev->next = ptr;
 	next->prev = ptr;
 	ptr->prev = prev;
 	ptr->next = next;
+	prev->next = ptr;
 }
 
 /* inserts a new list entry at the tail of the list */
@@ -71,6 +71,7 @@ static struct uci_option *uci_add_option(struct uci_section *section, const char
 	option->value = uci_strdup(ctx, value);
 	uci_list_add(&section->options, &option->list);
 	UCI_TRAP_RESTORE(ctx);
+	return option;
 
 error:
 	uci_drop_option(option);
@@ -178,6 +179,17 @@ found:
 	return 0;
 }
 
+static inline char *get_filename(char *path)
+{
+	char *p;
+
+	p = strrchr(path, '/');
+	p++;
+	if (!*p)
+		return NULL;
+	return p;
+}
+
 char **uci_list_configs(struct uci_context *ctx)
 {
 	char **configs;
@@ -189,8 +201,15 @@ char **uci_list_configs(struct uci_context *ctx)
 		return NULL;
 
 	size = sizeof(char *) * (globbuf.gl_pathc + 1);
-	for(i = 0; i < globbuf.gl_pathc; i++)
-		size += strlen(globbuf.gl_pathv[i]) + 1;
+	for(i = 0; i < globbuf.gl_pathc; i++) {
+		char *p;
+
+		p = get_filename(globbuf.gl_pathv[i]);
+		if (!p)
+			continue;
+
+		size += strlen(p) + 1;
+	}
 
 	configs = malloc(size);
 	if (!configs)
@@ -199,8 +218,14 @@ char **uci_list_configs(struct uci_context *ctx)
 	memset(configs, 0, size);
 	buf = (char *) &configs[globbuf.gl_pathc + 1];
 	for(i = 0; i < globbuf.gl_pathc; i++) {
+		char *p;
+
+		p = get_filename(globbuf.gl_pathv[i]);
+		if (!p)
+			continue;
+
 		configs[i] = buf;
-		strcpy(buf, globbuf.gl_pathv[i]);
+		strcpy(buf, p);
 		buf += strlen(buf) + 1;
 	}
 	return configs;

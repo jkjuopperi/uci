@@ -246,14 +246,26 @@ static void assert_eol(struct uci_context *ctx, char **str)
  */
 static void uci_parse_config(struct uci_context *ctx, char **str)
 {
-	char *type, *name;
+	char *name = NULL;
+	char *type = NULL;
 
 	/* command string null-terminated by strtok */
 	*str += strlen(*str) + 1;
 
+	UCI_TRAP_SAVE(ctx, error);
 	type = next_arg(ctx, str, true);
 	name = next_arg(ctx, str, false);
 	assert_eol(ctx, str);
+	ctx->pctx->section = uci_add_section(ctx->pctx->cfg, type, name);
+	UCI_TRAP_RESTORE(ctx);
+	return;
+
+error:
+	if (name)
+		free(name);
+	if (type)
+		free(type);
+	UCI_THROW(ctx, ctx->errno);
 }
 
 /*
@@ -261,14 +273,31 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
  */
 static void uci_parse_option(struct uci_context *ctx, char **str)
 {
-	char *name, *value;
+	char *name = NULL;
+	char *value = NULL;
 
+	if (!ctx->pctx->section) {
+		ctx->pctx->byte = *str - ctx->pctx->buf;
+		ctx->pctx->reason = "option command found before the first section";
+		UCI_THROW(ctx, UCI_ERR_PARSE);
+	}
 	/* command string null-terminated by strtok */
 	*str += strlen(*str) + 1;
 
+	UCI_TRAP_SAVE(ctx, error);
 	name = next_arg(ctx, str, true);
 	value = next_arg(ctx, str, true);
 	assert_eol(ctx, str);
+	uci_add_option(ctx->pctx->section, name, value);
+	UCI_TRAP_RESTORE(ctx);
+	return;
+
+error:
+	if (name)
+		free(name);
+	if (value)
+		free(value);
+	UCI_THROW(ctx, ctx->errno);
 }
 
 /*
@@ -319,6 +348,8 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_config **cfg)
 	UCI_TRAP_RESTORE(ctx);
 
 ignore:
+	ctx->errno = 0;
+
 	/* make sure no memory from previous parse attempts is leaked */
 	uci_parse_cleanup(ctx);
 
@@ -340,8 +371,9 @@ ignore:
 	}
 
 	if ((stat(filename, &statbuf) < 0) ||
-		((statbuf.st_mode &  S_IFMT) != S_IFREG))
+		((statbuf.st_mode &  S_IFMT) != S_IFREG)) {
 		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
+	}
 
 	pctx->file = fopen(filename, "r");
 	if (filename != name)

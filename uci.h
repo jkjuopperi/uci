@@ -112,6 +112,7 @@ struct uci_parse_context
 
 	/* private: */
 	struct uci_config *cfg;
+	struct uci_section *section;
 	FILE *file;
 	char *buf;
 	char *reason;
@@ -148,7 +149,7 @@ struct uci_option
 #define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 #endif
 
-#define uci_list_empty(list) (list->next == ptr)
+#define uci_list_empty(list) ((list)->next == (list))
 #define uci_list_entry(_type, _ptr) \
 	((struct uci_ ## _type *) ((char *)(_ptr) - offsetof(struct uci_ ## _type,list)))
 
