@@ -304,7 +304,7 @@ static void uci_parse_line(struct uci_context *ctx)
 	}
 }
 
-int uci_load(struct uci_context *ctx, const char *name)
+int uci_load(struct uci_context *ctx, const char *name, struct uci_config **cfg)
 {
 	struct uci_parse_context *pctx;
 	struct stat statbuf;
@@ -360,6 +360,9 @@ ignore:
 
 	/* add to main config file list */
 	uci_list_add(&ctx->root, &pctx->cfg->list);
+	if (cfg)
+		*cfg = pctx->cfg;
+
 	pctx->cfg = NULL;
 
 	/* no error happened, we can get rid of the parser context now */

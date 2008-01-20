@@ -30,7 +30,8 @@ static void uci_usage(int argc, char **argv)
 
 static void uci_show_file(const char *name)
 {
-	uci_load(ctx, name);
+	struct uci_config *cfg;
+	uci_load(ctx, name, &cfg);
 	uci_unload(ctx, name);
 }
 
