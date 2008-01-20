@@ -97,6 +97,7 @@ struct uci_parse_context
 	struct uci_config *cfg;
 	FILE *file;
 	char *buf;
+	char *reason;
 	int bufsz;
 };
 

@@ -56,6 +56,7 @@ static void uci_getln(struct uci_context *ctx)
 		}
 
 		if (pctx->bufsz > LINEBUF_MAX/2) {
+			pctx->reason = "line too long";
 			pctx->byte = LINEBUF_MAX;
 			UCI_THROW(ctx, UCI_ERR_PARSE);
 		}
@@ -137,6 +138,7 @@ static void parse_double_quote(struct uci_context *ctx, char **str, char **targe
 			break;
 		}
 	}
+	ctx->pctx->reason = "unterminated \"";
 	ctx->pctx->byte = *str - ctx->pctx->buf;
 	UCI_THROW(ctx, UCI_ERR_PARSE);
 }
@@ -160,6 +162,7 @@ static void parse_single_quote(struct uci_context *ctx, char **str, char **targe
 			addc(target, str);
 		}
 	}
+	ctx->pctx->reason = "unterminated '";
 	ctx->pctx->byte = *str - ctx->pctx->buf;
 	UCI_THROW(ctx, UCI_ERR_PARSE);
 }
@@ -213,6 +216,7 @@ static char *next_arg(struct uci_context *ctx, char **str, bool required)
 	skip_whitespace(str);
 	parse_str(ctx, str, &ptr);
 	if (required && !*val) {
+		ctx->pctx->reason = "insufficient arguments";
 		ctx->pctx->byte = *str - ctx->pctx->buf;
 		UCI_THROW(ctx, UCI_ERR_PARSE);
 	}
@@ -230,6 +234,7 @@ static void assert_eol(struct uci_context *ctx, char **str)
 
 	tmp = next_arg(ctx, str, false);
 	if (tmp && *tmp) {
+		ctx->pctx->reason = "too many arguments";
 		ctx->pctx->byte = tmp - ctx->pctx->buf;
 		UCI_THROW(ctx, UCI_ERR_PARSE);
 	}
@@ -242,16 +247,14 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 {
 	char *type, *name;
 
+	/* command string null-terminated by strtok */
 	*str += strlen(*str) + 1;
-
-	if (!*str) {
-		ctx->pctx->byte = *str - ctx->pctx->buf;
-		UCI_THROW(ctx, UCI_ERR_PARSE);
-	}
 
 	type = next_arg(ctx, str, true);
 	name = next_arg(ctx, str, false);
 	assert_eol(ctx, str);
+
+	DPRINTF("Section<%s>: %s\n", type, name);
 }
 
 /*
@@ -261,6 +264,7 @@ static void uci_parse_option(struct uci_context *ctx, char **str)
 {
 	char *name, *value;
 
+	/* command string null-terminated by strtok */
 	*str += strlen(*str) + 1;
 
 	name = next_arg(ctx, str, true);
@@ -295,6 +299,7 @@ static void uci_parse_line(struct uci_context *ctx)
 					uci_parse_option(ctx, &word);
 				break;
 			default:
+				pctx->reason = "unterminated command";
 				pctx->byte = word - pctx->buf;
 				UCI_THROW(ctx, UCI_ERR_PARSE);
 				break;

@@ -116,7 +116,7 @@ void uci_perror(struct uci_context *ctx, const char *str)
 	switch (err) {
 	case UCI_ERR_PARSE:
 		if (ctx->pctx) {
-			fprintf(stderr, "%s: %s at line %d, byte %d\n", str, uci_errstr[err], ctx->pctx->line, ctx->pctx->byte);
+			fprintf(stderr, "%s: %s (%s) at line %d, byte %d\n", str, uci_errstr[err], (ctx->pctx->reason ? ctx->pctx->reason : "unknown"), ctx->pctx->line, ctx->pctx->byte);
 			break;
 		}
 		/* fall through */
