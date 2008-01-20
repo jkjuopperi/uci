@@ -21,7 +21,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "libuci.h"
+#include "uci.h"
 
 #define DEBUG
 #include "err.h"
@@ -31,6 +31,7 @@ static const char *uci_errstr[] = {
 	[UCI_ERR_MEM] =      "Out of memory",
 	[UCI_ERR_INVAL] =    "Invalid argument",
 	[UCI_ERR_NOTFOUND] = "Entry not found",
+	[UCI_ERR_IO] =       "I/O error",
 	[UCI_ERR_PARSE] =    "Parse error",
 	[UCI_ERR_UNKNOWN] =  "Unknown error",
 };

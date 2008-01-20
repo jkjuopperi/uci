@@ -18,12 +18,15 @@
 #include <setjmp.h>
 #include <stdio.h>
 
+#define UCI_CONFDIR "/etc/config"
+
 enum
 {
 	UCI_OK = 0,
 	UCI_ERR_MEM,
 	UCI_ERR_INVAL,
 	UCI_ERR_NOTFOUND,
+	UCI_ERR_IO,
 	UCI_ERR_PARSE,
 	UCI_ERR_UNKNOWN,
 	UCI_ERR_LAST
@@ -54,12 +57,12 @@ extern struct uci_context *uci_alloc(void);
 extern void uci_perror(struct uci_context *ctx, const char *str);
 
 /**
- * uci_parse: Parse an uci config file and store it in the uci context
+ * uci_load: Parse an uci config file and store it in the uci context
  *
  * @ctx: uci context
  * @name: name of the config file (relative to the config directory)
  */
-int uci_parse(struct uci_context *ctx, const char *name);
+int uci_load(struct uci_context *ctx, const char *name);
 
 /**
  * uci_cleanup: Clean up after an error

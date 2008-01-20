@@ -16,6 +16,7 @@
  * This file contains the code for parsing uci config files
  */
 
+#include <sys/stat.h>
 #include <ctype.h>
 
 #define LINEBUF	128
@@ -267,9 +268,11 @@ static void uci_parse_line(struct uci_context *ctx)
 	}
 }
 
-int uci_parse(struct uci_context *ctx, const char *name)
+int uci_load(struct uci_context *ctx, const char *name)
 {
 	struct uci_parse_context *pctx;
+	struct stat statbuf;
+	char *filename;
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, name != NULL);
@@ -280,10 +283,25 @@ int uci_parse(struct uci_context *ctx, const char *name)
 	pctx = (struct uci_parse_context *) uci_malloc(ctx, sizeof(struct uci_parse_context));
 	ctx->pctx = pctx;
 
-	/* TODO: use /etc/config/ */
-	pctx->file = fopen(name, "r");
-	if (!pctx->file)
+	switch (name[0]) {
+	case '.':
+	case '/':
+		/* absolute/relative path outside of /etc/config */
+		filename = (char *) name;
+		break;
+	default:
+		filename = uci_malloc(ctx, strlen(name) + sizeof(UCI_CONFDIR) + 2);
+		sprintf(filename, UCI_CONFDIR "/%s", name);
+		break;
+	}
+
+	if ((stat(filename, &statbuf) < 0) ||
+		((statbuf.st_mode &  S_IFMT) != S_IFREG))
 		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
+
+	pctx->file = fopen(filename, "r");
+	if (!pctx->file)
+		UCI_THROW(ctx, UCI_ERR_IO);
 
 	pctx->cfg = uci_alloc_file(ctx, name);
 

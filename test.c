@@ -10,7 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#include "libuci.h"
+#include "uci.h"
 
 int main(int argc, char **argv)
 {
@@ -21,7 +21,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	if (uci_parse(ctx, argv[1])) {
+	if (uci_load(ctx, argv[1])) {
 		uci_perror(ctx, "uci_parse");
 		return 1;
 	}
