@@ -12,6 +12,8 @@
  * GNU General Public License for more details.
  */
 
+#include <glob.h>
+
 /* initialize a list head/item */
 static inline void uci_list_init(struct uci_list *ptr)
 {
@@ -154,5 +156,33 @@ error:
 	uci_drop_file(cfg);
 	UCI_THROW(ctx, ctx->errno);
 	return NULL;
+}
+
+char **uci_list_configs(struct uci_context *ctx)
+{
+	char **configs;
+	glob_t globbuf;
+	int size, i;
+	char *buf;
+
+	if (glob(UCI_CONFDIR "/*", GLOB_MARK, NULL, &globbuf) != 0)
+		return NULL;
+
+	size = sizeof(char *) * (globbuf.gl_pathc + 1);
+	for(i = 0; i < globbuf.gl_pathc; i++)
+		size += strlen(globbuf.gl_pathv[i]) + 1;
+
+	configs = malloc(size);
+	if (!configs)
+		return NULL;
+
+	memset(configs, 0, size);
+	buf = (char *) &configs[globbuf.gl_pathc + 1];
+	for(i = 0; i < globbuf.gl_pathc; i++) {
+		configs[i] = buf;
+		strcpy(buf, globbuf.gl_pathv[i]);
+		buf += strlen(buf) + 1;
+	}
+	return configs;
 }
 

@@ -50,6 +50,11 @@ struct uci_parse_context;
 extern struct uci_context *uci_alloc(void);
 
 /**
+ * uci_free: Free the uci context including all of its data
+ */
+extern void uci_free(struct uci_context *ctx);
+
+/**
  * uci_perror: Print the last uci error that occured
  * @ctx: uci context
  * @str: string to print before the error message
@@ -62,15 +67,21 @@ extern void uci_perror(struct uci_context *ctx, const char *str);
  * @ctx: uci context
  * @name: name of the config file (relative to the config directory)
  */
-int uci_load(struct uci_context *ctx, const char *name);
+extern int uci_load(struct uci_context *ctx, const char *name);
 
 /**
  * uci_cleanup: Clean up after an error
  *
  * @ctx: uci context
  */
-int uci_cleanup(struct uci_context *ctx);
+extern int uci_cleanup(struct uci_context *ctx);
 
+/**
+ * uci_list_configs: List available uci config files
+ *
+ * @ctx: uci context
+ */
+extern char **uci_list_configs(struct uci_context *ctx);
 
 /* UCI data structures */
 

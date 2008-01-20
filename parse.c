@@ -253,8 +253,6 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 	type = next_arg(ctx, str, true);
 	name = next_arg(ctx, str, false);
 	assert_eol(ctx, str);
-
-	DPRINTF("Section<%s>: %s\n", type, name);
 }
 
 /*
@@ -270,8 +268,6 @@ static void uci_parse_option(struct uci_context *ctx, char **str)
 	name = next_arg(ctx, str, true);
 	value = next_arg(ctx, str, true);
 	assert_eol(ctx, str);
-
-	DPRINTF("\tOption: %s=\"%s\"\n", name, value);
 }
 
 /*

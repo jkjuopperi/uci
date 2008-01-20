@@ -1,12 +1,21 @@
-CC=gcc
-CFLAGS=-g -O2 -Wall -pedantic -std=gnu99 -Wno-unused -Werror
+COPTS=-g -O2
+CFLAGS=$(COPTS) -Wall -pedantic -std=gnu99 -Wno-unused -Werror
 
-all: parsetest
-parsetest: libuci.o test.o
+AR=ar
+CC=gcc
+RANLIB=ranlib
+
+all: uci
+
+cli.o: cli.c uci.h
+uci: cli.o libuci.a
 	$(CC) $(CFLAGS) -o $@ $^
 
 libuci.o: libuci.c parse.c uci.h list.c err.h
-test.o: test.c uci.h
+libuci.a: libuci.o
+	rm -f $@
+	$(AR) rc $@ $^
+	$(RANLIB) $@
 
 clean:
-	rm -f parsetest *.o
+	rm -f uci *.[oa]

@@ -94,6 +94,18 @@ struct uci_context *uci_alloc(void)
 	return ctx;
 }
 
+void uci_free(struct uci_context *ctx)
+{
+	struct uci_config *cfg;
+
+	uci_cleanup(ctx);
+	uci_foreach_entry(config, &ctx->root, cfg) {
+		uci_drop_file(cfg);
+	}
+	free(ctx);
+	return;
+}
+
 int uci_cleanup(struct uci_context *ctx)
 {
 	UCI_HANDLE_ERR(ctx);
