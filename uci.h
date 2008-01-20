@@ -89,7 +89,7 @@ extern int uci_cleanup(struct uci_context *ctx);
  *
  * @ctx: uci context
  */
-extern char **uci_list_configs(struct uci_context *ctx);
+extern char **uci_list_configs();
 
 /* UCI data structures */
 

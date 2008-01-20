@@ -190,7 +190,7 @@ static inline char *get_filename(char *path)
 	return p;
 }
 
-char **uci_list_configs(struct uci_context *ctx)
+char **uci_list_configs()
 {
 	char **configs;
 	glob_t globbuf;

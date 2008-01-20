@@ -59,7 +59,7 @@ static void uci_show_file(const char *name)
 
 static int uci_show(int argc, char **argv)
 {
-	char **configs = uci_list_configs(ctx);
+	char **configs = uci_list_configs();
 	char **p;
 
 	if (!configs)
