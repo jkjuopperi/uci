@@ -84,7 +84,7 @@ static void uci_export_section(struct uci_section *p)
 	struct uci_option *o;
 	const char *name;
 
-	printf("config '%s'", uci_escape(p->type));
+	printf("\nconfig '%s'", uci_escape(p->type));
 	printf(" '%s'\n", uci_escape(p->name));
 	uci_foreach_entry(option, &p->options, o) {
 		printf("\toption '%s'", uci_escape(o->name));
@@ -92,21 +92,22 @@ static void uci_export_section(struct uci_section *p)
 	}
 }
 
-static void foreach_section(const char *name, void (*callback)(struct uci_section *))
+static void foreach_section(const char *configname, const char *section, void (*callback)(struct uci_section *))
 {
 	struct uci_config *cfg;
 	struct uci_section *p;
 
-	if (uci_load(ctx, name, &cfg) != UCI_OK) {
+	if (uci_load(ctx, configname, &cfg) != UCI_OK) {
 		uci_perror(ctx, "uci_load");
 		return;
 	}
 
 	uci_list_empty(&cfg->sections);
 	uci_foreach_entry(section, &cfg->sections, p) {
-		callback(p);
+		if (!section || !strcmp(p->name, section))
+			callback(p);
 	}
-	uci_unload(ctx, name);
+	uci_unload(ctx, configname);
 }
 
 static int uci_show(int argc, char **argv)
@@ -118,8 +119,8 @@ static int uci_show(int argc, char **argv)
 		return 0;
 
 	for (p = configs; *p; p++) {
-		fprintf(stderr, "# config: %s\n", *p);
-		foreach_section(*p, uci_show_section);
+		if ((argc < 2) || !strcmp(argv[1], *p))
+			foreach_section(*p, (argc > 2 ? argv[2] : NULL), uci_show_section);
 	}
 
 	return 0;
@@ -134,7 +135,11 @@ static int uci_export(int argc, char **argv)
 		return 0;
 
 	for (p = configs; *p; p++) {
-		foreach_section(*p, uci_export_section);
+		if ((argc < 2) || !strcmp(argv[1], *p)) {
+			printf("package '%s'\n", uci_escape(*p));
+			foreach_section(*p, NULL, uci_export_section);
+			printf("\n");
+		}
 	}
 	return 0;
 }
