@@ -1,0 +1,2 @@
+config 'foo'\''' 'cfg1'
+	option 'bar' 'baz'

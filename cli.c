@@ -15,17 +15,55 @@
 #include "uci.h"
 
 static struct uci_context *ctx;
+static char *buf = NULL;
+static int buflen = 256;
 
 static void uci_usage(int argc, char **argv)
 {
 	fprintf(stderr,
-		"Usage: %s [options] <command> [arguments]\n\n"
+		"Usage: %s [<options>] <command> [<arguments>]\n\n"
 		"Commands:\n"
 		"\tshow [<config>[.<section>[.<option>]]]\n"
+		"\texport [<config>]\n"
 		"\n",
 		argv[0]
 	);
 	exit(255);
+}
+
+static char *uci_escape(char *str)
+{
+	char *s, *p, *t;
+	int pos = 0;
+
+	if (!buf)
+		buf = malloc(buflen);
+
+	s = str;
+	p = strchr(str, '\'');
+	if (!p)
+		return str;
+
+	do {
+		int len = p - s;
+		if (len > 0) {
+			if (p + 3 - str >= buflen) {
+				buflen *= 2;
+				buf = realloc(buf, buflen);
+				if (!buf) {
+					fprintf(stderr, "Out of memory\n");
+					exit(255);
+				}
+			}
+			memcpy(&buf[pos], s, len);
+			pos += len;
+		}
+		strcpy(&buf[pos], "'\\''");
+		pos += 3;
+		s = p + 1;
+	} while ((p = strchr(s, '\'')));
+
+	return buf;
 }
 
 static void uci_show_section(struct uci_section *p)
@@ -41,7 +79,20 @@ static void uci_show_section(struct uci_section *p)
 	}
 }
 
-static void uci_show_file(const char *name)
+static void uci_export_section(struct uci_section *p)
+{
+	struct uci_option *o;
+	const char *name;
+
+	printf("config '%s'", uci_escape(p->type));
+	printf(" '%s'\n", uci_escape(p->name));
+	uci_foreach_entry(option, &p->options, o) {
+		printf("\toption '%s'", uci_escape(o->name));
+		printf(" '%s'\n", uci_escape(o->value));
+	}
+}
+
+static void foreach_section(const char *name, void (*callback)(struct uci_section *))
 {
 	struct uci_config *cfg;
 	struct uci_section *p;
@@ -53,7 +104,7 @@ static void uci_show_file(const char *name)
 
 	uci_list_empty(&cfg->sections);
 	uci_foreach_entry(section, &cfg->sections, p) {
-		uci_show_section(p);
+		callback(p);
 	}
 	uci_unload(ctx, name);
 }
@@ -68,17 +119,33 @@ static int uci_show(int argc, char **argv)
 
 	for (p = configs; *p; p++) {
 		fprintf(stderr, "# config: %s\n", *p);
-		uci_show_file(*p);
+		foreach_section(*p, uci_show_section);
 	}
 
+	return 0;
+}
+
+static int uci_export(int argc, char **argv)
+{
+	char **configs = uci_list_configs();
+	char **p;
+
+	if (!configs)
+		return 0;
+
+	for (p = configs; *p; p++) {
+		foreach_section(*p, uci_export_section);
+	}
 	return 0;
 }
 
 static int uci_cmd(int argc, char **argv)
 {
 	if (!strcasecmp(argv[0], "show"))
-		uci_show(argc, argv);
-	return 0;
+		return uci_show(argc, argv);
+	if (!strcasecmp(argv[0], "export"))
+		return uci_export(argc, argv);
+	return 255;
 }
 
 int main(int argc, char **argv)
@@ -89,6 +156,8 @@ int main(int argc, char **argv)
 	if (argc < 2)
 		uci_usage(argc, argv);
 	ret = uci_cmd(argc - 1, argv + 1);
+	if (ret == 255)
+		uci_usage(argc, argv);
 	uci_free(ctx);
 
 	return ret;
