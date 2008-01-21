@@ -36,7 +36,8 @@
  *
  * NB: this does not handle recursion at all. Calling externally visible
  * functions from other uci functions is only allowed at the end of the
- * calling function.
+ * calling function, or by wrapping the function call in UCI_TRAP_SAVE
+ * and UCI_TRAP_RESTORE.
  */
 #define UCI_HANDLE_ERR(ctx) do {	\
 	int __val;			\
