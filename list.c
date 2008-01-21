@@ -104,13 +104,16 @@ static struct uci_section *uci_add_section(struct uci_config *cfg, const char *t
 	struct uci_context *ctx = cfg->ctx;
 
 	UCI_TRAP_SAVE(ctx, error);
+	cfg->n_section++;
 	section = (struct uci_section *) uci_malloc(ctx, sizeof(struct uci_section));
 	section->config = cfg;
 	uci_list_init(&section->list);
 	uci_list_init(&section->options);
 	section->type = uci_strdup(ctx, type);
-	if (name)
+	if (name && name[0])
 		section->name = uci_strdup(ctx, name);
+	else
+		asprintf(&section->name, "cfg%d", cfg->n_section);
 	uci_list_add(&cfg->sections, &section->list);
 	UCI_TRAP_RESTORE(ctx);
 

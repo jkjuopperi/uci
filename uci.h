@@ -125,6 +125,8 @@ struct uci_config
 	struct uci_list sections;
 	struct uci_context *ctx;
 	char *name;
+	/* private: */
+	int n_section;
 };
 
 struct uci_section

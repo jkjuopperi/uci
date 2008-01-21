@@ -35,6 +35,7 @@ static void uci_show_section(struct uci_section *p)
 
 	cname = p->config->name;
 	sname = p->name;
+	printf("%s.%s=%s\n", cname, sname, p->type);
 	uci_foreach_entry(option, &p->options, o) {
 		printf("%s.%s.%s=%s\n", cname, sname, o->name, o->value);
 	}
