@@ -79,7 +79,7 @@ static char *uci_strdup(struct uci_context *ctx, const char *str)
 }
 
 #include "list.c"
-#include "parse.c"
+#include "file.c"
 
 /* externally visible functions */
 

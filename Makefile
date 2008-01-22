@@ -11,7 +11,7 @@ cli.o: cli.c uci.h
 uci: cli.o libuci.a
 	$(CC) $(CFLAGS) -o $@ $^
 
-libuci.o: libuci.c parse.c uci.h list.c err.h
+libuci.o: libuci.c file.c uci.h list.c err.h
 libuci.a: libuci.o
 	rm -f $@
 	$(AR) rc $@ $^

@@ -62,6 +62,17 @@ extern void uci_free(struct uci_context *ctx);
 extern void uci_perror(struct uci_context *ctx, const char *str);
 
 /**
+ * uci_import: Import uci config data from a stream
+ * @ctx: uci context
+ * @stream: file stream to import from
+ * @name: (optional) assume the config has the given name
+ * @cfg: (optional) store the last parsed config package in this variable
+ *
+ * the name parameter is for config files that don't explicitly use the 'package <...>' keyword
+ */
+extern int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct uci_config **cfg);
+
+/**
  * uci_load: Parse an uci config file and store it in the uci context
  *
  * @ctx: uci context
@@ -107,6 +118,7 @@ struct uci_context
 
 struct uci_parse_context
 {
+	const char *reason;
 	int line;
 	int byte;
 
@@ -114,8 +126,8 @@ struct uci_parse_context
 	struct uci_config *cfg;
 	struct uci_section *section;
 	FILE *file;
+	const char *name;
 	char *buf;
-	char *reason;
 	int bufsz;
 };
 

@@ -241,6 +241,42 @@ static void assert_eol(struct uci_context *ctx, char **str)
 	}
 }
 
+/* 
+ * switch to a different config, either triggered by uci_load, or by a
+ * 'package <...>' statement in the import file
+ */
+static void uci_switch_config(struct uci_context *ctx)
+{
+	struct uci_parse_context *pctx;
+	const char *name;
+
+	pctx = ctx->pctx;
+	name = pctx->name;
+
+	/* add the last config to main config file list */
+	if (pctx->cfg) {
+		uci_list_add(&ctx->root, &pctx->cfg->list);
+
+		pctx->cfg = NULL;
+		pctx->section = NULL;
+	}
+
+	if (!name)
+		return;
+
+	/* 
+	 * if an older config under the same name exists, unload it
+	 * ignore errors here, e.g. if the config was not found
+	 */
+	UCI_TRAP_SAVE(ctx, ignore);
+	uci_unload(ctx, name);
+	UCI_TRAP_RESTORE(ctx);
+ignore:
+	ctx->errno = 0;
+
+	pctx->cfg = uci_alloc_config(ctx, name);
+}
+
 /*
  * parse the 'config' uci command (open a section)
  */
@@ -248,6 +284,15 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 {
 	char *name = NULL;
 	char *type = NULL;
+
+	if (!ctx->pctx->cfg) {
+		if (!ctx->pctx->name) {
+			ctx->pctx->byte = *str - ctx->pctx->buf;
+			ctx->pctx->reason = "attempting to import a file without a package name";
+			UCI_THROW(ctx, UCI_ERR_PARSE);
+		}
+		uci_switch_config(ctx);
+	}
 
 	/* command string null-terminated by strtok */
 	*str += strlen(*str) + 1;
@@ -300,6 +345,7 @@ error:
 	UCI_THROW(ctx, ctx->errno);
 }
 
+
 /*
  * parse a complete input line, split up combined commands by ';'
  */
@@ -333,28 +379,55 @@ static void uci_parse_line(struct uci_context *ctx)
 	}
 }
 
-int uci_load(struct uci_context *ctx, const char *name, struct uci_config **cfg)
+int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct uci_config **cfg)
 {
 	struct uci_parse_context *pctx;
-	struct stat statbuf;
-	char *filename;
-	bool confpath;
-
-	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, name != NULL);
-
-	UCI_TRAP_SAVE(ctx, ignore);
-	uci_unload(ctx, name);
-	UCI_TRAP_RESTORE(ctx);
-
-ignore:
-	ctx->errno = 0;
 
 	/* make sure no memory from previous parse attempts is leaked */
 	uci_parse_cleanup(ctx);
 
 	pctx = (struct uci_parse_context *) uci_malloc(ctx, sizeof(struct uci_parse_context));
 	ctx->pctx = pctx;
+	pctx->file = stream;
+
+	/*
+	 * If 'name' was supplied, assume that the supplied stream does not contain
+	 * the appropriate 'package <name>' string to specify the config name
+	 * NB: the config file can still override the package name
+	 */
+	if (name)
+		pctx->name = name;
+
+	while (!feof(pctx->file)) {
+		uci_getln(ctx);
+		if (pctx->buf[0])
+			uci_parse_line(ctx);
+	}
+
+	if (cfg)
+		*cfg = pctx->cfg;
+
+	pctx->name = NULL;
+	uci_switch_config(ctx);
+
+	/* no error happened, we can get rid of the parser context now */
+	uci_parse_cleanup(ctx);
+
+	return 0;
+}
+
+int uci_load(struct uci_context *ctx, const char *name, struct uci_config **cfg)
+{
+	struct stat statbuf;
+	char *filename;
+	bool confpath;
+	FILE *file;
+
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, name != NULL);
+
+ignore:
+	ctx->errno = 0;
 
 	switch (name[0]) {
 	case '.':
@@ -375,31 +448,13 @@ ignore:
 		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 	}
 
-	pctx->file = fopen(filename, "r");
+	file = fopen(filename, "r");
 	if (filename != name)
 		free(filename);
 
-	if (!pctx->file)
+	if (!file)
 		UCI_THROW(ctx, UCI_ERR_IO);
 
-	pctx->cfg = uci_alloc_config(ctx, name);
-
-	while (!feof(pctx->file)) {
-		uci_getln(ctx);
-		if (pctx->buf[0])
-			uci_parse_line(ctx);
-	}
-
-	/* add to main config file list */
-	uci_list_add(&ctx->root, &pctx->cfg->list);
-	if (cfg)
-		*cfg = pctx->cfg;
-
-	pctx->cfg = NULL;
-
-	/* no error happened, we can get rid of the parser context now */
-	uci_parse_cleanup(ctx);
-
-	return 0;
+	return uci_import(ctx, file, name, cfg);
 }
 
