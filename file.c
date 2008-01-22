@@ -28,7 +28,7 @@
 /*
  * Fetch a new line from the input stream and resize buffer if necessary
  */
-static void uci_getln(struct uci_context *ctx)
+static void uci_getln(struct uci_context *ctx, int offset)
 {
 	struct uci_parse_context *pctx = ctx->pctx;
 	char *p;
@@ -39,7 +39,7 @@ static void uci_getln(struct uci_context *ctx)
 		pctx->bufsz = LINEBUF;
 	}
 
-	ofs = 0;
+	ofs = offset;
 	do {
 		p = &pctx->buf[ofs];
 		p[ofs] = 0;
@@ -90,14 +90,41 @@ static void uci_parse_cleanup(struct uci_context *ctx)
 	free(pctx);
 }
 
+/* 
+ * parse a character escaped by '\'
+ * returns true if the escaped character is to be parsed
+ * returns false if the escaped character is to be ignored
+ */
+static inline bool parse_backslash(struct uci_context *ctx, char **str)
+{
+	/* skip backslash */
+	*str += 1;
+
+	/* undecoded backslash at the end of line, fetch the next line */
+	if (!**str) {
+		*str += 1;
+		uci_getln(ctx, *str - ctx->pctx->buf);
+		return false;
+	}
+
+	/* FIXME: decode escaped char, necessary? */
+	return true;
+}
+
 /*
  * move the string pointer forward until a non-whitespace character or
  * EOL is reached
  */
-static void skip_whitespace(char **str)
+static void skip_whitespace(struct uci_context *ctx, char **str)
 {
+restart:
 	while (**str && isspace(**str))
 		*str += 1;
+
+	if (**str == '\\') {
+		if (!parse_backslash(ctx, str))
+			goto restart;
+	}
 }
 
 static inline void addc(char **dest, char **src)
@@ -105,14 +132,6 @@ static inline void addc(char **dest, char **src)
 	**dest = **src;
 	*dest += 1;
 	*src += 1;
-}
-
-static inline void parse_backslash(char **str, char **target)
-{
-	/* skip backslash */
-	*str += 1;
-	/* FIXME: decode escaped characters? */
-	addc(target, str);
 }
 
 /*
@@ -127,13 +146,14 @@ static void parse_double_quote(struct uci_context *ctx, char **str, char **targe
 
 	while ((c = **str)) {
 		switch(c) {
-		case '\\':
-			parse_backslash(str, target);
-			continue;
 		case '"':
 			**target = 0;
 			*str += 1;
 			return;
+		case '\\':
+			if (!parse_backslash(ctx, str))
+				continue;
+			/* fall through */
 		default:
 			addc(target, str);
 			break;
@@ -175,9 +195,6 @@ static void parse_str(struct uci_context *ctx, char **str, char **target)
 {
 	do {
 		switch(**str) {
-		case '\\':
-			parse_backslash(str, target);
-			continue;
 		case '\'':
 			parse_single_quote(ctx, str, target);
 			break;
@@ -186,6 +203,10 @@ static void parse_str(struct uci_context *ctx, char **str, char **target)
 			break;
 		case 0:
 			goto done;
+		case '\\':
+			if (!parse_backslash(ctx, str))
+				continue;
+			/* fall through */
 		default:
 			addc(target, str);
 			break;
@@ -214,7 +235,7 @@ static char *next_arg(struct uci_context *ctx, char **str, bool required)
 	char *ptr;
 
 	val = ptr = *str;
-	skip_whitespace(str);
+	skip_whitespace(ctx, str);
 	parse_str(ctx, str, &ptr);
 	if (required && !*val) {
 		ctx->pctx->reason = "insufficient arguments";
@@ -427,7 +448,7 @@ int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct u
 		pctx->name = name;
 
 	while (!feof(pctx->file)) {
-		uci_getln(ctx);
+		uci_getln(ctx, 0);
 		if (pctx->buf[0])
 			uci_parse_line(ctx);
 	}
