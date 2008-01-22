@@ -278,6 +278,30 @@ ignore:
 }
 
 /*
+ * parse the 'package' uci command (next config package)
+ */
+static void uci_parse_package(struct uci_context *ctx, char **str)
+{
+	char *name = NULL;
+
+	/* command string null-terminated by strtok */
+	*str += strlen(*str) + 1;
+
+	UCI_TRAP_SAVE(ctx, error);
+	name = next_arg(ctx, str, true);
+	assert_eol(ctx, str);
+	ctx->pctx->name = name;
+	uci_switch_config(ctx);
+	UCI_TRAP_RESTORE(ctx);
+	return;
+
+error:
+	if (name)
+		free(name);
+	UCI_THROW(ctx, ctx->errno);
+}
+
+/*
  * parse the 'config' uci command (open a section)
  */
 static void uci_parse_config(struct uci_context *ctx, char **str)
@@ -362,6 +386,10 @@ static void uci_parse_line(struct uci_context *ctx)
 		word = strtok_r(word, " \t", &pbrk);
 
 		switch(word[0]) {
+			case 'p':
+				if ((word[1] == 0) || !strcmp(word + 1, "ackage"))
+					uci_parse_package(ctx, &word);
+				break;
 			case 'c':
 				if ((word[1] == 0) || !strcmp(word + 1, "onfig"))
 					uci_parse_config(ctx, &word);
