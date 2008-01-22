@@ -106,9 +106,10 @@ extern char **uci_list_configs();
 
 struct uci_context
 {
+	/* list of config packages */
 	struct uci_list root;
 
-	/* for error handling only */
+	/* parser context, use for error handling only */
 	struct uci_parse_context *pctx;
 
 	/* private: */
@@ -118,6 +119,7 @@ struct uci_context
 
 struct uci_parse_context
 {
+	/* error context */
 	const char *reason;
 	int line;
 	int byte;
@@ -163,10 +165,28 @@ struct uci_option
 #define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 #endif
 
+/* returns true if a list is empty */
 #define uci_list_empty(list) ((list)->next == (list))
+
+/**
+ * uci_list_entry: casts an uci_list pointer to the containing struct.
+ * @_type: config, section or option
+ * @_ptr: pointer to the uci_list struct
+ */
 #define uci_list_entry(_type, _ptr) \
 	((struct uci_ ## _type *) ((char *)(_ptr) - offsetof(struct uci_ ## _type,list)))
 
+/**
+ * uci_foreach_entry: loop through a list of configs, sections or options
+ * @_type: see uci_list_entry
+ * @_list: pointer to the uci_list struct
+ * @_ptr: iteration variable
+ *
+ * use like a for loop, e.g:
+ *   uci_foreach(section, &list, p) {
+ *   	...
+ *   }
+ */
 #define uci_foreach_entry(_type, _list, _ptr)		\
 	for(_ptr = uci_list_entry(_type, (_list)->next);	\
 		&_ptr->list != (_list);			\
