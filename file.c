@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <ctype.h>
 
-#define LINEBUF	128
+#define LINEBUF	32
 #define LINEBUF_MAX	4096
 
 /*
