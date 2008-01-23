@@ -75,6 +75,7 @@ static void uci_file_cleanup(struct uci_context *ctx)
 
 	if (ctx->buf) {
 		free(ctx->buf);
+		ctx->buf = NULL;
 		ctx->bufsz = 0;
 	}
 
