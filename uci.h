@@ -60,14 +60,14 @@ struct uci_parse_context;
 
 
 /**
- * uci_alloc: Allocate a new uci context
+ * uci_alloc_context: Allocate a new uci context
  */
-extern struct uci_context *uci_alloc(void);
+extern struct uci_context *uci_alloc_context(void);
 
 /**
- * uci_free: Free the uci context including all of its data
+ * uci_free_context: Free the uci context including all of its data
  */
-extern void uci_free(struct uci_context *ctx);
+extern void uci_free_context(struct uci_context *ctx);
 
 /**
  * uci_perror: Print the last uci error that occured

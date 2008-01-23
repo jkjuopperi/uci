@@ -107,13 +107,13 @@ int main(int argc, char **argv)
 {
 	int ret;
 
-	ctx = uci_alloc();
+	ctx = uci_alloc_context();
 	if (argc < 2)
 		uci_usage(argc, argv);
 	ret = uci_cmd(argc - 1, argv + 1);
 	if (ret == 255)
 		uci_usage(argc, argv);
-	uci_free(ctx);
+	uci_free_context(ctx);
 
 	return ret;
 }

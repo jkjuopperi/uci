@@ -34,54 +34,12 @@ static const char *uci_errstr[] = {
 	[UCI_ERR_UNKNOWN] =  "Unknown error",
 };
 
-
-/*
- * UCI wrapper for malloc, which uses exception handling
- */
-static void *uci_malloc(struct uci_context *ctx, size_t size)
-{
-	void *ptr;
-
-	ptr = malloc(size);
-	if (!ptr)
-		UCI_THROW(ctx, UCI_ERR_MEM);
-	memset(ptr, 0, size);
-
-	return ptr;
-}
-
-/*
- * UCI wrapper for realloc, which uses exception handling
- */
-static void *uci_realloc(struct uci_context *ctx, void *ptr, size_t size)
-{
-	ptr = realloc(ptr, size);
-	if (!ptr)
-		UCI_THROW(ctx, UCI_ERR_MEM);
-
-	return ptr;
-}
-
-/*
- * UCI wrapper for strdup, which uses exception handling
- */
-static char *uci_strdup(struct uci_context *ctx, const char *str)
-{
-	char *ptr;
-
-	ptr = strdup(str);
-	if (!ptr)
-		UCI_THROW(ctx, UCI_ERR_MEM);
-
-	return ptr;
-}
-
+#include "util.c"
 #include "list.c"
 #include "file.c"
 
-/* externally visible functions */
-
-struct uci_context *uci_alloc(void)
+/* exported functions */
+struct uci_context *uci_alloc_context(void)
 {
 	struct uci_context *ctx;
 
@@ -92,15 +50,19 @@ struct uci_context *uci_alloc(void)
 	return ctx;
 }
 
-void uci_free(struct uci_context *ctx)
+void uci_free_context(struct uci_context *ctx)
 {
 	struct uci_element *e, *tmp;
 
+	UCI_TRAP_SAVE(ctx, ignore);
 	uci_cleanup(ctx);
 	uci_foreach_element_safe(&ctx->root, tmp, e) {
 		uci_free_package(uci_to_package(e));
 	}
 	free(ctx);
+	UCI_TRAP_RESTORE(ctx);
+
+ignore:
 	return;
 }
 
