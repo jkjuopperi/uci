@@ -413,7 +413,7 @@ static void uci_parse_line(struct uci_context *ctx)
  */
 static char *uci_escape(struct uci_context *ctx, char *str)
 {
-	char *s, *p, *t;
+	char *s, *p;
 	int pos = 0;
 
 	if (!ctx->buf) {
@@ -534,9 +534,6 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, name != NULL);
-
-ignore:
-	ctx->errno = 0;
 
 	switch (name[0]) {
 	case '.':
