@@ -22,8 +22,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "uci.h"
-
-#define DEBUG
 #include "err.h"
 
 static const char *uci_errstr[] = {

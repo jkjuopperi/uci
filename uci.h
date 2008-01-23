@@ -24,6 +24,10 @@
  *
  */
 
+#ifdef DEBUG_ALL
+#define UCI_DEBUG
+#define UCI_DEBUG_TYPECAST
+#endif
 
 #include <setjmp.h>
 #include <stdio.h>
@@ -124,9 +128,9 @@ extern char **uci_list_configs(struct uci_context *ctx);
 
 /* UCI data structures */
 enum uci_type {
-	UCI_TYPE_PACKAGE,
-	UCI_TYPE_SECTION,
-	UCI_TYPE_OPTION
+	uci_type_package = 0,
+	uci_type_section = 1,
+	uci_type_option = 2
 };
 
 struct uci_element
@@ -273,28 +277,28 @@ struct uci_history
 /* element typecasting */
 #ifdef UCI_DEBUG_TYPECAST
 static const char *uci_typestr[] = {
-	[UCI_TYPE_PACKAGE] = "package",
-	[UCI_TYPE_SECTION] = "section",
-	[UCI_TYPE_OPTION] = "option"
-}
+	[uci_type_package] = "package",
+	[uci_type_section] = "section",
+	[uci_type_option] = "option"
+};
 
 static void uci_typecast_error(int from, int to)
 {
 	fprintf(stderr, "Invalid typecast from '%s' to '%s'\n", uci_typestr[from], uci_typestr[to]);
 }
 
-#define BUILD_CAST(type, val) \
-	static inline struct uci_ ## type *uci_to_ ## type (struct uci_element *e) \
+#define BUILD_CAST(_type) \
+	static inline struct uci_ ## _type *uci_to_ ## _type (struct uci_element *e) \
 	{ \
-		if (e->type != val) { \
-			uci_typecast_error(e->type, val); \
+		if (e->type != uci_type_ ## _type) { \
+			uci_typecast_error(e->type, uci_type_ ## _type); \
 		} \
-		return (struct uci_ ## type *) e; \
+		return (struct uci_ ## _type *) e; \
 	}
 
-BUILD_CAST(package, UCI_TYPE_PACKAGE)
-BUILD_CAST(section, UCI_TYPE_SECTION)
-BUILD_CAST(option,  UCI_TYPE_OPTION)
+BUILD_CAST(package)
+BUILD_CAST(section)
+BUILD_CAST(option)
 
 #else
 #define uci_to_package(ptr) container_of(ptr, struct uci_package, e)
@@ -310,7 +314,7 @@ BUILD_CAST(option,  UCI_TYPE_OPTION)
  * @datasize: additional buffer size to reserve at the end of the struct
  */
 #define uci_alloc_element(ctx, type, name, datasize) \
-	uci_to_ ## type (uci_alloc_generic(ctx, name, sizeof(struct uci_ ## type) + datasize))
+	uci_to_ ## type (uci_alloc_generic(ctx, uci_type_ ## type, name, sizeof(struct uci_ ## type) + datasize))
 
 #define uci_dataptr(ptr) \
 	(((char *) ptr) + sizeof(*ptr))

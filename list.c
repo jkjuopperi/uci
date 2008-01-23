@@ -51,13 +51,14 @@ static inline void uci_list_del(struct uci_list *ptr)
 }
 
 static struct uci_element *
-uci_alloc_generic(struct uci_context *ctx, const char *name, int size)
+uci_alloc_generic(struct uci_context *ctx, int type, const char *name, int size)
 {
 	struct uci_element *e;
 	void *ptr;
 
 	ptr = uci_malloc(ctx, size + strlen(name) + 1);
 	e = (struct uci_element *) ptr;
+	e->type = type;
 	e->name = (char *) ptr + size;
 	strcpy(e->name, name);
 	uci_list_init(&e->list);
