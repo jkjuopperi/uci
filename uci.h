@@ -38,9 +38,10 @@ struct uci_list
 	void *prev;
 };
 
-struct uci_config;
+struct uci_package;
 struct uci_section;
 struct uci_option;
+struct uci_history;
 struct uci_parse_context;
 
 
@@ -66,27 +67,28 @@ extern void uci_perror(struct uci_context *ctx, const char *str);
  * @ctx: uci context
  * @stream: file stream to import from
  * @name: (optional) assume the config has the given name
- * @cfg: (optional) store the last parsed config package in this variable
+ * @package: (optional) store the last parsed config package in this variable
  *
  * the name parameter is for config files that don't explicitly use the 'package <...>' keyword
  */
-extern int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct uci_config **cfg);
+extern int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct uci_package **package);
 
 /**
  * uci_export: Export one or all uci config packages
  * @ctx: uci context
  * @stream: output stream
- * @cfg: (optional) uci config package to export
+ * @package: (optional) uci config package to export
  */
-extern int uci_export(struct uci_context *ctx, FILE *stream, struct uci_config *cfg);
+extern int uci_export(struct uci_context *ctx, FILE *stream, struct uci_package *package);
 
 /**
  * uci_load: Parse an uci config file and store it in the uci context
  *
  * @ctx: uci context
  * @name: name of the config file (relative to the config directory)
+ * @package: store the loaded config package in this variable
  */
-extern int uci_load(struct uci_context *ctx, const char *name, struct uci_config **cfg);
+extern int uci_load(struct uci_context *ctx, const char *name, struct uci_package **package);
 
 /**
  * uci_unload: Unload a config file from the uci context
@@ -135,7 +137,7 @@ struct uci_parse_context
 	int byte;
 
 	/* private: */
-	struct uci_config *cfg;
+	struct uci_package *package;
 	struct uci_section *section;
 	FILE *file;
 	const char *name;
@@ -143,7 +145,7 @@ struct uci_parse_context
 	int bufsz;
 };
 
-struct uci_config
+struct uci_package
 {
 	struct uci_list list;
 	struct uci_list sections;
@@ -157,7 +159,7 @@ struct uci_section
 {
 	struct uci_list list;
 	struct uci_list options;
-	struct uci_config *config;
+	struct uci_package *package;
 	char *type;
 	char *name;
 };
@@ -168,6 +170,38 @@ struct uci_option
 	struct uci_section *section;
 	char *name;
 	char *value;
+};
+
+enum uci_type {
+	UCI_TYPE_PACKAGE,
+	UCI_TYPE_SECTION,
+	UCI_TYPE_OPTION
+};
+
+enum uci_command {
+	UCI_CMD_ADD,
+	UCI_CMD_REMOVE,
+	UCI_CMD_CHANGE
+};
+
+struct uci_history
+{
+	struct uci_list list;
+	enum uci_command cmd;
+	enum uci_type type;
+	union {
+		struct {
+			char *name;
+		} p;
+		struct {
+			char *type;
+			char *name;
+		} c;
+		struct {
+			char *name;
+			char *value;
+		} o;
+	} data;
 };
 
 /* linked list handling */

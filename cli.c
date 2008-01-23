@@ -36,7 +36,7 @@ static void uci_show_section(struct uci_section *p)
 	struct uci_option *o;
 	const char *cname, *sname;
 
-	cname = p->config->name;
+	cname = p->package->name;
 	sname = p->name;
 	printf("%s.%s=%s\n", cname, sname, p->type);
 	uci_foreach_entry(option, &p->options, o) {
@@ -47,7 +47,7 @@ static void uci_show_section(struct uci_section *p)
 static int uci_show(int argc, char **argv)
 {
 	char *section = (argc > 2 ? argv[2] : NULL);
-	struct uci_config *cfg;
+	struct uci_package *package;
 	struct uci_section *s;
 	char **configs;
 	char **p;
@@ -58,11 +58,11 @@ static int uci_show(int argc, char **argv)
 
 	for (p = configs; *p; p++) {
 		if ((argc < 2) || !strcmp(argv[1], *p)) {
-			if (uci_load(ctx, *p, &cfg) != UCI_OK) {
+			if (uci_load(ctx, *p, &package) != UCI_OK) {
 				uci_perror(ctx, "uci_load");
 				return 255;
 			}
-			uci_foreach_entry(section, &cfg->sections, s) {
+			uci_foreach_entry(section, &package->sections, s) {
 				if (!section || !strcmp(s->name, section))
 					uci_show_section(s);
 			}
@@ -83,13 +83,13 @@ static int uci_do_export(int argc, char **argv)
 
 	for (p = configs; *p; p++) {
 		if ((argc < 2) || !strcmp(argv[1], *p)) {
-			struct uci_config *cfg = NULL;
+			struct uci_package *package = NULL;
 			int ret;
 
-			ret = uci_load(ctx, *p, &cfg);
+			ret = uci_load(ctx, *p, &package);
 			if (ret)
 				continue;
-			uci_export(ctx, stdout, cfg);
+			uci_export(ctx, stdout, package);
 			uci_unload(ctx, *p);
 		}
 	}

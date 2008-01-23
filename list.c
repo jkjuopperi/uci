@@ -61,8 +61,8 @@ static void uci_drop_option(struct uci_option *option)
 
 static struct uci_option *uci_add_option(struct uci_section *section, const char *name, const char *value)
 {
-	struct uci_config *cfg = section->config;
-	struct uci_context *ctx = cfg->ctx;
+	struct uci_package *package = section->package;
+	struct uci_context *ctx = package->ctx;
 	struct uci_option *option = NULL;
 
 	UCI_TRAP_SAVE(ctx, error);
@@ -98,23 +98,23 @@ static void uci_drop_section(struct uci_section *section)
 	free(section);
 }
 
-static struct uci_section *uci_add_section(struct uci_config *cfg, const char *type, const char *name)
+static struct uci_section *uci_add_section(struct uci_package *package, const char *type, const char *name)
 {
 	struct uci_section *section = NULL;
-	struct uci_context *ctx = cfg->ctx;
+	struct uci_context *ctx = package->ctx;
 
 	UCI_TRAP_SAVE(ctx, error);
-	cfg->n_section++;
+	package->n_section++;
 	section = (struct uci_section *) uci_malloc(ctx, sizeof(struct uci_section));
-	section->config = cfg;
+	section->package = package;
 	uci_list_init(&section->list);
 	uci_list_init(&section->options);
 	section->type = uci_strdup(ctx, type);
 	if (name && name[0])
 		section->name = uci_strdup(ctx, name);
 	else
-		asprintf(&section->name, "cfg%d", cfg->n_section);
-	uci_list_add(&cfg->sections, &section->list);
+		asprintf(&section->name, "cfg%d", package->n_section);
+	uci_list_add(&package->sections, &section->list);
 	UCI_TRAP_RESTORE(ctx);
 
 	return section;
@@ -125,59 +125,59 @@ error:
 	return NULL;
 }
 
-static void uci_drop_config(struct uci_config *cfg)
+static void uci_drop_config(struct uci_package *package)
 {
 	struct uci_section *s;
 
-	if(!cfg)
+	if(!package)
 		return;
 
-	uci_foreach_entry(section, &cfg->sections, s) {
+	uci_foreach_entry(section, &package->sections, s) {
 		uci_list_del(&s->list);
 		uci_drop_section(s);
 	}
 
-	if (cfg->name)
-		free(cfg->name);
-	free(cfg);
+	if (package->name)
+		free(package->name);
+	free(package);
 }
 
 
-static struct uci_config *uci_alloc_config(struct uci_context *ctx, const char *name)
+static struct uci_package *uci_alloc_config(struct uci_context *ctx, const char *name)
 {
-	struct uci_config *cfg = NULL;
+	struct uci_package *package = NULL;
 
 	UCI_TRAP_SAVE(ctx, error);
-	cfg = (struct uci_config *) uci_malloc(ctx, sizeof(struct uci_config));
-	uci_list_init(&cfg->list);
-	uci_list_init(&cfg->sections);
-	cfg->name = uci_strdup(ctx, name);
-	cfg->ctx = ctx;
+	package = (struct uci_package *) uci_malloc(ctx, sizeof(struct uci_package));
+	uci_list_init(&package->list);
+	uci_list_init(&package->sections);
+	package->name = uci_strdup(ctx, name);
+	package->ctx = ctx;
 	UCI_TRAP_RESTORE(ctx);
-	return cfg;
+	return package;
 
 error:
-	uci_drop_config(cfg);
+	uci_drop_config(package);
 	UCI_THROW(ctx, ctx->errno);
 	return NULL;
 }
 
 int uci_unload(struct uci_context *ctx, const char *name)
 {
-	struct uci_config *cfg;
+	struct uci_package *package;
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, name != NULL);
 
-	uci_foreach_entry(config, &ctx->root, cfg) {
-		if (!strcmp(cfg->name, name))
+	uci_foreach_entry(package, &ctx->root, package) {
+		if (!strcmp(package->name, name))
 			goto found;
 	}
 	UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 
 found:
-	uci_list_del(&cfg->list);
-	uci_drop_config(cfg);
+	uci_list_del(&package->list);
+	uci_drop_config(package);
 
 	return 0;
 }

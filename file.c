@@ -84,9 +84,9 @@ static void uci_file_cleanup(struct uci_context *ctx)
 		return;
 
 	ctx->pctx = NULL;
-	if (pctx->cfg) {
-		uci_list_del(&pctx->cfg->list);
-		uci_drop_config(pctx->cfg);
+	if (pctx->package) {
+		uci_list_del(&pctx->package->list);
+		uci_drop_config(pctx->package);
 	}
 	if (pctx->buf)
 		free(pctx->buf);
@@ -281,10 +281,10 @@ static void uci_switch_config(struct uci_context *ctx)
 	name = pctx->name;
 
 	/* add the last config to main config file list */
-	if (pctx->cfg) {
-		uci_list_add(&ctx->root, &pctx->cfg->list);
+	if (pctx->package) {
+		uci_list_add(&ctx->root, &pctx->package->list);
 
-		pctx->cfg = NULL;
+		pctx->package = NULL;
 		pctx->section = NULL;
 	}
 
@@ -301,7 +301,7 @@ static void uci_switch_config(struct uci_context *ctx)
 ignore:
 	ctx->errno = 0;
 
-	pctx->cfg = uci_alloc_config(ctx, name);
+	pctx->package = uci_alloc_config(ctx, name);
 }
 
 /*
@@ -336,7 +336,7 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 	char *name = NULL;
 	char *type = NULL;
 
-	if (!ctx->pctx->cfg) {
+	if (!ctx->pctx->package) {
 		if (!ctx->pctx->name) {
 			ctx->pctx->byte = *str - ctx->pctx->buf;
 			ctx->pctx->reason = "attempting to import a file without a package name";
@@ -352,7 +352,7 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 	type = next_arg(ctx, str, true);
 	name = next_arg(ctx, str, false);
 	assert_eol(ctx, str);
-	ctx->pctx->section = uci_add_section(ctx->pctx->cfg, type, name);
+	ctx->pctx->section = uci_add_section(ctx->pctx->package, type, name);
 	UCI_TRAP_RESTORE(ctx);
 	return;
 
@@ -479,14 +479,14 @@ static char *uci_escape(struct uci_context *ctx, char *str)
 /*
  * export a single config package to a file stream
  */
-static void uci_export_config(struct uci_config *cfg, FILE *stream)
+static void uci_export_config(struct uci_package *package, FILE *stream)
 {
-	struct uci_context *ctx = cfg->ctx;
+	struct uci_context *ctx = package->ctx;
 	struct uci_section *s;
 	struct uci_option *o;
 
-	fprintf(stream, "package '%s'\n", uci_escape(ctx, cfg->name));
-	uci_foreach_entry(section, &cfg->sections, s) {
+	fprintf(stream, "package '%s'\n", uci_escape(ctx, package->name));
+	uci_foreach_entry(section, &package->sections, s) {
 		fprintf(stream, "\nconfig '%s'", uci_escape(ctx, s->type));
 		fprintf(stream, " '%s'\n", uci_escape(ctx, s->name));
 		uci_foreach_entry(option, &s->options, o) {
@@ -497,24 +497,24 @@ static void uci_export_config(struct uci_config *cfg, FILE *stream)
 	fprintf(stream, "\n");
 }
 
-int uci_export(struct uci_context *ctx, FILE *stream, struct uci_config *cfg)
+int uci_export(struct uci_context *ctx, FILE *stream, struct uci_package *package)
 {
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, stream != NULL);
 
-	if (cfg) {
-		uci_export_config(cfg, stream);
+	if (package) {
+		uci_export_config(package, stream);
 		goto done;
 	}
 
-	uci_foreach_entry(config, &ctx->root, cfg) {
-		uci_export_config(cfg, stream);
+	uci_foreach_entry(package, &ctx->root, package) {
+		uci_export_config(package, stream);
 	}
 done:
 	return 0;
 }
 
-int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct uci_config **cfg)
+int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct uci_package **package)
 {
 	struct uci_parse_context *pctx;
 
@@ -539,8 +539,8 @@ int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct u
 			uci_parse_line(ctx);
 	}
 
-	if (cfg)
-		*cfg = pctx->cfg;
+	if (package)
+		*package = pctx->package;
 
 	pctx->name = NULL;
 	uci_switch_config(ctx);
@@ -551,7 +551,7 @@ int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct u
 	return 0;
 }
 
-int uci_load(struct uci_context *ctx, const char *name, struct uci_config **cfg)
+int uci_load(struct uci_context *ctx, const char *name, struct uci_package **package)
 {
 	struct stat statbuf;
 	char *filename;
@@ -590,6 +590,6 @@ ignore:
 	if (!file)
 		UCI_THROW(ctx, UCI_ERR_IO);
 
-	return uci_import(ctx, file, name, cfg);
+	return uci_import(ctx, file, name, package);
 }
 
