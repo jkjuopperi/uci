@@ -96,11 +96,11 @@ struct uci_context *uci_alloc(void)
 
 void uci_free(struct uci_context *ctx)
 {
-	struct uci_package *package;
+	struct uci_element *e, *tmp;
 
 	uci_cleanup(ctx);
-	uci_foreach_entry(package, &ctx->root, package) {
-		uci_drop_config(package);
+	uci_foreach_element_safe(&ctx->root, tmp, e) {
+		uci_free_package(uci_to_package(e));
 	}
 	free(ctx);
 	return;

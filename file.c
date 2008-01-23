@@ -84,10 +84,9 @@ static void uci_file_cleanup(struct uci_context *ctx)
 		return;
 
 	ctx->pctx = NULL;
-	if (pctx->package) {
-		uci_list_del(&pctx->package->list);
-		uci_drop_config(pctx->package);
-	}
+	if (pctx->package)
+		uci_free_package(pctx->package);
+
 	if (pctx->buf)
 		free(pctx->buf);
 	if (pctx->file)
@@ -249,7 +248,7 @@ static char *next_arg(struct uci_context *ctx, char **str, bool required)
 		UCI_THROW(ctx, UCI_ERR_PARSE);
 	}
 
-	return uci_strdup(ctx, val);
+	return val;
 }
 
 /*
@@ -282,7 +281,7 @@ static void uci_switch_config(struct uci_context *ctx)
 
 	/* add the last config to main config file list */
 	if (pctx->package) {
-		uci_list_add(&ctx->root, &pctx->package->list);
+		uci_list_add(&ctx->root, &pctx->package->e.list);
 
 		pctx->package = NULL;
 		pctx->section = NULL;
@@ -301,7 +300,7 @@ static void uci_switch_config(struct uci_context *ctx)
 ignore:
 	ctx->errno = 0;
 
-	pctx->package = uci_alloc_config(ctx, name);
+	pctx->package = uci_alloc_package(ctx, name);
 }
 
 /*
@@ -314,18 +313,10 @@ static void uci_parse_package(struct uci_context *ctx, char **str)
 	/* command string null-terminated by strtok */
 	*str += strlen(*str) + 1;
 
-	UCI_TRAP_SAVE(ctx, error);
 	name = next_arg(ctx, str, true);
 	assert_eol(ctx, str);
 	ctx->pctx->name = name;
 	uci_switch_config(ctx);
-	UCI_TRAP_RESTORE(ctx);
-	return;
-
-error:
-	if (name)
-		free(name);
-	UCI_THROW(ctx, ctx->errno);
 }
 
 /*
@@ -348,20 +339,10 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 	/* command string null-terminated by strtok */
 	*str += strlen(*str) + 1;
 
-	UCI_TRAP_SAVE(ctx, error);
 	type = next_arg(ctx, str, true);
 	name = next_arg(ctx, str, false);
 	assert_eol(ctx, str);
-	ctx->pctx->section = uci_add_section(ctx->pctx->package, type, name);
-	UCI_TRAP_RESTORE(ctx);
-	return;
-
-error:
-	if (name)
-		free(name);
-	if (type)
-		free(type);
-	UCI_THROW(ctx, ctx->errno);
+	ctx->pctx->section = uci_alloc_section(ctx->pctx->package, type, name);
 }
 
 /*
@@ -380,20 +361,10 @@ static void uci_parse_option(struct uci_context *ctx, char **str)
 	/* command string null-terminated by strtok */
 	*str += strlen(*str) + 1;
 
-	UCI_TRAP_SAVE(ctx, error);
 	name = next_arg(ctx, str, true);
 	value = next_arg(ctx, str, true);
 	assert_eol(ctx, str);
-	uci_add_option(ctx->pctx->section, name, value);
-	UCI_TRAP_RESTORE(ctx);
-	return;
-
-error:
-	if (name)
-		free(name);
-	if (value)
-		free(value);
-	UCI_THROW(ctx, ctx->errno);
+	uci_alloc_option(ctx->pctx->section, name, value);
 }
 
 
@@ -479,19 +450,20 @@ static char *uci_escape(struct uci_context *ctx, char *str)
 /*
  * export a single config package to a file stream
  */
-static void uci_export_config(struct uci_package *package, FILE *stream)
+static void uci_export_package(struct uci_package *p, FILE *stream)
 {
-	struct uci_context *ctx = package->ctx;
-	struct uci_section *s;
-	struct uci_option *o;
+	struct uci_context *ctx = p->ctx;
+	struct uci_element *s, *o;
 
-	fprintf(stream, "package '%s'\n", uci_escape(ctx, package->name));
-	uci_foreach_entry(section, &package->sections, s) {
-		fprintf(stream, "\nconfig '%s'", uci_escape(ctx, s->type));
-		fprintf(stream, " '%s'\n", uci_escape(ctx, s->name));
-		uci_foreach_entry(option, &s->options, o) {
-			fprintf(stream, "\toption '%s'", uci_escape(ctx, o->name));
-			fprintf(stream, " '%s'\n", uci_escape(ctx, o->value));
+	fprintf(stream, "package '%s'\n", uci_escape(ctx, p->e.name));
+	uci_foreach_element(&p->sections, s) {
+		struct uci_section *sec = uci_to_section(s);
+		fprintf(stream, "\nconfig '%s'", uci_escape(ctx, sec->type));
+		fprintf(stream, " '%s'\n", uci_escape(ctx, sec->e.name));
+		uci_foreach_element(&sec->options, o) {
+			struct uci_option *opt = uci_to_option(o);
+			fprintf(stream, "\toption '%s'", uci_escape(ctx, opt->e.name));
+			fprintf(stream, " '%s'\n", uci_escape(ctx, opt->value));
 		}
 	}
 	fprintf(stream, "\n");
@@ -499,16 +471,18 @@ static void uci_export_config(struct uci_package *package, FILE *stream)
 
 int uci_export(struct uci_context *ctx, FILE *stream, struct uci_package *package)
 {
+	struct uci_element *e;
+
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, stream != NULL);
 
 	if (package) {
-		uci_export_config(package, stream);
+		uci_export_package(package, stream);
 		goto done;
 	}
 
-	uci_foreach_entry(package, &ctx->root, package) {
-		uci_export_config(package, stream);
+	uci_foreach_element(&ctx->root, e) {
+		uci_export_package(uci_to_package(e), stream);
 	}
 done:
 	return 0;

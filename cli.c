@@ -33,14 +33,14 @@ static void uci_usage(int argc, char **argv)
 
 static void uci_show_section(struct uci_section *p)
 {
-	struct uci_option *o;
+	struct uci_element *e;
 	const char *cname, *sname;
 
-	cname = p->package->name;
-	sname = p->name;
+	cname = p->package->e.name;
+	sname = p->e.name;
 	printf("%s.%s=%s\n", cname, sname, p->type);
-	uci_foreach_entry(option, &p->options, o) {
-		printf("%s.%s.%s=%s\n", cname, sname, o->name, o->value);
+	uci_foreach_element(&p->options, e) {
+		printf("%s.%s.%s=%s\n", cname, sname, e->name, uci_to_option(e)->value);
 	}
 }
 
@@ -48,7 +48,7 @@ static int uci_show(int argc, char **argv)
 {
 	char *section = (argc > 2 ? argv[2] : NULL);
 	struct uci_package *package;
-	struct uci_section *s;
+	struct uci_element *e;
 	char **configs;
 	char **p;
 
@@ -62,9 +62,9 @@ static int uci_show(int argc, char **argv)
 				uci_perror(ctx, "uci_load");
 				return 255;
 			}
-			uci_foreach_entry(section, &package->sections, s) {
-				if (!section || !strcmp(s->name, section))
-					uci_show_section(s);
+			uci_foreach_element( &package->sections, e) {
+				if (!section || !strcmp(e->name, section))
+					uci_show_section(uci_to_section(e));
 			}
 			uci_unload(ctx, *p);
 		}

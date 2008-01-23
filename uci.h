@@ -15,6 +15,16 @@
 #ifndef __LIBUCI_H
 #define __LIBUCI_H
 
+/*
+ * you can use these defines to enable debugging behavior for
+ * apps compiled against libuci:
+ *
+ * #define UCI_DEBUG_TYPECAST:
+ *   enable uci_element typecast checking at run time
+ *
+ */
+
+
 #include <setjmp.h>
 #include <stdio.h>
 
@@ -113,6 +123,18 @@ extern int uci_cleanup(struct uci_context *ctx);
 extern char **uci_list_configs(struct uci_context *ctx);
 
 /* UCI data structures */
+enum uci_type {
+	UCI_TYPE_PACKAGE,
+	UCI_TYPE_SECTION,
+	UCI_TYPE_OPTION
+};
+
+struct uci_element
+{
+	struct uci_list list;
+	enum uci_type type;
+	char *name;
+};
 
 struct uci_context
 {
@@ -147,35 +169,26 @@ struct uci_parse_context
 
 struct uci_package
 {
-	struct uci_list list;
+	struct uci_element e;
 	struct uci_list sections;
 	struct uci_context *ctx;
-	char *name;
 	/* private: */
 	int n_section;
 };
 
 struct uci_section
 {
-	struct uci_list list;
+	struct uci_element e;
 	struct uci_list options;
 	struct uci_package *package;
 	char *type;
-	char *name;
 };
 
 struct uci_option
 {
-	struct uci_list list;
+	struct uci_element e;
 	struct uci_section *section;
-	char *name;
 	char *value;
-};
-
-enum uci_type {
-	UCI_TYPE_PACKAGE,
-	UCI_TYPE_SECTION,
-	UCI_TYPE_OPTION
 };
 
 enum uci_command {
@@ -188,19 +201,11 @@ struct uci_history
 {
 	struct uci_list list;
 	enum uci_command cmd;
-	enum uci_type type;
 	union {
-		struct {
-			char *name;
-		} p;
-		struct {
-			char *type;
-			char *name;
-		} c;
-		struct {
-			char *name;
-			char *value;
-		} o;
+		struct uci_element element;
+		struct uci_package package;
+		struct uci_section section;
+		struct uci_option option;
 	} data;
 };
 
@@ -209,31 +214,105 @@ struct uci_history
 #define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 #endif
 
-/* returns true if a list is empty */
-#define uci_list_empty(list) ((list)->next == (list))
+/**
+ * container_of - cast a member of a structure out to the containing structure
+ * @ptr:    the pointer to the member.
+ * @type:   the type of the container struct this is embedded in.
+ * @member: the name of the member within the struct.
+ */
+#define container_of(ptr, type, member) \
+	((type *) ((char *)ptr - offsetof(type,member)))
+
 
 /**
  * uci_list_entry: casts an uci_list pointer to the containing struct.
  * @_type: config, section or option
  * @_ptr: pointer to the uci_list struct
  */
-#define uci_list_entry(_type, _ptr) \
-	((struct uci_ ## _type *) ((char *)(_ptr) - offsetof(struct uci_ ## _type,list)))
+#define element_to(type, ptr) \
+	container_of(ptr, struct uci_ ## type, e)
+
+#define list_to_element(ptr) \
+	container_of(ptr, struct uci_element, list)
 
 /**
- * uci_foreach_entry: loop through a list of configs, sections or options
- * @_type: see uci_list_entry
+ * uci_foreach_entry: loop through a list of uci elements
  * @_list: pointer to the uci_list struct
- * @_ptr: iteration variable
+ * @_ptr: iteration variable, struct uci_element
  *
  * use like a for loop, e.g:
- *   uci_foreach(section, &list, p) {
+ *   uci_foreach(&list, p) {
  *   	...
  *   }
  */
-#define uci_foreach_entry(_type, _list, _ptr)		\
-	for(_ptr = uci_list_entry(_type, (_list)->next);	\
+#define uci_foreach_element(_list, _ptr)		\
+	for(_ptr = list_to_element((_list)->next);	\
 		&_ptr->list != (_list);			\
-		_ptr = uci_list_entry(_type, _ptr->list.next))
+		_ptr = list_to_element(_ptr->list.next))
+
+/**
+ * uci_foreach_entry_safe: like uci_foreach_safe, but safe for deletion
+ * @_list: pointer to the uci_list struct
+ * @_tmp: temporary variable, struct uci_element *
+ * @_ptr: iteration variable, struct uci_element *
+ *
+ * use like a for loop, e.g:
+ *   uci_foreach(&list, p) {
+ *   	...
+ *   }
+ */
+#define uci_foreach_element_safe(_list, _tmp, _ptr)		\
+	for(_ptr = list_to_element((_list)->next),		\
+		_tmp = list_to_element(_ptr->list.next);	\
+		&_ptr->list != (_list);			\
+		_ptr = _tmp, _tmp = list_to_element(_ptr->list.next))
+
+/* returns true if a list is empty */
+#define uci_list_empty(list) ((list)->next == (list))
+
+/* element typecasting */
+#ifdef UCI_DEBUG_TYPECAST
+static const char *uci_typestr[] = {
+	[UCI_TYPE_PACKAGE] = "package",
+	[UCI_TYPE_SECTION] = "section",
+	[UCI_TYPE_OPTION] = "option"
+}
+
+static void uci_typecast_error(int from, int to)
+{
+	fprintf(stderr, "Invalid typecast from '%s' to '%s'\n", uci_typestr[from], uci_typestr[to]);
+}
+
+#define BUILD_CAST(type, val) \
+	static inline struct uci_ ## type *uci_to_ ## type (struct uci_element *e) \
+	{ \
+		if (e->type != val) { \
+			uci_typecast_error(e->type, val); \
+		} \
+		return (struct uci_ ## type *) e; \
+	}
+
+BUILD_CAST(package, UCI_TYPE_PACKAGE)
+BUILD_CAST(section, UCI_TYPE_SECTION)
+BUILD_CAST(option,  UCI_TYPE_OPTION)
+
+#else
+#define uci_to_package(ptr) container_of(ptr, struct uci_package, e)
+#define uci_to_section(ptr) container_of(ptr, struct uci_section, e)
+#define uci_to_option(ptr)  container_of(ptr, struct uci_option, e)
+#endif
+
+/**
+ * uci_alloc_element: allocate a generic uci_element, reserve a buffer and typecast
+ * @ctx: uci context
+ * @type: {package,section,option}
+ * @name: string containing the name of the element
+ * @datasize: additional buffer size to reserve at the end of the struct
+ */
+#define uci_alloc_element(ctx, type, name, datasize) \
+	uci_to_ ## type (uci_alloc_generic(ctx, name, sizeof(struct uci_ ## type) + datasize))
+
+#define uci_dataptr(ptr) \
+	(((char *) ptr) + sizeof(*ptr))
 
 #endif
