@@ -45,7 +45,7 @@ static void uci_getln(struct uci_context *ctx, int offset)
 		p[ofs] = 0;
 
 		p = fgets(p, pctx->bufsz - ofs, pctx->file);
-		if (!p || !p[ofs])
+		if (!p || !*p)
 			return;
 
 		ofs += strlen(p);
