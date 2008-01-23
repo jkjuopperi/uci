@@ -67,11 +67,16 @@ static void uci_getln(struct uci_context *ctx, int offset)
 }
 
 /*
- * Clean up all extra memory used by the parser
+ * Clean up all extra memory used by the parser and exporter
  */
-static void uci_parse_cleanup(struct uci_context *ctx)
+static void uci_file_cleanup(struct uci_context *ctx)
 {
 	struct uci_parse_context *pctx;
+
+	if (ctx->buf) {
+		free(ctx->buf);
+		ctx->bufsz = 0;
+	}
 
 	pctx = ctx->pctx;
 	if (!pctx)
@@ -428,12 +433,92 @@ static void uci_parse_line(struct uci_context *ctx)
 	}
 }
 
+/* max number of characters that escaping adds to the string */
+#define UCI_QUOTE_ESCAPE	"'\\'"
+
+/*
+ * escape an uci string for export
+ */
+static char *uci_escape(struct uci_context *ctx, char *str)
+{
+	char *s, *p, *t;
+	int pos = 0;
+
+	if (!ctx->buf) {
+		ctx->bufsz = LINEBUF;
+		ctx->buf = malloc(LINEBUF);
+	}
+
+	s = str;
+	p = strchr(str, '\'');
+	if (!p)
+		return str;
+
+	do {
+		int len = p - s;
+		if (len > 0) {
+			if (p + sizeof(UCI_QUOTE_ESCAPE) - str >= ctx->bufsz) {
+				ctx->bufsz *= 2;
+				ctx->buf = realloc(ctx->buf, ctx->bufsz);
+				if (!ctx->buf)
+					UCI_THROW(ctx, UCI_ERR_MEM);
+			}
+			memcpy(&ctx->buf[pos], s, len);
+			pos += len;
+		}
+		strcpy(&ctx->buf[pos], UCI_QUOTE_ESCAPE);
+		pos += sizeof(UCI_QUOTE_ESCAPE);
+		s = p + 1;
+	} while ((p = strchr(s, '\'')));
+
+	return ctx->buf;
+}
+
+
+/*
+ * export a single config package to a file stream
+ */
+static void uci_export_config(struct uci_config *cfg, FILE *stream)
+{
+	struct uci_context *ctx = cfg->ctx;
+	struct uci_section *s;
+	struct uci_option *o;
+
+	fprintf(stream, "package '%s'\n", uci_escape(ctx, cfg->name));
+	uci_foreach_entry(section, &cfg->sections, s) {
+		fprintf(stream, "\nconfig '%s'", uci_escape(ctx, s->type));
+		fprintf(stream, " '%s'\n", uci_escape(ctx, s->name));
+		uci_foreach_entry(option, &s->options, o) {
+			fprintf(stream, "\toption '%s'", uci_escape(ctx, o->name));
+			fprintf(stream, " '%s'\n", uci_escape(ctx, o->value));
+		}
+	}
+	fprintf(stream, "\n");
+}
+
+int uci_export(struct uci_context *ctx, FILE *stream, struct uci_config *cfg)
+{
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, stream != NULL);
+
+	if (cfg) {
+		uci_export_config(cfg, stream);
+		goto done;
+	}
+
+	uci_foreach_entry(config, &ctx->root, cfg) {
+		uci_export_config(cfg, stream);
+	}
+done:
+	return 0;
+}
+
 int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct uci_config **cfg)
 {
 	struct uci_parse_context *pctx;
 
 	/* make sure no memory from previous parse attempts is leaked */
-	uci_parse_cleanup(ctx);
+	uci_file_cleanup(ctx);
 
 	pctx = (struct uci_parse_context *) uci_malloc(ctx, sizeof(struct uci_parse_context));
 	ctx->pctx = pctx;
@@ -460,7 +545,7 @@ int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct u
 	uci_switch_config(ctx);
 
 	/* no error happened, we can get rid of the parser context now */
-	uci_parse_cleanup(ctx);
+	uci_file_cleanup(ctx);
 
 	return 0;
 }

@@ -73,6 +73,14 @@ extern void uci_perror(struct uci_context *ctx, const char *str);
 extern int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct uci_config **cfg);
 
 /**
+ * uci_export: Export one or all uci config packages
+ * @ctx: uci context
+ * @stream: output stream
+ * @cfg: (optional) uci config package to export
+ */
+extern int uci_export(struct uci_context *ctx, FILE *stream, struct uci_config *cfg);
+
+/**
  * uci_load: Parse an uci config file and store it in the uci context
  *
  * @ctx: uci context
@@ -115,6 +123,8 @@ struct uci_context
 	/* private: */
 	int errno;
 	jmp_buf trap;
+	char *buf;
+	int bufsz;
 };
 
 struct uci_parse_context

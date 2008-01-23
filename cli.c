@@ -31,41 +31,6 @@ static void uci_usage(int argc, char **argv)
 	exit(255);
 }
 
-static char *uci_escape(char *str)
-{
-	char *s, *p, *t;
-	int pos = 0;
-
-	if (!buf)
-		buf = malloc(buflen);
-
-	s = str;
-	p = strchr(str, '\'');
-	if (!p)
-		return str;
-
-	do {
-		int len = p - s;
-		if (len > 0) {
-			if (p + 3 - str >= buflen) {
-				buflen *= 2;
-				buf = realloc(buf, buflen);
-				if (!buf) {
-					fprintf(stderr, "Out of memory\n");
-					exit(255);
-				}
-			}
-			memcpy(&buf[pos], s, len);
-			pos += len;
-		}
-		strcpy(&buf[pos], "'\\''");
-		pos += 3;
-		s = p + 1;
-	} while ((p = strchr(s, '\'')));
-
-	return buf;
-}
-
 static void uci_show_section(struct uci_section *p)
 {
 	struct uci_option *o;
@@ -79,19 +44,6 @@ static void uci_show_section(struct uci_section *p)
 	}
 }
 
-static void uci_export_section(struct uci_section *p)
-{
-	struct uci_option *o;
-	const char *name;
-
-	printf("\nconfig '%s'", uci_escape(p->type));
-	printf(" '%s'\n", uci_escape(p->name));
-	uci_foreach_entry(option, &p->options, o) {
-		printf("\toption '%s'", uci_escape(o->name));
-		printf(" '%s'\n", uci_escape(o->value));
-	}
-}
-
 static void foreach_section(const char *configname, const char *section, void (*callback)(struct uci_section *))
 {
 	struct uci_config *cfg;
@@ -102,7 +54,6 @@ static void foreach_section(const char *configname, const char *section, void (*
 		return;
 	}
 
-	uci_list_empty(&cfg->sections);
 	uci_foreach_entry(section, &cfg->sections, p) {
 		if (!section || !strcmp(p->name, section))
 			callback(p);
@@ -126,7 +77,7 @@ static int uci_show(int argc, char **argv)
 	return 0;
 }
 
-static int uci_export(int argc, char **argv)
+static int uci_do_export(int argc, char **argv)
 {
 	char **configs = uci_list_configs();
 	char **p;
@@ -136,9 +87,14 @@ static int uci_export(int argc, char **argv)
 
 	for (p = configs; *p; p++) {
 		if ((argc < 2) || !strcmp(argv[1], *p)) {
-			printf("package '%s'\n", uci_escape(*p));
-			foreach_section(*p, NULL, uci_export_section);
-			printf("\n");
+			struct uci_config *cfg = NULL;
+			int ret;
+
+			ret = uci_load(ctx, *p, &cfg);
+			if (ret)
+				continue;
+			uci_export(ctx, stdout, cfg);
+			uci_unload(ctx, *p);
 		}
 	}
 	return 0;
@@ -149,7 +105,7 @@ static int uci_cmd(int argc, char **argv)
 	if (!strcasecmp(argv[0], "show"))
 		return uci_show(argc, argv);
 	if (!strcasecmp(argv[0], "export"))
-		return uci_export(argc, argv);
+		return uci_do_export(argc, argv);
 	return 255;
 }
 

@@ -109,7 +109,7 @@ void uci_free(struct uci_context *ctx)
 int uci_cleanup(struct uci_context *ctx)
 {
 	UCI_HANDLE_ERR(ctx);
-	uci_parse_cleanup(ctx);
+	uci_file_cleanup(ctx);
 	return 0;
 }
 
