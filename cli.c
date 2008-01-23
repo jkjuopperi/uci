@@ -44,34 +44,30 @@ static void uci_show_section(struct uci_section *p)
 	}
 }
 
-static void foreach_section(const char *configname, const char *section, void (*callback)(struct uci_section *))
-{
-	struct uci_config *cfg;
-	struct uci_section *p;
-
-	if (uci_load(ctx, configname, &cfg) != UCI_OK) {
-		uci_perror(ctx, "uci_load");
-		return;
-	}
-
-	uci_foreach_entry(section, &cfg->sections, p) {
-		if (!section || !strcmp(p->name, section))
-			callback(p);
-	}
-	uci_unload(ctx, configname);
-}
-
 static int uci_show(int argc, char **argv)
 {
-	char **configs = uci_list_configs();
+	char *section = (argc > 2 ? argv[2] : NULL);
+	struct uci_config *cfg;
+	struct uci_section *s;
+	char **configs;
 	char **p;
 
+	configs = uci_list_configs();
 	if (!configs)
 		return 0;
 
 	for (p = configs; *p; p++) {
-		if ((argc < 2) || !strcmp(argv[1], *p))
-			foreach_section(*p, (argc > 2 ? argv[2] : NULL), uci_show_section);
+		if ((argc < 2) || !strcmp(argv[1], *p)) {
+			if (uci_load(ctx, *p, &cfg) != UCI_OK) {
+				uci_perror(ctx, "uci_load");
+				return 255;
+			}
+			uci_foreach_entry(section, &cfg->sections, s) {
+				if (!section || !strcmp(s->name, section))
+					uci_show_section(s);
+			}
+			uci_unload(ctx, *p);
+		}
 	}
 
 	return 0;
