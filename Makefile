@@ -1,5 +1,8 @@
-COPTS=-g -O2
-CFLAGS=$(COPTS) -fPIC -Wall -pedantic -std=gnu99 -Wno-unused -Werror $(if $(DEBUG),-DDEBUG_ALL)
+COPTS=-O2
+CFLAGS=$(COPTS) -fPIC -Wall -pedantic -std=gnu99 -Wno-unused -Werror
+ifneq ($(DEBUG),)
+  CFLAGS += -g3 -DDEBUG_ALL
+endif
 
 AR=ar
 CC=gcc
