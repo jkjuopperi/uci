@@ -15,8 +15,6 @@
 #include "uci.h"
 
 static struct uci_context *ctx;
-static char *buf = NULL;
-static int buflen = 256;
 
 static void uci_usage(int argc, char **argv)
 {
