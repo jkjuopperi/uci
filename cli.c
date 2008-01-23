@@ -52,7 +52,7 @@ static int uci_show(int argc, char **argv)
 	char **configs;
 	char **p;
 
-	configs = uci_list_configs();
+	configs = uci_list_configs(ctx);
 	if (!configs)
 		return 0;
 
@@ -75,7 +75,7 @@ static int uci_show(int argc, char **argv)
 
 static int uci_do_export(int argc, char **argv)
 {
-	char **configs = uci_list_configs();
+	char **configs = uci_list_configs(ctx);
 	char **p;
 
 	if (!configs)
