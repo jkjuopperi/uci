@@ -52,6 +52,7 @@ struct uci_list
 	void *prev;
 };
 
+struct uci_element;
 struct uci_package;
 struct uci_section;
 struct uci_option;
@@ -118,6 +119,20 @@ extern int uci_unload(struct uci_context *ctx, const char *name);
  * @ctx: uci context
  */
 extern int uci_cleanup(struct uci_context *ctx);
+
+/**
+ * uci_lookup: Look up an uci element
+ *
+ * @ctx: uci context
+ * @res: where to store the result
+ * @package: config package
+ * @section: config section (optional)
+ * @option: option to search for (optional)
+ *
+ * If section is omitted, then a pointer to the config package is returned
+ * If option is omitted, then a pointer to the config section is returned
+ */
+extern int uci_lookup(struct uci_context *ctx, struct uci_element **res, char *package, char *section, char *option);
 
 /**
  * uci_list_configs: List available uci config files

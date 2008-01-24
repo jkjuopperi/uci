@@ -157,6 +157,44 @@ uci_free_package(struct uci_package *p)
 	uci_free_element(&p->e);
 }
 
+static struct uci_element *uci_lookup_list(struct uci_context *ctx, struct uci_list *list, char *name)
+{
+	struct uci_element *e;
+
+	uci_foreach_element(list, e) {
+		if (!strcmp(e->name, name))
+			return e;
+	}
+	UCI_THROW(ctx, UCI_ERR_NOTFOUND);
+}
+
+int uci_lookup(struct uci_context *ctx, struct uci_element **res, char *package, char *section, char *option)
+{
+	struct uci_element *e;
+	struct uci_package *p;
+	struct uci_section *s;
+	struct uci_option *o;
+
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, res != NULL);
+	UCI_ASSERT(ctx, package != NULL);
+
+	e = uci_lookup_list(ctx, &ctx->root, package);
+	if (!section)
+		goto found;
+
+	p = uci_to_package(e);
+	e = uci_lookup_list(ctx, &p->sections, section);
+	if (!option)
+		goto found;
+
+	s = uci_to_section(e);
+	e = uci_lookup_list(ctx, &s->options, option);
+
+found:
+	*res = e;
+	return 0;
+}
 
 int uci_unload(struct uci_context *ctx, const char *name)
 {
