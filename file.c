@@ -374,13 +374,13 @@ static void uci_parse_option(struct uci_context *ctx, char **str)
 static void uci_parse_line(struct uci_context *ctx)
 {
 	struct uci_parse_context *pctx = ctx->pctx;
-	char *word, *brk;
+	char *word, *brk = NULL;
 
 	for (word = strtok_r(pctx->buf, ";", &brk);
 		 word;
 		 word = strtok_r(NULL, ";", &brk)) {
 
-		char *pbrk;
+		char *pbrk = NULL;
 		word = strtok_r(word, " \t", &pbrk);
 
 		switch(word[0]) {
