@@ -69,9 +69,6 @@ uci_alloc_generic(struct uci_context *ctx, int type, const char *name, int size)
 static void
 uci_free_element(struct uci_element *e)
 {
-	if (!e)
-		return;
-
 	if (!uci_list_empty(&e->list))
 		uci_list_del(&e->list);
 	free(e);
