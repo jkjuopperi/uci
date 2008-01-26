@@ -22,19 +22,19 @@ static inline void uci_list_init(struct uci_list *ptr)
 }
 
 /* inserts a new list entry between two consecutive entries */
-static inline void __uci_list_add(struct uci_list *prev, struct uci_list *next, struct uci_list *ptr)
+static inline void uci_list_insert(struct uci_list *list, struct uci_list *ptr)
 {
-	next->prev = ptr;
-	ptr->prev = prev;
-	ptr->next = next;
-	prev->next = ptr;
+	list->next->prev = ptr;
+	ptr->prev = list;
+	ptr->next = list->next;
+	list->next = ptr;
 }
 
 /* inserts a new list entry at the tail of the list */
 static inline void uci_list_add(struct uci_list *head, struct uci_list *ptr)
 {
 	/* NB: head->prev points at the tail */
-	__uci_list_add(head->prev, head, ptr);
+	uci_list_insert(head->prev, ptr);
 }
 
 static inline void uci_list_del(struct uci_list *ptr)

@@ -46,10 +46,11 @@ enum
 	UCI_ERR_LAST
 };
 
+struct uci_list;
 struct uci_list
 {
-	void *next;
-	void *prev;
+	struct uci_list *next;
+	struct uci_list *prev;
 };
 
 struct uci_element;
