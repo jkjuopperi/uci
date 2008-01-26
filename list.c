@@ -215,14 +215,4 @@ found:
 	return 0;
 }
 
-static inline char *get_filename(char *path)
-{
-	char *p;
-
-	p = strrchr(path, '/');
-	p++;
-	if (!*p)
-		return NULL;
-	return p;
-}
 

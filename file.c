@@ -564,6 +564,16 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 	return uci_import(ctx, file, name, package);
 }
 
+static inline char *get_filename(char *path)
+{
+	char *p;
+
+	p = strrchr(path, '/');
+	p++;
+	if (!*p)
+		return NULL;
+	return p;
+}
 
 char **uci_list_configs(struct uci_context *ctx)
 {
