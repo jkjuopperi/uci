@@ -564,6 +564,12 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 	return uci_import(ctx, file, name, package);
 }
 
+/* 
+ * This function returns the filename by returning the string
+ * after the last '/' character. By checking for a non-'\0'
+ * character afterwards, directories are ignored (glob marks
+ * those with a trailing '/'
+ */
 static inline char *get_filename(char *path)
 {
 	char *p;
