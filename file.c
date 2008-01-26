@@ -564,3 +564,46 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 	return uci_import(ctx, file, name, package);
 }
 
+
+char **uci_list_configs(struct uci_context *ctx)
+{
+	char **configs;
+	glob_t globbuf;
+	int size, i;
+	char *buf;
+
+	if (glob(UCI_CONFDIR "/*", GLOB_MARK, NULL, &globbuf) != 0)
+		return NULL;
+
+	size = sizeof(char *) * (globbuf.gl_pathc + 1);
+	for(i = 0; i < globbuf.gl_pathc; i++) {
+		char *p;
+
+		p = get_filename(globbuf.gl_pathv[i]);
+		if (!p)
+			continue;
+
+		size += strlen(p) + 1;
+	}
+
+	configs = malloc(size);
+	if (!configs)
+		return NULL;
+
+	memset(configs, 0, size);
+	buf = (char *) &configs[globbuf.gl_pathc + 1];
+	for(i = 0; i < globbuf.gl_pathc; i++) {
+		char *p;
+
+		p = get_filename(globbuf.gl_pathv[i]);
+		if (!p)
+			continue;
+
+		configs[i] = buf;
+		strcpy(buf, p);
+		buf += strlen(buf) + 1;
+	}
+	return configs;
+}
+
+
