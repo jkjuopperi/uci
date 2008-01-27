@@ -94,12 +94,54 @@ static int uci_do_export(int argc, char **argv)
 	return 0;
 }
 
+
+
+static int uci_do_get(int argc, char **argv)
+{
+	char *package = NULL;
+	char *section = NULL;
+	char *option = NULL;
+	struct uci_package *p = NULL;
+	struct uci_element *e = NULL;
+	char *value = NULL;
+
+	package = strtok(argv[1], ".");
+	if (!package)
+		return 1;
+
+	section = strtok(NULL, ".");
+	if (section)
+		option = strtok(NULL, ".");
+
+	if (uci_load(ctx, package, &p) != UCI_OK) {
+		uci_perror(ctx, "uci");
+		return 1;
+	}
+	if (uci_lookup(ctx, &e, package, section, option) != UCI_OK)
+		return 1;
+	switch(e->type) {
+	case UCI_TYPE_SECTION:
+		value = uci_to_section(e)->type;
+		break;
+	case UCI_TYPE_OPTION:
+		value = uci_to_option(e)->value;
+		break;
+	default:
+		/* should not happen */
+		return 1;
+	}
+	printf("%s\n", value);
+	return 0;
+}
+
 static int uci_cmd(int argc, char **argv)
 {
 	if (!strcasecmp(argv[0], "show"))
 		return uci_show(argc, argv);
 	if (!strcasecmp(argv[0], "export"))
 		return uci_do_export(argc, argv);
+	if (!strcasecmp(argv[0], "get"))
+		return uci_do_get(argc, argv);
 	return 255;
 }
 

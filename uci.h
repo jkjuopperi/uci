@@ -144,9 +144,9 @@ extern char **uci_list_configs(struct uci_context *ctx);
 
 /* UCI data structures */
 enum uci_type {
-	uci_type_package = 0,
-	uci_type_section = 1,
-	uci_type_option = 2
+	UCI_TYPE_PACKAGE = 0,
+	UCI_TYPE_SECTION = 1,
+	UCI_TYPE_OPTION = 2
 };
 
 struct uci_element
@@ -289,6 +289,11 @@ struct uci_history
 
 /* returns true if a list is empty */
 #define uci_list_empty(list) ((list)->next == (list))
+
+/* wrappers for dynamic type handling */
+#define uci_type_package UCI_TYPE_PACKAGE
+#define uci_type_section UCI_TYPE_SECTION
+#define uci_type_option UCI_TYPE_OPTION
 
 /* element typecasting */
 #ifdef UCI_DEBUG_TYPECAST
