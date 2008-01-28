@@ -136,6 +136,27 @@ extern int uci_cleanup(struct uci_context *ctx);
 extern int uci_lookup(struct uci_context *ctx, struct uci_element **res, char *package, char *section, char *option);
 
 /**
+ * uci_set_element_value: Replace an element's value with a new one
+ * @ctx: uci context
+ * @element: pointer to an uci_element struct pointer
+ * @value: new value
+ * 
+ * Only valid for uci_option and uci_section. Will replace the type string
+ * when used with an uci_section
+ */
+extern int uci_set_element_value(struct uci_context *ctx, struct uci_element **element, char *value);
+
+/**
+ * uci_set: Set an element's value; create the element if necessary
+ * @ctx: uci context
+ * @package: package name
+ * @section: section name
+ * @option: option name
+ * @value: value (option) or type (section)
+ */
+extern int uci_set(struct uci_context *ctx, char *package, char *section, char *option, char *value);
+
+/**
  * uci_list_configs: List available uci config files
  *
  * @ctx: uci context
@@ -166,6 +187,7 @@ struct uci_context
 
 	/* private: */
 	int errno;
+	const char *func;
 	jmp_buf trap;
 	char *buf;
 	int bufsz;
@@ -194,6 +216,7 @@ struct uci_package
 	struct uci_context *ctx;
 	/* private: */
 	int n_section;
+	struct uci_list history;
 };
 
 struct uci_section
@@ -221,12 +244,9 @@ struct uci_history
 {
 	struct uci_list list;
 	enum uci_command cmd;
-	union {
-		struct uci_element element;
-		struct uci_package package;
-		struct uci_section section;
-		struct uci_option option;
-	} data;
+	char *section;
+	char *option;
+	char *value;
 };
 
 /* linked list handling */

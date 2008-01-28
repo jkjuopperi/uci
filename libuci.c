@@ -73,7 +73,7 @@ int uci_cleanup(struct uci_context *ctx)
 	return 0;
 }
 
-void uci_perror(struct uci_context *ctx, const char *str)
+void uci_perror(struct uci_context *ctx, const char *prefix)
 {
 	int err;
 
@@ -85,15 +85,20 @@ void uci_perror(struct uci_context *ctx, const char *str)
 	if ((err < 0) || (err >= UCI_ERR_LAST))
 		err = UCI_ERR_UNKNOWN;
 
+	if (prefix)
+		fprintf(stderr, "%s: ", prefix);
+	if (ctx->func)
+		fprintf(stderr, "%s: ", ctx->func);
+
 	switch (err) {
 	case UCI_ERR_PARSE:
 		if (ctx->pctx) {
-			fprintf(stderr, "%s: %s (%s) at line %d, byte %d\n", str, uci_errstr[err], (ctx->pctx->reason ? ctx->pctx->reason : "unknown"), ctx->pctx->line, ctx->pctx->byte);
+			fprintf(stderr, "%s (%s) at line %d, byte %d\n", uci_errstr[err], (ctx->pctx->reason ? ctx->pctx->reason : "unknown"), ctx->pctx->line, ctx->pctx->byte);
 			break;
 		}
 		/* fall through */
 	default:
-		fprintf(stderr, "%s: %s\n", str, uci_errstr[err]);
+		fprintf(stderr, "%s\n", uci_errstr[err]);
 		break;
 	}
 }
