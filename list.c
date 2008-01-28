@@ -153,6 +153,8 @@ uci_free_package(struct uci_package *p)
 	if(!p)
 		return;
 
+	if (p->path)
+		free(p->path);
 	uci_foreach_element_safe(&p->sections, tmp, e) {
 		uci_free_section(uci_to_section(e));
 	}
@@ -174,7 +176,7 @@ uci_add_history(struct uci_context *ctx, struct uci_package *p, int cmd, char *s
 }
 
 
-static struct uci_element *uci_lookup_list(struct uci_context *ctx, struct uci_list *list, char *name)
+static struct uci_element *uci_lookup_list(struct uci_context *ctx, struct uci_list *list, const char *name)
 {
 	struct uci_element *e;
 
@@ -185,22 +187,16 @@ static struct uci_element *uci_lookup_list(struct uci_context *ctx, struct uci_l
 	UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 }
 
-int uci_lookup(struct uci_context *ctx, struct uci_element **res, char *package, char *section, char *option)
+int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_package *p, char *section, char *option)
 {
 	struct uci_element *e;
-	struct uci_package *p;
 	struct uci_section *s;
 	struct uci_option *o;
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, res != NULL);
-	UCI_ASSERT(ctx, package != NULL);
+	UCI_ASSERT(ctx, p != NULL);
 
-	e = uci_lookup_list(ctx, &ctx->root, package);
-	if (!section)
-		goto found;
-
-	p = uci_to_package(e);
 	e = uci_lookup_list(ctx, &p->sections, section);
 	if (!option)
 		goto found;
@@ -280,8 +276,6 @@ int uci_set(struct uci_context *ctx, char *package, char *section, char *option,
 	UCI_ASSERT(ctx, package != NULL);
 	UCI_ASSERT(ctx, section != NULL);
 
-	fprintf(stderr, "uci_set: '%s' '%s' '%s' = '%s'\n", package, section, option, value);
-
 	/*
 	 * look up the package, section and option (if set)
 	 * if the section/option is to be modified and it is not found
@@ -338,22 +332,14 @@ notfound:
 	return 0;
 }
 
-int uci_unload(struct uci_context *ctx, const char *name)
+int uci_unload(struct uci_context *ctx, struct uci_package *p)
 {
 	struct uci_element *e;
 
 	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, name != NULL);
+	UCI_ASSERT(ctx, p != NULL);
 
-	uci_foreach_element(&ctx->root, e) {
-		if (!strcmp(e->name, name))
-			goto found;
-	}
-	UCI_THROW(ctx, UCI_ERR_NOTFOUND);
-
-found:
-	uci_free_package(uci_to_package(e));
-
+	uci_free_package(p);
 	return 0;
 }
 

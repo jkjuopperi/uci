@@ -65,14 +65,24 @@ static int uci_show(int argc, char **argv)
 	if (!configs)
 		return 0;
 
+	if (argc >= 2) {
+		if (uci_load(ctx, argv[1], &package) != UCI_OK) {
+			uci_perror(ctx, NULL);
+			return 1;
+		}
+		uci_show_package(package, section);
+		uci_unload(ctx, package);
+		return 0;
+	}
+
 	for (p = configs; *p; p++) {
 		if ((argc < 2) || !strcmp(argv[1], *p)) {
 			if (uci_load(ctx, *p, &package) != UCI_OK) {
-				uci_perror(ctx, "uci_load");
-				return 255;
+				uci_perror(ctx, NULL);
+				return 1;
 			}
 			uci_show_package(package, section);
-			uci_unload(ctx, *p);
+			uci_unload(ctx, package);
 		}
 	}
 
@@ -96,7 +106,7 @@ static int uci_do_export(int argc, char **argv)
 			if (ret)
 				continue;
 			uci_export(ctx, stdout, package);
-			uci_unload(ctx, *p);
+			uci_unload(ctx, package);
 		}
 	}
 	return 0;
@@ -154,7 +164,7 @@ static int uci_do_get(int argc, char **argv)
 		return 1;
 	}
 
-	if (uci_lookup(ctx, &e, package, section, option) != UCI_OK)
+	if (uci_lookup(ctx, &e, p, section, option) != UCI_OK)
 		return 1;
 
 	switch(e->type) {

@@ -29,6 +29,7 @@
 #define UCI_DEBUG_TYPECAST
 #endif
 
+#include <stdbool.h>
 #include <setjmp.h>
 #include <stdio.h>
 
@@ -110,9 +111,9 @@ extern int uci_load(struct uci_context *ctx, const char *name, struct uci_packag
  * uci_unload: Unload a config file from the uci context
  *
  * @ctx: uci context
- * @name: name of the config file
+ * @package: pointer to the uci_package struct
  */
-extern int uci_unload(struct uci_context *ctx, const char *name);
+extern int uci_unload(struct uci_context *ctx, struct uci_package *p);
 
 /**
  * uci_cleanup: Clean up after an error
@@ -126,14 +127,14 @@ extern int uci_cleanup(struct uci_context *ctx);
  *
  * @ctx: uci context
  * @res: where to store the result
- * @package: config package
+ * @package: uci_package struct 
  * @section: config section (optional)
  * @option: option to search for (optional)
  *
  * If section is omitted, then a pointer to the config package is returned
  * If option is omitted, then a pointer to the config section is returned
  */
-extern int uci_lookup(struct uci_context *ctx, struct uci_element **res, char *package, char *section, char *option);
+extern int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_package *package, char *section, char *option);
 
 /**
  * uci_set_element_value: Replace an element's value with a new one
@@ -214,6 +215,9 @@ struct uci_package
 	struct uci_element e;
 	struct uci_list sections;
 	struct uci_context *ctx;
+	bool confdir;
+	char *path;
+
 	/* private: */
 	int n_section;
 	struct uci_list history;

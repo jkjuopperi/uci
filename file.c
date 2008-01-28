@@ -275,6 +275,7 @@ static void assert_eol(struct uci_context *ctx, char **str)
 static void uci_switch_config(struct uci_context *ctx)
 {
 	struct uci_parse_context *pctx;
+	struct uci_element *e;
 	const char *name;
 
 	pctx = ctx->pctx;
@@ -296,7 +297,9 @@ static void uci_switch_config(struct uci_context *ctx)
 	 * ignore errors here, e.g. if the config was not found
 	 */
 	UCI_TRAP_SAVE(ctx, ignore);
-	uci_unload(ctx, name);
+	e = uci_lookup_list(ctx, &ctx->root, name);
+	if (e)
+		uci_unload(ctx, uci_to_package(e));
 	UCI_TRAP_RESTORE(ctx);
 ignore:
 	ctx->errno = 0;
@@ -530,7 +533,7 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 {
 	struct stat statbuf;
 	char *filename;
-	bool confpath;
+	bool confdir;
 	FILE *file;
 	int fd;
 
@@ -539,15 +542,19 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 
 	switch (name[0]) {
 	case '.':
+		if (name[1] != '/')
+			UCI_THROW(ctx, UCI_ERR_NOTFOUND);
+		/* fall through */
 	case '/':
 		/* absolute/relative path outside of /etc/config */
-		filename = (char *) name;
-		confpath = false;
+		filename = uci_strdup(ctx, name);
+		name = strrchr(name, '/') + 1;
+		confdir = false;
 		break;
 	default:
 		filename = uci_malloc(ctx, strlen(name) + sizeof(UCI_CONFDIR) + 2);
 		sprintf(filename, UCI_CONFDIR "/%s", name);
-		confpath = true;
+		confdir = true;
 		break;
 	}
 
@@ -557,8 +564,8 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 	}
 
 	fd = open(filename, O_RDONLY);
-	if (filename != name)
-		free(filename);
+	if (fd <= 0)
+		UCI_THROW(ctx, UCI_ERR_IO);
 
 	flock(fd, LOCK_SH);
 	file = fdopen(fd, "r");
@@ -569,6 +576,11 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 	UCI_TRAP_SAVE(ctx, done);
 	uci_import(ctx, file, name, package);
 	UCI_TRAP_RESTORE(ctx);
+
+	if (*package) {
+		(*package)->path = filename;
+		(*package)->confdir = confdir;
+	}
 
 done:
 	flock(fd, LOCK_UN);
