@@ -411,7 +411,7 @@ static void uci_parse_line(struct uci_context *ctx)
 }
 
 /* max number of characters that escaping adds to the string */
-#define UCI_QUOTE_ESCAPE	"'\\'"
+#define UCI_QUOTE_ESCAPE	"'\\''"
 
 /*
  * escape an uci string for export
