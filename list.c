@@ -184,7 +184,7 @@ static struct uci_element *uci_lookup_list(struct uci_context *ctx, struct uci_l
 		if (!strcmp(e->name, name))
 			return e;
 	}
-	UCI_THROW(ctx, UCI_ERR_NOTFOUND);
+	return NULL;
 }
 
 int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_package *p, char *section, char *option)
@@ -196,16 +196,22 @@ int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_pac
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, res != NULL);
 	UCI_ASSERT(ctx, p != NULL);
+	UCI_ASSERT(ctx, section != NULL);
 
 	e = uci_lookup_list(ctx, &p->sections, section);
-	if (!option)
-		goto found;
+	if (!e)
+		goto notfound;
 
-	s = uci_to_section(e);
-	e = uci_lookup_list(ctx, &s->options, option);
+	if (option) {
+		s = uci_to_section(e);
+		e = uci_lookup_list(ctx, &s->options, option);
+	}
 
-found:
 	*res = e;
+	return 0;
+
+notfound:
+	UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 	return 0;
 }
 
@@ -281,7 +287,6 @@ int uci_set(struct uci_context *ctx, char *package, char *section, char *option,
 	 * if the section/option is to be modified and it is not found
 	 * create a new element in the appropriate list
 	 */
-	UCI_TRAP_SAVE(ctx, notfound);
 	e = uci_lookup_list(ctx, &ctx->root, package);
 	if (!e)
 		goto notfound;
@@ -290,15 +295,14 @@ int uci_set(struct uci_context *ctx, char *package, char *section, char *option,
 	e = uci_lookup_list(ctx, &p->sections, section);
 	if (!e)
 		goto notfound;
-	s = uci_to_section(e);
 
+	s = uci_to_section(e);
 	if (option) {
 		e = uci_lookup_list(ctx, &s->options, option);
 		if (!e)
 			goto notfound;
 		o = uci_to_option(e);
 	}
-	UCI_TRAP_RESTORE(ctx);
 
 	/* 
 	 * no unknown element was supplied, assume that we can just update 
@@ -320,14 +324,14 @@ notfound:
 	 * an option was supplied, but the section wasn't found
 	 */
 	if (!p || (!s && option))
-		UCI_THROW(ctx, ctx->errno);
+		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 
 	/* now add the missing entry */
 	uci_add_history(ctx, p, UCI_CMD_ADD, section, option, value);
 	if (s)
 		uci_alloc_option(s, option, value);
 	else
-		uci_alloc_section(p, section, value);
+		uci_alloc_section(p, value, section);
 
 	return 0;
 }
