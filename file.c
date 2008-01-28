@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdbool.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <ctype.h>
 
@@ -531,6 +532,7 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 	char *filename;
 	bool confpath;
 	FILE *file;
+	int fd;
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, name != NULL);
@@ -554,14 +556,24 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 	}
 
-	file = fopen(filename, "r");
+	fd = open(filename, O_RDONLY);
 	if (filename != name)
 		free(filename);
 
+	flock(fd, LOCK_SH);
+	file = fdopen(fd, "r");
 	if (!file)
 		UCI_THROW(ctx, UCI_ERR_IO);
 
-	return uci_import(ctx, file, name, package);
+	ctx->errno = 0;
+	UCI_TRAP_SAVE(ctx, done);
+	uci_import(ctx, file, name, package);
+	UCI_TRAP_RESTORE(ctx);
+
+done:
+	flock(fd, LOCK_UN);
+	fclose(file);
+	return ctx->errno;
 }
 
 /* 
