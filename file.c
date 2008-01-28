@@ -311,7 +311,7 @@ ignore:
 /*
  * parse the 'package' uci command (next config package)
  */
-static void uci_parse_package(struct uci_context *ctx, char **str)
+static void uci_parse_package(struct uci_context *ctx, char **str, bool single)
 {
 	char *name = NULL;
 
@@ -320,6 +320,9 @@ static void uci_parse_package(struct uci_context *ctx, char **str)
 
 	name = next_arg(ctx, str, true);
 	assert_eol(ctx, str);
+	if (single)
+		return;
+
 	ctx->pctx->name = name;
 	uci_switch_config(ctx);
 }
@@ -376,7 +379,7 @@ static void uci_parse_option(struct uci_context *ctx, char **str)
 /*
  * parse a complete input line, split up combined commands by ';'
  */
-static void uci_parse_line(struct uci_context *ctx)
+static void uci_parse_line(struct uci_context *ctx, bool single)
 {
 	struct uci_parse_context *pctx = ctx->pctx;
 	char *word, *brk = NULL;
@@ -391,7 +394,7 @@ static void uci_parse_line(struct uci_context *ctx)
 		switch(word[0]) {
 			case 'p':
 				if ((word[1] == 0) || !strcmp(word + 1, "ackage"))
-					uci_parse_package(ctx, &word);
+					uci_parse_package(ctx, &word, single);
 				break;
 			case 'c':
 				if ((word[1] == 0) || !strcmp(word + 1, "onfig"))
@@ -493,7 +496,7 @@ done:
 	return 0;
 }
 
-int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct uci_package **package)
+int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct uci_package **package, bool single)
 {
 	struct uci_parse_context *pctx;
 
@@ -515,7 +518,7 @@ int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct u
 	while (!feof(pctx->file)) {
 		uci_getln(ctx, 0);
 		if (pctx->buf[0])
-			uci_parse_line(ctx);
+			uci_parse_line(ctx, single);
 	}
 
 	if (package)
@@ -577,7 +580,7 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 
 	ctx->errno = 0;
 	UCI_TRAP_SAVE(ctx, done);
-	uci_import(ctx, file, name, package);
+	uci_import(ctx, file, name, package, true);
 	UCI_TRAP_RESTORE(ctx);
 
 	if (*package) {

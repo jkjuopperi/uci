@@ -85,10 +85,11 @@ extern void uci_perror(struct uci_context *ctx, const char *str);
  * @stream: file stream to import from
  * @name: (optional) assume the config has the given name
  * @package: (optional) store the last parsed config package in this variable
+ * @single: ignore the 'package' keyword and parse everything into a single package
  *
  * the name parameter is for config files that don't explicitly use the 'package <...>' keyword
  */
-extern int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct uci_package **package);
+extern int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct uci_package **package, bool single);
 
 /**
  * uci_export: Export one or all uci config packages
