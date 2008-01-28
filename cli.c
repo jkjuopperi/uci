@@ -105,7 +105,7 @@ static int uci_do_export(int argc, char **argv)
 			ret = uci_load(ctx, *p, &package);
 			if (ret)
 				continue;
-			uci_export(ctx, stdout, package);
+			uci_export(ctx, stdout, package, true);
 			uci_unload(ctx, package);
 		}
 	}
@@ -209,7 +209,7 @@ static int uci_do_set(int argc, char **argv)
 		uci_perror(ctx, "uci");
 		return 1;
 	}
-	uci_show_package(p, NULL);
+	uci_commit(ctx, p);
 	return 0;
 }
 

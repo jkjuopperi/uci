@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdbool.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -454,7 +455,7 @@ static char *uci_escape(struct uci_context *ctx, char *str)
 /*
  * export a single config package to a file stream
  */
-static void uci_export_package(struct uci_package *p, FILE *stream)
+static void uci_export_package(struct uci_package *p, FILE *stream, bool header)
 {
 	struct uci_context *ctx = p->ctx;
 	struct uci_element *s, *o;
@@ -473,7 +474,7 @@ static void uci_export_package(struct uci_package *p, FILE *stream)
 	fprintf(stream, "\n");
 }
 
-int uci_export(struct uci_context *ctx, FILE *stream, struct uci_package *package)
+int uci_export(struct uci_context *ctx, FILE *stream, struct uci_package *package, bool header)
 {
 	struct uci_element *e;
 
@@ -481,12 +482,12 @@ int uci_export(struct uci_context *ctx, FILE *stream, struct uci_package *packag
 	UCI_ASSERT(ctx, stream != NULL);
 
 	if (package) {
-		uci_export_package(package, stream);
+		uci_export_package(package, stream, header);
 		goto done;
 	}
 
 	uci_foreach_element(&ctx->root, e) {
-		uci_export_package(uci_to_package(e), stream);
+		uci_export_package(uci_to_package(e), stream, header);
 	}
 done:
 	return 0;
@@ -589,6 +590,46 @@ done:
 	fclose(file);
 	return ctx->errno;
 }
+
+int uci_commit(struct uci_context *ctx, struct uci_package *p)
+{
+	FILE *f = NULL;
+	int fd = 0;
+	int err = UCI_ERR_IO;
+
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, p != NULL);
+	UCI_ASSERT(ctx, p->path != NULL);
+
+	fd = open(p->path, O_RDWR);
+	if (fd < 0)
+		goto done;
+
+	if (flock(fd, LOCK_EX) < 0)
+		goto done;
+
+	ftruncate(fd, 0);
+	f = fdopen(fd, "w");
+	if (!f)
+		goto done;
+
+	UCI_TRAP_SAVE(ctx, done);
+	uci_export(ctx, f, p, false);
+	UCI_TRAP_RESTORE(ctx);
+
+done:
+	if (f)
+		fclose(f);
+	else if (fd > 0)
+		close(fd);
+
+	if (ctx->errno)
+		UCI_THROW(ctx, ctx->errno);
+	if (err)
+		UCI_THROW(ctx, UCI_ERR_IO);
+	return 0;
+}
+
 
 /* 
  * This function returns the filename by returning the string

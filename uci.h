@@ -95,8 +95,9 @@ extern int uci_import(struct uci_context *ctx, FILE *stream, const char *name, s
  * @ctx: uci context
  * @stream: output stream
  * @package: (optional) uci config package to export
+ * @header: include the package header
  */
-extern int uci_export(struct uci_context *ctx, FILE *stream, struct uci_package *package);
+extern int uci_export(struct uci_context *ctx, FILE *stream, struct uci_package *package, bool header);
 
 /**
  * uci_load: Parse an uci config file and store it in the uci context
@@ -156,6 +157,13 @@ extern int uci_set_element_value(struct uci_context *ctx, struct uci_element **e
  * @value: value (option) or type (section)
  */
 extern int uci_set(struct uci_context *ctx, char *package, char *section, char *option, char *value);
+
+/**
+ * uci_commit: commit changes to a package
+ * @ctx: uci context
+ * @p: uci_package struct
+ */
+extern int uci_commit(struct uci_context *ctx, struct uci_package *p);
 
 /**
  * uci_list_configs: List available uci config files
