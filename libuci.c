@@ -25,13 +25,14 @@
 #include "err.h"
 
 static const char *uci_errstr[] = {
-	[UCI_OK] =           "Success",
-	[UCI_ERR_MEM] =      "Out of memory",
-	[UCI_ERR_INVAL] =    "Invalid argument",
-	[UCI_ERR_NOTFOUND] = "Entry not found",
-	[UCI_ERR_IO] =       "I/O error",
-	[UCI_ERR_PARSE] =    "Parse error",
-	[UCI_ERR_UNKNOWN] =  "Unknown error",
+	[UCI_OK] =            "Success",
+	[UCI_ERR_MEM] =       "Out of memory",
+	[UCI_ERR_INVAL] =     "Invalid argument",
+	[UCI_ERR_NOTFOUND] =  "Entry not found",
+	[UCI_ERR_IO] =        "I/O error",
+	[UCI_ERR_PARSE] =     "Parse error",
+	[UCI_ERR_DUPLICATE] = "Duplicate entry",
+	[UCI_ERR_UNKNOWN] =   "Unknown error",
 };
 
 #include "util.c"
