@@ -21,8 +21,10 @@ static void uci_usage(int argc, char **argv)
 	fprintf(stderr,
 		"Usage: %s [<options>] <command> [<arguments>]\n\n"
 		"Commands:\n"
-		"\tshow [<config>[.<section>[.<option>]]]\n"
-		"\texport [<config>]\n"
+		"\texport   [<config>]\n"
+		"\tshow     [<config>[.<section>[.<option>]]]\n"
+		"\tget      <config>.<section>[.<option>]\n"
+		"\tset      <config>.<section>[.<option>]=<value>\n"
 		"\n",
 		argv[0]
 	);
@@ -42,11 +44,20 @@ static void uci_show_section(struct uci_section *p)
 	}
 }
 
+static void uci_show_package(struct uci_package *p, char *section)
+{
+	struct uci_element *e;
+
+	uci_foreach_element( &p->sections, e) {
+		if (!section || !strcmp(e->name, section))
+			uci_show_section(uci_to_section(e));
+	}
+}
+
 static int uci_show(int argc, char **argv)
 {
 	char *section = (argc > 2 ? argv[2] : NULL);
 	struct uci_package *package;
-	struct uci_element *e;
 	char **configs;
 	char **p;
 
@@ -60,10 +71,7 @@ static int uci_show(int argc, char **argv)
 				uci_perror(ctx, "uci_load");
 				return 255;
 			}
-			uci_foreach_element( &package->sections, e) {
-				if (!section || !strcmp(e->name, section))
-					uci_show_section(uci_to_section(e));
-			}
+			uci_show_package(package, section);
 			uci_unload(ctx, *p);
 		}
 	}
@@ -94,6 +102,35 @@ static int uci_do_export(int argc, char **argv)
 	return 0;
 }
 
+static void parse_tuple(char *str, char **package, char **section, char **option, char **value)
+{
+	char *last = NULL;
+
+	*package = strtok(str, ".");
+	if (!*package)
+		goto done;
+
+	last = *package;
+	*section = strtok(NULL, ".");
+	if (!*section)
+		goto done;
+
+	last = *section;
+	*option = strtok(NULL, ".");
+	if (!*option)
+		goto done;
+
+	last = *option;
+done:
+	if (!value)
+		return;
+
+	last = strtok(last, "=");
+	if (!last)
+		return;
+
+	*value = last + strlen(last) + 1;
+}
 
 
 static int uci_do_get(int argc, char **argv)
@@ -105,20 +142,21 @@ static int uci_do_get(int argc, char **argv)
 	struct uci_element *e = NULL;
 	char *value = NULL;
 
-	package = strtok(argv[1], ".");
+	if (argc != 2)
+		return 255;
+
+	parse_tuple(argv[1], &package, &section, &option, NULL);
 	if (!package)
 		return 1;
-
-	section = strtok(NULL, ".");
-	if (section)
-		option = strtok(NULL, ".");
 
 	if (uci_load(ctx, package, &p) != UCI_OK) {
 		uci_perror(ctx, "uci");
 		return 1;
 	}
+
 	if (uci_lookup(ctx, &e, package, section, option) != UCI_OK)
 		return 1;
+
 	switch(e->type) {
 	case UCI_TYPE_SECTION:
 		value = uci_to_section(e)->type;
@@ -130,7 +168,38 @@ static int uci_do_get(int argc, char **argv)
 		/* should not happen */
 		return 1;
 	}
+
+	/* throw the value to stdout */
 	printf("%s\n", value);
+
+	return 0;
+}
+
+static int uci_do_set(int argc, char **argv)
+{
+	struct uci_package *p;
+	char *package = NULL;
+	char *section = NULL;
+	char *option = NULL;
+	char *value = NULL;
+
+	if (argc != 2)
+		return 255;
+
+	parse_tuple(argv[1], &package, &section, &option, &value);
+	if (!package)
+		return 1;
+
+	if (uci_load(ctx, package, &p) != UCI_OK) {
+		uci_perror(ctx, "uci");
+		return 1;
+	}
+
+	if (uci_set(ctx, package, section, option, value) != UCI_OK) {
+		uci_perror(ctx, "uci");
+		return 1;
+	}
+	uci_show_package(p, NULL);
 	return 0;
 }
 
@@ -142,6 +211,8 @@ static int uci_cmd(int argc, char **argv)
 		return uci_do_export(argc, argv);
 	if (!strcasecmp(argv[0], "get"))
 		return uci_do_get(argc, argv);
+	if (!strcasecmp(argv[0], "set"))
+		return uci_do_set(argc, argv);
 	return 255;
 }
 
