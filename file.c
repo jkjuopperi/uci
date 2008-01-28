@@ -27,6 +27,15 @@
 #define LINEBUF	32
 #define LINEBUF_MAX	4096
 
+static void uci_parse_error(struct uci_context *ctx, char *pos, char *reason)
+{
+	struct uci_parse_context *pctx = ctx->pctx;
+
+	pctx->reason = reason;
+	pctx->byte = pos - pctx->buf;
+	UCI_THROW(ctx, UCI_ERR_PARSE);
+}
+
 /*
  * Fetch a new line from the input stream and resize buffer if necessary
  */
@@ -57,11 +66,8 @@ static void uci_getln(struct uci_context *ctx, int offset)
 			return;
 		}
 
-		if (pctx->bufsz > LINEBUF_MAX/2) {
-			pctx->reason = "line too long";
-			pctx->byte = LINEBUF_MAX;
-			UCI_THROW(ctx, UCI_ERR_PARSE);
-		}
+		if (pctx->bufsz > LINEBUF_MAX/2)
+			uci_parse_error(ctx, p, "line too long");
 
 		pctx->bufsz *= 2;
 		pctx->buf = uci_realloc(ctx, pctx->buf, pctx->bufsz);
@@ -166,9 +172,7 @@ static void parse_double_quote(struct uci_context *ctx, char **str, char **targe
 			break;
 		}
 	}
-	ctx->pctx->reason = "unterminated \"";
-	ctx->pctx->byte = *str - ctx->pctx->buf;
-	UCI_THROW(ctx, UCI_ERR_PARSE);
+	uci_parse_error(ctx, *str, "unterminated \"");
 }
 
 /*
@@ -190,9 +194,7 @@ static void parse_single_quote(struct uci_context *ctx, char **str, char **targe
 			addc(target, str);
 		}
 	}
-	ctx->pctx->reason = "unterminated '";
-	ctx->pctx->byte = *str - ctx->pctx->buf;
-	UCI_THROW(ctx, UCI_ERR_PARSE);
+	uci_parse_error(ctx, *str, "unterminated '");
 }
 
 /*
@@ -244,11 +246,8 @@ static char *next_arg(struct uci_context *ctx, char **str, bool required)
 	val = ptr = *str;
 	skip_whitespace(ctx, str);
 	parse_str(ctx, str, &ptr);
-	if (required && !*val) {
-		ctx->pctx->reason = "insufficient arguments";
-		ctx->pctx->byte = *str - ctx->pctx->buf;
-		UCI_THROW(ctx, UCI_ERR_PARSE);
-	}
+	if (required && !*val)
+		uci_parse_error(ctx, *str, "insufficient arguments");
 
 	return val;
 }
@@ -262,11 +261,8 @@ static void assert_eol(struct uci_context *ctx, char **str)
 	char *tmp;
 
 	tmp = next_arg(ctx, str, false);
-	if (tmp && *tmp) {
-		ctx->pctx->reason = "too many arguments";
-		ctx->pctx->byte = tmp - ctx->pctx->buf;
-		UCI_THROW(ctx, UCI_ERR_PARSE);
-	}
+	if (tmp && *tmp)
+		uci_parse_error(ctx, *str, "too many arguments");
 }
 
 /* 
@@ -336,11 +332,9 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 	char *type = NULL;
 
 	if (!ctx->pctx->package) {
-		if (!ctx->pctx->name) {
-			ctx->pctx->byte = *str - ctx->pctx->buf;
-			ctx->pctx->reason = "attempting to import a file without a package name";
-			UCI_THROW(ctx, UCI_ERR_PARSE);
-		}
+		if (!ctx->pctx->name)
+			uci_parse_error(ctx, *str, "attempting to import a file without a package name");
+
 		uci_switch_config(ctx);
 	}
 
@@ -361,11 +355,9 @@ static void uci_parse_option(struct uci_context *ctx, char **str)
 	char *name = NULL;
 	char *value = NULL;
 
-	if (!ctx->pctx->section) {
-		ctx->pctx->byte = *str - ctx->pctx->buf;
-		ctx->pctx->reason = "option command found before the first section";
-		UCI_THROW(ctx, UCI_ERR_PARSE);
-	}
+	if (!ctx->pctx->section)
+		uci_parse_error(ctx, *str, "option command found before the first section");
+
 	/* command string null-terminated by strtok */
 	*str += strlen(*str) + 1;
 
@@ -405,9 +397,7 @@ static void uci_parse_line(struct uci_context *ctx, bool single)
 					uci_parse_option(ctx, &word);
 				break;
 			default:
-				pctx->reason = "unterminated command";
-				pctx->byte = word - pctx->buf;
-				UCI_THROW(ctx, UCI_ERR_PARSE);
+				uci_parse_error(ctx, word, "unterminated command");
 				break;
 		}
 	}
