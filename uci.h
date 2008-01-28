@@ -307,7 +307,10 @@ struct uci_history
 		&_ptr->list != (_list);			\
 		_ptr = _tmp, _tmp = list_to_element(_ptr->list.next))
 
-/* returns true if a list is empty */
+/**
+ * uci_list_empty: returns true if a list is empty
+ * @list: list head
+ */
 #define uci_list_empty(list) ((list)->next == (list))
 
 /* wrappers for dynamic type handling */
