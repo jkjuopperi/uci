@@ -463,7 +463,8 @@ static void uci_export_package(struct uci_package *p, FILE *stream, bool header)
 	struct uci_context *ctx = p->ctx;
 	struct uci_element *s, *o;
 
-	fprintf(stream, "package '%s'\n", uci_escape(ctx, p->e.name));
+	if (header)
+		fprintf(stream, "package '%s'\n", uci_escape(ctx, p->e.name));
 	uci_foreach_element(&p->sections, s) {
 		struct uci_section *sec = uci_to_section(s);
 		fprintf(stream, "\nconfig '%s'", uci_escape(ctx, sec->type));
