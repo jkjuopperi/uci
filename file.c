@@ -567,7 +567,9 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 	if (fd <= 0)
 		UCI_THROW(ctx, UCI_ERR_IO);
 
-	flock(fd, LOCK_SH);
+	if (flock(fd, LOCK_SH) < 0)
+		UCI_THROW(ctx, UCI_ERR_IO);
+
 	file = fdopen(fd, "r");
 	if (!file)
 		UCI_THROW(ctx, UCI_ERR_IO);
