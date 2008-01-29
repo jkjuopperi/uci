@@ -621,7 +621,7 @@ static void uci_parse_history(struct uci_context *ctx, FILE *stream, struct uci_
 
 static void uci_load_history(struct uci_context *ctx, struct uci_package *p)
 {
-	char *filename;
+	char *filename = NULL;
 	FILE *f = NULL;
 
 	if (!p->confdir)
@@ -634,6 +634,8 @@ static void uci_load_history(struct uci_context *ctx, struct uci_package *p)
 	uci_parse_history(ctx, f, p);
 	UCI_TRAP_RESTORE(ctx);
 done:
+	if (filename)
+		free(filename);
 	uci_close_stream(f);
 	ctx->errno = 0;
 }
@@ -802,11 +804,7 @@ char **uci_list_configs(struct uci_context *ctx)
 		size += strlen(p) + 1;
 	}
 
-	configs = malloc(size);
-	if (!configs)
-		return NULL;
-
-	memset(configs, 0, size);
+	configs = uci_malloc(ctx, size);
 	buf = (char *) &configs[globbuf.gl_pathc + 1];
 	for(i = 0; i < globbuf.gl_pathc; i++) {
 		char *p;
