@@ -293,6 +293,7 @@ int uci_set(struct uci_context *ctx, char *package, char *section, char *option,
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, package != NULL);
 	UCI_ASSERT(ctx, section != NULL);
+	UCI_ASSERT(ctx, value != NULL);
 
 	/*
 	 * look up the package, section and option (if set)
