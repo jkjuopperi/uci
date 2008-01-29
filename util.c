@@ -51,7 +51,7 @@ static char *uci_strdup(struct uci_context *ctx, const char *str)
 	return ptr;
 }
 
-static bool validate_name(char *str)
+static bool uci_validate_name(char *str)
 {
 	if (!*str)
 		return false;
@@ -72,7 +72,7 @@ int uci_parse_tuple(struct uci_context *ctx, char *str, char **package, char **s
 	UCI_ASSERT(ctx, str && package && section && option);
 
 	*package = strtok(str, ".");
-	if (!*package || !validate_name(*package))
+	if (!*package || !uci_validate_name(*package))
 		goto error;
 
 	last = *package;
@@ -99,9 +99,9 @@ lastval:
 			goto error;
 	}
 
-	if (*section && !validate_name(*section))
+	if (*section && !uci_validate_name(*section))
 		goto error;
-	if (*option && !validate_name(*option))
+	if (*option && !uci_validate_name(*option))
 		goto error;
 
 	goto done;

@@ -238,7 +238,7 @@ done:
 /*
  * extract the next argument from the command line
  */
-static char *next_arg(struct uci_context *ctx, char **str, bool required)
+static char *next_arg(struct uci_context *ctx, char **str, bool required, bool name)
 {
 	char *val;
 	char *ptr;
@@ -248,6 +248,8 @@ static char *next_arg(struct uci_context *ctx, char **str, bool required)
 	parse_str(ctx, str, &ptr);
 	if (required && !*val)
 		uci_parse_error(ctx, *str, "insufficient arguments");
+	if (name && !uci_validate_name(val))
+		uci_parse_error(ctx, val, "invalid character in field");
 
 	return val;
 }
@@ -260,7 +262,7 @@ static void assert_eol(struct uci_context *ctx, char **str)
 {
 	char *tmp;
 
-	tmp = next_arg(ctx, str, false);
+	tmp = next_arg(ctx, str, false, false);
 	if (tmp && *tmp)
 		uci_parse_error(ctx, *str, "too many arguments");
 }
@@ -309,7 +311,7 @@ static void uci_parse_package(struct uci_context *ctx, char **str, bool single)
 	/* command string null-terminated by strtok */
 	*str += strlen(*str) + 1;
 
-	name = next_arg(ctx, str, true);
+	name = next_arg(ctx, str, true, true);
 	assert_eol(ctx, str);
 	if (single)
 		return;
@@ -336,8 +338,8 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 	/* command string null-terminated by strtok */
 	*str += strlen(*str) + 1;
 
-	type = next_arg(ctx, str, true);
-	name = next_arg(ctx, str, false);
+	type = next_arg(ctx, str, true, true);
+	name = next_arg(ctx, str, false, true);
 	assert_eol(ctx, str);
 	ctx->pctx->section = uci_alloc_section(ctx->pctx->package, type, name);
 }
@@ -356,8 +358,8 @@ static void uci_parse_option(struct uci_context *ctx, char **str)
 	/* command string null-terminated by strtok */
 	*str += strlen(*str) + 1;
 
-	name = next_arg(ctx, str, true);
-	value = next_arg(ctx, str, true);
+	name = next_arg(ctx, str, true, true);
+	value = next_arg(ctx, str, true, false);
 	assert_eol(ctx, str);
 	uci_alloc_option(ctx->pctx->section, name, value);
 }
