@@ -176,7 +176,10 @@ static int uci_do_set(int argc, char **argv)
 		uci_perror(ctx, "uci");
 		return 1;
 	}
-	uci_commit(ctx, p);
+	if (uci_save(ctx, p) != UCI_OK) {
+		uci_perror(ctx, "uci");
+		return 1;
+	}
 	return 0;
 }
 

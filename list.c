@@ -58,13 +58,18 @@ static struct uci_element *
 uci_alloc_generic(struct uci_context *ctx, int type, const char *name, int size)
 {
 	struct uci_element *e;
+	int datalen = size;
 	void *ptr;
 
-	ptr = uci_malloc(ctx, size + strlen(name) + 1);
+	if (name)
+		datalen += strlen(name) + 1;
+	ptr = uci_malloc(ctx, datalen);
 	e = (struct uci_element *) ptr;
 	e->type = type;
-	e->name = (char *) ptr + size;
-	strcpy(e->name, name);
+	if (name) {
+		e->name = (char *) ptr + size;
+		strcpy(e->name, name);
+	}
 	uci_list_init(&e->list);
 
 	return e;
@@ -165,16 +170,18 @@ uci_free_package(struct uci_package *p)
 static inline void
 uci_add_history(struct uci_context *ctx, struct uci_package *p, int cmd, char *section, char *option, char *value)
 {
-	struct uci_history *h = (struct uci_history *) uci_malloc(ctx, sizeof(struct uci_history));
+	struct uci_history *h;
+	int size = 0;
+	char *ptr;
 
-	uci_list_init(&h->list);
+	h = uci_alloc_element(ctx, history, option, strlen(section) + strlen(value) + 2);
+	ptr = uci_dataptr(h);
 	h->cmd = cmd;
-	h->section = section;
-	h->option = option;
-	h->value = value;
-	uci_list_add(&p->history, &h->list);
+	h->section = strcpy(ptr, section);
+	ptr += strlen(ptr) + 1;
+	h->value = strcpy(ptr, value);
+	uci_list_add(&p->history, &h->e.list);
 }
-
 
 static struct uci_element *uci_lookup_list(struct uci_context *ctx, struct uci_list *list, const char *name)
 {
@@ -217,14 +224,15 @@ notfound:
 
 int uci_set_element_value(struct uci_context *ctx, struct uci_element **element, char *value)
 {
-	int size;
-	char *str;
+	bool internal = ctx->internal;
 	struct uci_list *list;
 	struct uci_element *e;
 	struct uci_package *p;
 	struct uci_section *s;
 	char *section;
 	char *option;
+	char *str;
+	int size;
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, value != NULL);
@@ -260,7 +268,8 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 		return 0;
 	}
 	p = s->package;
-	uci_add_history(ctx, p, UCI_CMD_CHANGE, section, option, value);
+	if (!internal)
+		uci_add_history(ctx, p, UCI_CMD_CHANGE, section, option, value);
 
 	uci_list_del(&e->list);
 	e = uci_realloc(ctx, e, size);
@@ -270,10 +279,10 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 
 	switch(e->type) {
 	case UCI_TYPE_SECTION:
-		uci_to_section(e)->type = value;
+		uci_to_section(e)->type = str;
 		break;
 	case UCI_TYPE_OPTION:
-		uci_to_option(e)->value = value;
+		uci_to_option(e)->value = str;
 		break;
 	default:
 		break;
@@ -289,6 +298,7 @@ int uci_set(struct uci_context *ctx, char *package, char *section, char *option,
 	struct uci_section *s = NULL;
 	struct uci_option *o = NULL;
 	struct uci_history *h;
+	bool internal = ctx->internal;
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, package != NULL);
@@ -326,7 +336,11 @@ int uci_set(struct uci_context *ctx, char *package, char *section, char *option,
 	else
 		e = &s->e;
 
-	return uci_set_element_value(ctx, &e, value);
+	if (!internal)
+		return uci_set_element_value(ctx, &e, value);
+
+	UCI_INTERNAL(uci_set_element_value, ctx, &e, value);
+	return 0;
 
 notfound:
 	/* 
@@ -339,7 +353,8 @@ notfound:
 		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 
 	/* now add the missing entry */
-	uci_add_history(ctx, p, UCI_CMD_ADD, section, option, value);
+	if (!internal)
+		uci_add_history(ctx, p, UCI_CMD_ADD, section, option, value);
 	if (s)
 		uci_alloc_option(s, option, value);
 	else

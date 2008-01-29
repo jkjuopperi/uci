@@ -27,6 +27,7 @@
  * in the context.
  */
 #define UCI_THROW(ctx, err) do { 	\
+	DPRINTF("Exception: %s in %s, %s:%d\n", #err, __func__, __FILE__, __LINE__); \
 	longjmp(ctx->trap, err); 	\
 } while (0)
 
@@ -40,10 +41,12 @@
  * and UCI_TRAP_RESTORE.
  */
 #define UCI_HANDLE_ERR(ctx) do {	\
-	int __val;			\
+	int __val = 0;			\
 	if (!ctx)			\
 		return UCI_ERR_INVAL;	\
-	__val = setjmp(ctx->trap);	\
+	if (!ctx->internal)		\
+		__val = setjmp(ctx->trap); \
+	ctx->internal = false;		\
 	if (__val) {			\
 		ctx->errno = __val;	\
 		return __val;		\
@@ -69,6 +72,11 @@
 #define UCI_TRAP_RESTORE(ctx)		\
 	memcpy(ctx->trap, __old_trap, sizeof(ctx->trap)); \
 } while(0)
+
+#define UCI_INTERNAL(func, ctx, ...) do { \
+	ctx->internal = true;		\
+	func(ctx, __VA_ARGS__);		\
+} while (0);
 
 /*
  * check the specified condition.

@@ -97,8 +97,6 @@ static void uci_file_cleanup(struct uci_context *ctx)
 
 	if (pctx->buf)
 		free(pctx->buf);
-	if (pctx->file)
-		fclose(pctx->file);
 
 	free(pctx);
 }
@@ -520,29 +518,152 @@ int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct u
 	return 0;
 }
 
+/*
+ * open a stream and go to the right position
+ *
+ * note: when opening for write and seeking to the beginning of
+ * the stream, truncate the file
+ */
+static FILE *uci_open_stream(struct uci_context *ctx, const char *filename, int pos, bool write)
+{
+	FILE *file = NULL;
+	int fd, ret;
+
+	fd = open(filename, (write ? O_RDWR | O_CREAT : O_RDONLY));
+	if (fd <= 0)
+		goto error;
+
+	if (flock(fd, (write ? LOCK_EX : LOCK_SH)) < 0)
+		goto error;
+
+	if (write && (pos == SEEK_SET))
+		ret = ftruncate(fd, 0);
+	else
+		ret = lseek(fd, 0, pos);
+
+	if (ret < 0)
+		goto error;
+
+	file = fdopen(fd, (write ? "w" : "r"));
+	if (file)
+		goto done;
+
+error:
+	UCI_THROW(ctx, UCI_ERR_IO);
+done:
+	return file;
+}
+
+static void uci_close_stream(FILE *stream)
+{
+	int fd;
+
+	if (!stream)
+		return;
+
+	fd = fileno(stream);
+	flock(fd, LOCK_UN);
+	fclose(stream);
+}
+
+static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *p, char *buf)
+{
+	bool delete = false;
+	char *package = NULL;
+	char *section = NULL;
+	char *option = NULL;
+	char *value = NULL;
+
+	if (buf[0] == '-') {
+		delete = true;
+		buf++;
+	}
+
+	UCI_INTERNAL(uci_parse_tuple, ctx, buf, &package, &section, &option, &value);
+	if (!package || !section || !value)
+		goto error;
+	if (strcmp(package, p->e.name) != 0)
+		goto error;
+	if (!uci_validate_name(section))
+		goto error;
+	if (option && !uci_validate_name(option))
+		goto error;
+	if (!delete)
+		UCI_INTERNAL(uci_set, ctx, package, section, option, value);
+	return;
+
+error:
+	UCI_THROW(ctx, UCI_ERR_PARSE);
+}
+
+static void uci_parse_history(struct uci_context *ctx, FILE *stream, struct uci_package *p)
+{
+	struct uci_parse_context *pctx;
+
+	/* make sure no memory from previous parse attempts is leaked */
+	uci_file_cleanup(ctx);
+
+	pctx = (struct uci_parse_context *) uci_malloc(ctx, sizeof(struct uci_parse_context));
+	ctx->pctx = pctx;
+	pctx->file = stream;
+
+	rewind(stream);
+	while (!feof(pctx->file)) {
+		uci_getln(ctx, 0);
+		if (!pctx->buf[0])
+			continue;
+		uci_parse_history_line(ctx, p, pctx->buf);
+	}
+
+	/* no error happened, we can get rid of the parser context now */
+	uci_file_cleanup(ctx);
+}
+
+static void uci_load_history(struct uci_context *ctx, struct uci_package *p)
+{
+	char *filename;
+	FILE *f = NULL;
+
+	if (!p->confdir)
+		return;
+	if ((asprintf(&filename, "%s/%s", UCI_SAVEDIR, p->e.name) < 0) || !filename)
+		UCI_THROW(ctx, UCI_ERR_MEM);
+
+	UCI_TRAP_SAVE(ctx, done);
+	f = uci_open_stream(ctx, filename, SEEK_SET, false);
+	uci_parse_history(ctx, f, p);
+	UCI_TRAP_RESTORE(ctx);
+done:
+	uci_close_stream(f);
+	ctx->errno = 0;
+}
+
 int uci_load(struct uci_context *ctx, const char *name, struct uci_package **package)
 {
 	struct stat statbuf;
 	char *filename;
 	bool confdir;
-	FILE *file;
-	int fd;
+	FILE *file = NULL;
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, name != NULL);
 
 	switch (name[0]) {
 	case '.':
+		/* relative path outside of /etc/config */
 		if (name[1] != '/')
 			UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 		/* fall through */
 	case '/':
-		/* absolute/relative path outside of /etc/config */
+		/* absolute path outside of /etc/config */
 		filename = uci_strdup(ctx, name);
 		name = strrchr(name, '/') + 1;
 		confdir = false;
 		break;
 	default:
+		/* config in /etc/config */
+		if (strchr(name, '/'))
+			UCI_THROW(ctx, UCI_ERR_INVAL);
 		filename = uci_malloc(ctx, strlen(name) + sizeof(UCI_CONFDIR) + 2);
 		sprintf(filename, UCI_CONFDIR "/%s", name);
 		confdir = true;
@@ -554,17 +675,7 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 	}
 
-	fd = open(filename, O_RDONLY);
-	if (fd <= 0)
-		UCI_THROW(ctx, UCI_ERR_IO);
-
-	if (flock(fd, LOCK_SH) < 0)
-		UCI_THROW(ctx, UCI_ERR_IO);
-
-	file = fdopen(fd, "r");
-	if (!file)
-		UCI_THROW(ctx, UCI_ERR_IO);
-
+	file = uci_open_stream(ctx, filename, SEEK_SET, false);
 	ctx->errno = 0;
 	UCI_TRAP_SAVE(ctx, done);
 	uci_import(ctx, file, name, package, true);
@@ -573,50 +684,82 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 	if (*package) {
 		(*package)->path = filename;
 		(*package)->confdir = confdir;
+		uci_load_history(ctx, *package);
 	}
 
 done:
-	flock(fd, LOCK_UN);
-	fclose(file);
+	uci_close_stream(file);
 	return ctx->errno;
+}
+
+int uci_save(struct uci_context *ctx, struct uci_package *p)
+{
+	FILE *f = NULL;
+	char *filename = NULL;
+	struct uci_element *e, *tmp;
+
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, p != NULL);
+
+	/* 
+	 * if the config file was outside of the /etc/config path,
+	 * don't save the history to a file, update the real file
+	 * directly
+	 */
+	if (!p->confdir)
+		return uci_commit(ctx, p);
+
+	if (uci_list_empty(&p->history))
+		return 0;
+
+	if ((asprintf(&filename, "%s/%s", UCI_SAVEDIR, p->e.name) < 0) || !filename)
+		UCI_THROW(ctx, UCI_ERR_MEM);
+
+	ctx->errno = 0;
+	UCI_TRAP_SAVE(ctx, done);
+	f = uci_open_stream(ctx, filename, SEEK_END, true);
+	UCI_TRAP_RESTORE(ctx);
+
+	uci_foreach_element_safe(&p->history, tmp, e) {
+		struct uci_history *h = uci_to_history(e);
+		if (h->cmd == UCI_CMD_REMOVE)
+			fprintf(f, "-");
+		fprintf(f, "%s.%s", p->e.name, h->section);
+		if (e->name)
+			fprintf(f, ".%s", e->name);
+		fprintf(f, "=%s\n", h->value);
+		uci_list_del(&e->list);
+	}
+
+done:
+	uci_close_stream(f);
+	if (filename)
+		free(filename);
+	if (ctx->errno)
+		UCI_THROW(ctx, ctx->errno);
+
+	return 0;
 }
 
 int uci_commit(struct uci_context *ctx, struct uci_package *p)
 {
 	FILE *f = NULL;
-	int fd = 0;
-	int err = UCI_ERR_IO;
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, p != NULL);
 	UCI_ASSERT(ctx, p->path != NULL);
 
-	fd = open(p->path, O_RDWR);
-	if (fd < 0)
-		goto done;
-
-	if (flock(fd, LOCK_EX) < 0)
-		goto done;
-
-	ftruncate(fd, 0);
-	f = fdopen(fd, "w");
-	if (!f)
-		goto done;
+	f = uci_open_stream(ctx, p->path, SEEK_SET, true);
 
 	UCI_TRAP_SAVE(ctx, done);
 	uci_export(ctx, f, p, false);
 	UCI_TRAP_RESTORE(ctx);
 
 done:
-	if (f)
-		fclose(f);
-	else if (fd > 0)
-		close(fd);
-
+	uci_close_stream(f);
 	if (ctx->errno)
 		UCI_THROW(ctx, ctx->errno);
-	if (err)
-		UCI_THROW(ctx, UCI_ERR_IO);
+
 	return 0;
 }
 
@@ -678,5 +821,4 @@ char **uci_list_configs(struct uci_context *ctx)
 	}
 	return configs;
 }
-
 

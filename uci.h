@@ -34,6 +34,7 @@
 #include <stdio.h>
 
 #define UCI_CONFDIR "/etc/config"
+#define UCI_SAVEDIR "/tmp/.uci"
 
 enum
 {
@@ -175,6 +176,13 @@ extern int uci_set_element_value(struct uci_context *ctx, struct uci_element **e
 extern int uci_set(struct uci_context *ctx, char *package, char *section, char *option, char *value);
 
 /**
+ * uci_save: save change history for a package
+ * @ctx: uci context
+ * @p: uci_package struct
+ */
+extern int uci_save(struct uci_context *ctx, struct uci_package *p);
+
+/**
  * uci_commit: commit changes to a package
  * @ctx: uci context
  * @p: uci_package struct
@@ -190,9 +198,10 @@ extern char **uci_list_configs(struct uci_context *ctx);
 
 /* UCI data structures */
 enum uci_type {
-	UCI_TYPE_PACKAGE = 0,
-	UCI_TYPE_SECTION = 1,
-	UCI_TYPE_OPTION = 2
+	UCI_TYPE_HISTORY = 0,
+	UCI_TYPE_PACKAGE = 1,
+	UCI_TYPE_SECTION = 2,
+	UCI_TYPE_OPTION = 3
 };
 
 struct uci_element
@@ -214,6 +223,7 @@ struct uci_context
 	int errno;
 	const char *func;
 	jmp_buf trap;
+	bool internal;
 	char *buf;
 	int bufsz;
 };
@@ -270,10 +280,9 @@ enum uci_command {
 
 struct uci_history
 {
-	struct uci_list list;
+	struct uci_element e;
 	enum uci_command cmd;
 	char *section;
-	char *option;
 	char *value;
 };
 
@@ -342,6 +351,7 @@ struct uci_history
 #define uci_list_empty(list) ((list)->next == (list))
 
 /* wrappers for dynamic type handling */
+#define uci_type_history UCI_TYPE_HISTORY
 #define uci_type_package UCI_TYPE_PACKAGE
 #define uci_type_section UCI_TYPE_SECTION
 #define uci_type_option UCI_TYPE_OPTION
@@ -349,9 +359,10 @@ struct uci_history
 /* element typecasting */
 #ifdef UCI_DEBUG_TYPECAST
 static const char *uci_typestr[] = {
+	[uci_type_history] = "history",
 	[uci_type_package] = "package",
 	[uci_type_section] = "section",
-	[uci_type_option] = "option"
+	[uci_type_option] = "option",
 };
 
 static void uci_typecast_error(int from, int to)
@@ -368,11 +379,13 @@ static void uci_typecast_error(int from, int to)
 		return (struct uci_ ## _type *) e; \
 	}
 
+BUILD_CAST(history)
 BUILD_CAST(package)
 BUILD_CAST(section)
 BUILD_CAST(option)
 
 #else
+#define uci_to_history(ptr) container_of(ptr, struct uci_history, e)
 #define uci_to_package(ptr) container_of(ptr, struct uci_package, e)
 #define uci_to_section(ptr) container_of(ptr, struct uci_section, e)
 #define uci_to_option(ptr)  container_of(ptr, struct uci_option, e)
