@@ -97,6 +97,7 @@ lastval:
 		last++;
 		if (!*last)
 			goto error;
+		*value = last;
 	}
 
 	if (*section && !uci_validate_name(*section))
