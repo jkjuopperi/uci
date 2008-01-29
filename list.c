@@ -221,6 +221,10 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 	char *str;
 	struct uci_list *list;
 	struct uci_element *e;
+	struct uci_package *p;
+	struct uci_section *s;
+	char *section;
+	char *option;
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, value != NULL);
@@ -241,14 +245,22 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 	switch(e->type) {
 	case UCI_TYPE_SECTION:
 		size = sizeof(struct uci_section);
+		s = uci_to_section(e);
+		section = e->name;
+		option = NULL;
 		break;
 	case UCI_TYPE_OPTION:
 		size = sizeof(struct uci_option);
+		s = uci_to_option(e)->section;
+		section = s->e.name;
+		option = e->name;
 		break;
 	default:
 		UCI_THROW(ctx, UCI_ERR_INVAL);
-		break;
+		return 0;
 	}
+	p = s->package;
+	uci_add_history(ctx, p, UCI_CMD_CHANGE, section, option, value);
 
 	uci_list_del(&e->list);
 	e = uci_realloc(ctx, e, size);
@@ -313,7 +325,6 @@ int uci_set(struct uci_context *ctx, char *package, char *section, char *option,
 	else
 		e = &s->e;
 
-	uci_add_history(ctx, p, UCI_CMD_CHANGE, section, option, value);
 	return uci_set_element_value(ctx, &e, value);
 
 notfound:
