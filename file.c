@@ -470,15 +470,14 @@ int uci_export(struct uci_context *ctx, FILE *stream, struct uci_package *packag
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, stream != NULL);
 
-	if (package) {
+	if (package)
 		uci_export_package(package, stream, header);
-		goto done;
+	else {
+		uci_foreach_element(&ctx->root, e) {
+			uci_export_package(uci_to_package(e), stream, header);
+		}
 	}
 
-	uci_foreach_element(&ctx->root, e) {
-		uci_export_package(uci_to_package(e), stream, header);
-	}
-done:
 	return 0;
 }
 

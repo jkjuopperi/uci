@@ -112,37 +112,6 @@ static int uci_do_export(int argc, char **argv)
 	return 0;
 }
 
-static void parse_tuple(char *str, char **package, char **section, char **option, char **value)
-{
-	char *last = NULL;
-
-	*package = strtok(str, ".");
-	if (!*package)
-		goto done;
-
-	last = *package;
-	*section = strtok(NULL, ".");
-	if (!*section)
-		goto done;
-
-	last = *section;
-	*option = strtok(NULL, ".");
-	if (!*option)
-		goto done;
-
-	last = *option;
-done:
-	if (!value)
-		return;
-
-	last = strtok(last, "=");
-	if (!last)
-		return;
-
-	*value = last + strlen(last) + 1;
-}
-
-
 static int uci_do_get(int argc, char **argv)
 {
 	char *package = NULL;
@@ -155,8 +124,7 @@ static int uci_do_get(int argc, char **argv)
 	if (argc != 2)
 		return 255;
 
-	parse_tuple(argv[1], &package, &section, &option, NULL);
-	if (!package)
+	if (uci_parse_tuple(ctx, argv[1], &package, &section, &option, NULL) != UCI_OK)
 		return 1;
 
 	if (uci_load(ctx, package, &p) != UCI_OK) {
@@ -196,8 +164,7 @@ static int uci_do_set(int argc, char **argv)
 	if (argc != 2)
 		return 255;
 
-	parse_tuple(argv[1], &package, &section, &option, &value);
-	if (!package)
+	if (uci_parse_tuple(ctx, argv[1], &package, &section, &option, &value) != UCI_OK)
 		return 1;
 
 	if (uci_load(ctx, package, &p) != UCI_OK) {

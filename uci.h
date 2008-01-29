@@ -60,8 +60,22 @@ struct uci_package;
 struct uci_section;
 struct uci_option;
 struct uci_history;
+struct uci_context;
 struct uci_parse_context;
 
+
+/**
+ * uci_parse_tuple: Parse an uci tuple
+ * @ctx: uci context
+ * @str: input string
+ * @package: output package pointer
+ * @section: output section pointer
+ * @option: output option pointer
+ * @value: output value pointer
+ *
+ * format: <package>[.<section>[.<option>]][=<value>]
+ */
+extern int uci_parse_tuple(struct uci_context *ctx, char *str, char **package, char **section, char **option, char **value);
 
 /**
  * uci_alloc_context: Allocate a new uci context

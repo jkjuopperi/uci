@@ -16,6 +16,8 @@
  * This file contains wrappers to standard functions, which
  * throw exceptions upon failure.
  */
+#include <stdbool.h>
+#include <ctype.h>
 
 static void *uci_malloc(struct uci_context *ctx, size_t size)
 {
@@ -49,4 +51,65 @@ static char *uci_strdup(struct uci_context *ctx, const char *str)
 	return ptr;
 }
 
+static bool validate_name(char *str)
+{
+	if (!*str)
+		return false;
+
+	while (*str) {
+		if (!isalnum(*str) && (*str != '_'))
+			return false;
+		str++;
+	}
+	return true;
+}
+
+int uci_parse_tuple(struct uci_context *ctx, char *str, char **package, char **section, char **option, char **value)
+{
+	char *last = NULL;
+
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, str && package && section && option);
+
+	*package = strtok(str, ".");
+	if (!*package || !validate_name(*package))
+		goto error;
+
+	last = *package;
+	*section = strtok(NULL, ".");
+	if (!*section)
+		goto lastval;
+
+	last = *section;
+	*option = strtok(NULL, ".");
+	if (!*option)
+		goto lastval;
+
+	last = *option;
+
+lastval:
+	last = strchr(last, '=');
+	if (last) {
+		if (!value)
+			goto error;
+
+		*last = 0;
+		last++;
+		if (!*last)
+			goto error;
+	}
+
+	if (*section && !validate_name(*section))
+		goto error;
+	if (*option && !validate_name(*option))
+		goto error;
+
+	goto done;
+
+error:
+	UCI_THROW(ctx, UCI_ERR_PARSE);
+
+done:
+	return 0;
+}
 
