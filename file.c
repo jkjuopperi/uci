@@ -802,15 +802,17 @@ static inline char *get_filename(char *path)
 	return p;
 }
 
-char **uci_list_configs(struct uci_context *ctx)
+int uci_list_configs(struct uci_context *ctx, char ***list)
 {
 	char **configs;
 	glob_t globbuf;
 	int size, i;
 	char *buf;
 
+	UCI_HANDLE_ERR(ctx);
+
 	if (glob(UCI_CONFDIR "/*", GLOB_MARK, NULL, &globbuf) != 0)
-		return NULL;
+		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 
 	size = sizeof(char *) * (globbuf.gl_pathc + 1);
 	for(i = 0; i < globbuf.gl_pathc; i++) {
@@ -836,6 +838,8 @@ char **uci_list_configs(struct uci_context *ctx)
 		strcpy(buf, p);
 		buf += strlen(buf) + 1;
 	}
-	return configs;
+	*list = configs;
+
+	return 0;
 }
 

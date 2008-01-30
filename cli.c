@@ -70,16 +70,17 @@ static int uci_show(int argc, char **argv)
 {
 	char *section = (argc > 2 ? argv[2] : NULL);
 	struct uci_package *package;
-	char **configs;
+	char **configs = NULL;
 	char **p;
 
-	configs = uci_list_configs(ctx);
-	if (!configs)
-		return 0;
+	if ((uci_list_configs(ctx, &configs) != UCI_OK) || !configs) {
+		uci_perror(ctx, appname);
+		return 1;
+	}
 
 	if (argc >= 2) {
 		if (uci_load(ctx, argv[1], &package) != UCI_OK) {
-			uci_perror(ctx, NULL);
+			uci_perror(ctx, appname);
 			return 1;
 		}
 		uci_show_package(package, section);
@@ -90,7 +91,7 @@ static int uci_show(int argc, char **argv)
 	for (p = configs; *p; p++) {
 		if ((argc < 2) || !strcmp(argv[1], *p)) {
 			if (uci_load(ctx, *p, &package) != UCI_OK) {
-				uci_perror(ctx, NULL);
+				uci_perror(ctx, appname);
 				return 1;
 			}
 			uci_show_package(package, section);
@@ -103,11 +104,13 @@ static int uci_show(int argc, char **argv)
 
 static int uci_do_export(int argc, char **argv)
 {
-	char **configs = uci_list_configs(ctx);
+	char **configs = NULL;
 	char **p;
 
-	if (!configs)
-		return 0;
+	if ((uci_list_configs(ctx, &configs) != UCI_OK) || !configs) {
+		uci_perror(ctx, appname);
+		return 1;
+	}
 
 	for (p = configs; *p; p++) {
 		if ((argc < 2) || !strcmp(argv[1], *p)) {

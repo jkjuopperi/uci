@@ -210,7 +210,7 @@ extern int uci_commit(struct uci_context *ctx, struct uci_package *p);
  *
  * @ctx: uci context
  */
-extern char **uci_list_configs(struct uci_context *ctx);
+extern int uci_list_configs(struct uci_context *ctx, char ***list);
 
 /* UCI data structures */
 enum uci_type {
