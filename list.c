@@ -251,6 +251,7 @@ notfound:
 
 int uci_del_element(struct uci_context *ctx, struct uci_element *e)
 {
+	/* NB: UCI_INTERNAL use means without history tracking */
 	bool internal = ctx->internal;
 	struct uci_package *p = NULL;
 	struct uci_section *s = NULL;
@@ -298,6 +299,7 @@ int uci_del_element(struct uci_context *ctx, struct uci_element *e)
 
 int uci_set_element_value(struct uci_context *ctx, struct uci_element **element, char *value)
 {
+	/* NB: UCI_INTERNAL use means without history tracking */
 	bool internal = ctx->internal;
 	struct uci_list *list;
 	struct uci_element *e;
@@ -367,6 +369,7 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 
 int uci_del(struct uci_context *ctx, struct uci_package *p, char *section, char *option)
 {
+	/* NB: pass on internal flag to uci_del_element */
 	bool internal = ctx->internal;
 	struct uci_element *e;
 	struct uci_section *s = NULL;
@@ -387,6 +390,7 @@ int uci_del(struct uci_context *ctx, struct uci_package *p, char *section, char 
 
 int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char *option, char *value)
 {
+	/* NB: UCI_INTERNAL use means without history tracking */
 	bool internal = ctx->internal;
 	struct uci_element *e = NULL;
 	struct uci_section *s = NULL;
