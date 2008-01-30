@@ -174,6 +174,9 @@ uci_add_history(struct uci_context *ctx, struct uci_package *p, int cmd, char *s
 	int size = strlen(section) + 1;
 	char *ptr;
 
+	if (!p->confdir)
+		return;
+
 	if (value)
 		size += strlen(section) + 1;
 
