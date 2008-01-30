@@ -545,7 +545,7 @@ static FILE *uci_open_stream(struct uci_context *ctx, const char *filename, int 
 		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 	}
 
-	fd = open(filename, (write ? O_RDWR | O_CREAT : O_RDONLY));
+	fd = open(filename, (write ? O_RDWR | O_CREAT : O_RDONLY), UCI_FILEMODE);
 	if (fd <= 0)
 		goto error;
 
