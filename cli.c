@@ -19,9 +19,14 @@ static const char *appname = "uci";
 
 static struct uci_context *ctx;
 enum {
-	CMD_GET,
-	CMD_SET,
-	CMD_DEL
+	/* section cmds */
+	CMD_GET = 1,
+	CMD_SET = 2,
+	CMD_DEL = 3,
+	/* package cmds */
+	CMD_SHOW = 4,
+	CMD_EXPORT = 5,
+	CMD_COMMIT = 6,
 };
 
 static void uci_usage(int argc, char **argv)
@@ -56,56 +61,51 @@ static void uci_show_section(struct uci_section *p)
 	}
 }
 
-static void uci_show_package(struct uci_package *p, char *section)
+static void uci_show_package(struct uci_package *p)
 {
 	struct uci_element *e;
 
 	uci_foreach_element( &p->sections, e) {
-		if (!section || !strcmp(e->name, section))
-			uci_show_section(uci_to_section(e));
+		uci_show_section(uci_to_section(e));
 	}
 }
 
-static int uci_show(int argc, char **argv)
-{
-	char *section = (argc > 2 ? argv[2] : NULL);
-	struct uci_package *package;
-	char **configs = NULL;
-	char **p;
 
-	if ((uci_list_configs(ctx, &configs) != UCI_OK) || !configs) {
+static int package_cmd(int cmd, char *package)
+{
+	struct uci_package *p = NULL;
+
+	if (uci_load(ctx, package, &p) != UCI_OK) {
 		uci_perror(ctx, appname);
 		return 1;
 	}
-
-	if (argc >= 2) {
-		if (uci_load(ctx, argv[1], &package) != UCI_OK) {
+	switch(cmd) {
+	case CMD_COMMIT:
+		if (uci_commit(ctx, &p) != UCI_OK)
 			uci_perror(ctx, appname);
-			return 1;
-		}
-		uci_show_package(package, section);
-		uci_unload(ctx, package);
-		return 0;
+		break;
+	case CMD_EXPORT:
+		uci_export(ctx, stdout, p, true);
+		break;
+	case CMD_SHOW:
+		uci_show_package(p);
+		break;
 	}
 
-	for (p = configs; *p; p++) {
-		if ((argc < 2) || !strcmp(argv[1], *p)) {
-			if (uci_load(ctx, *p, &package) != UCI_OK) {
-				uci_perror(ctx, appname);
-				return 1;
-			}
-			uci_show_package(package, section);
-			uci_unload(ctx, package);
-		}
-	}
-
+	uci_unload(ctx, p);
 	return 0;
 }
 
-static int uci_do_export(int argc, char **argv)
+static int uci_do_package_cmd(int cmd, int argc, char **argv)
 {
 	char **configs = NULL;
 	char **p;
+
+	if (argc > 2)
+		return 255;
+
+	if (argc == 2)
+		return package_cmd(cmd, argv[1]);
 
 	if ((uci_list_configs(ctx, &configs) != UCI_OK) || !configs) {
 		uci_perror(ctx, appname);
@@ -113,50 +113,14 @@ static int uci_do_export(int argc, char **argv)
 	}
 
 	for (p = configs; *p; p++) {
-		if ((argc < 2) || !strcmp(argv[1], *p)) {
-			struct uci_package *package = NULL;
-			int ret;
-
-			ret = uci_load(ctx, *p, &package);
-			if (ret)
-				continue;
-			uci_export(ctx, stdout, package, true);
-			uci_unload(ctx, package);
-		}
-	}
-	return 0;
-}
-
-static int uci_do_commit(int argc, char **argv)
-{
-	char **configs = NULL;
-	char **p;
-
-	if ((uci_list_configs(ctx, &configs) != UCI_OK) || !configs) {
-		uci_perror(ctx, appname);
-		return 1;
+		package_cmd(cmd, *p);
 	}
 
-	for (p = configs; *p; p++) {
-		if ((argc < 2) || !strcmp(argv[1], *p)) {
-			struct uci_package *package = NULL;
-			int ret;
-
-			if (uci_load(ctx, *p, &package) != UCI_OK) {
-				uci_perror(ctx, appname);
-				continue;
-			}
-			if (uci_commit(ctx, &package) != UCI_OK)
-				uci_perror(ctx, appname);
-
-			uci_unload(ctx, package);
-		}
-	}
 	return 0;
 }
 
 
-static int uci_do_cmd(int cmd, int argc, char **argv)
+static int uci_do_section_cmd(int cmd, int argc, char **argv)
 {
 	char *package = NULL;
 	char *section = NULL;
@@ -224,24 +188,33 @@ static int uci_do_cmd(int cmd, int argc, char **argv)
 
 static int uci_cmd(int argc, char **argv)
 {
-	int cmd;
+	int cmd = 0;
 
 	if (!strcasecmp(argv[0], "show"))
-		return uci_show(argc, argv);
-	if (!strcasecmp(argv[0], "export"))
-		return uci_do_export(argc, argv);
-	if (!strcasecmp(argv[0], "commit"))
-		return uci_do_commit(argc, argv);
-
-	if (!strcasecmp(argv[0], "get"))
+		cmd = CMD_SHOW;
+	else if (!strcasecmp(argv[0], "export"))
+		cmd = CMD_EXPORT;
+	else if (!strcasecmp(argv[0], "commit"))
+		cmd = CMD_COMMIT;
+	else if (!strcasecmp(argv[0], "get"))
 		cmd = CMD_GET;
 	else if (!strcasecmp(argv[0], "set"))
 		cmd = CMD_SET;
 	else if (!strcasecmp(argv[0], "del"))
 		cmd = CMD_DEL;
-	else
-		return 255;
-	return uci_do_cmd(cmd, argc, argv);
+
+	switch(cmd) {
+		case CMD_GET:
+		case CMD_SET:
+		case CMD_DEL:
+			return uci_do_section_cmd(cmd, argc, argv);
+		case CMD_SHOW:
+		case CMD_EXPORT:
+		case CMD_COMMIT:
+			return uci_do_package_cmd(cmd, argc, argv);
+		default:
+			return 255;
+	}
 }
 
 int main(int argc, char **argv)
