@@ -102,6 +102,9 @@ uci_alloc_option(struct uci_section *s, const char *name, const char *value)
 static inline void
 uci_free_option(struct uci_option *o)
 {
+	if ((o->value != uci_dataptr(o)) &&
+		(o->value != NULL))
+		free(o->value);
 	uci_free_element(&o->e);
 }
 
@@ -135,6 +138,9 @@ uci_free_section(struct uci_section *s)
 	uci_foreach_element_safe(&s->options, tmp, o) {
 		uci_free_option(uci_to_option(o));
 	}
+	if ((s->type != uci_dataptr(s)) &&
+		(s->type != NULL))
+		free(s->type);
 	uci_free_element(&s->e);
 }
 
