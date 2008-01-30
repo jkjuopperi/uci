@@ -173,7 +173,23 @@ extern int uci_set_element_value(struct uci_context *ctx, struct uci_element **e
  * @option: option name
  * @value: value (option) or type (section)
  */
-extern int uci_set(struct uci_context *ctx, char *package, char *section, char *option, char *value);
+extern int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char *option, char *value);
+
+/**
+ * uci_del_element: Delete a section or option
+ * @ctx: uci context
+ * @e: element (section or option)
+ */
+extern int uci_del_element(struct uci_context *ctx, struct uci_element *e);
+
+/**
+ * uci_del: Delete a section or option
+ * @ctx: uci context
+ * @p: uci package
+ * @section: section name
+ * @option: option name (optional)
+ */
+extern int uci_del(struct uci_context *ctx, struct uci_package *p, char *section, char *option);
 
 /**
  * uci_save: save change history for a package

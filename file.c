@@ -580,7 +580,7 @@ static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *
 	}
 
 	UCI_INTERNAL(uci_parse_tuple, ctx, buf, &package, &section, &option, &value);
-	if (!package || !section || !value)
+	if (!package || !section || (!delete && !value))
 		goto error;
 	if (strcmp(package, p->e.name) != 0)
 		goto error;
@@ -588,10 +588,13 @@ static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *
 		goto error;
 	if (option && !uci_validate_name(option))
 		goto error;
-	if (!delete)
-		UCI_INTERNAL(uci_set, ctx, package, section, option, value);
-	return;
 
+	if (delete)
+		UCI_INTERNAL(uci_del, ctx, p, section, option);
+	else
+		UCI_INTERNAL(uci_set, ctx, p, section, option, value);
+
+	return;
 error:
 	UCI_THROW(ctx, UCI_ERR_PARSE);
 }
@@ -724,12 +727,18 @@ int uci_save(struct uci_context *ctx, struct uci_package *p)
 
 	uci_foreach_element_safe(&p->history, tmp, e) {
 		struct uci_history *h = uci_to_history(e);
+
 		if (h->cmd == UCI_CMD_REMOVE)
 			fprintf(f, "-");
+
 		fprintf(f, "%s.%s", p->e.name, h->section);
 		if (e->name)
 			fprintf(f, ".%s", e->name);
-		fprintf(f, "=%s\n", h->value);
+
+		if (h->cmd == UCI_CMD_REMOVE)
+			fprintf(f, "\n");
+		else
+			fprintf(f, "=%s\n", h->value);
 		uci_list_del(&e->list);
 	}
 

@@ -14,7 +14,14 @@
 #include <stdlib.h>
 #include "uci.h"
 
+static const char *appname = "uci";
+
 static struct uci_context *ctx;
+enum {
+	CMD_GET,
+	CMD_SET,
+	CMD_DEL
+};
 
 static void uci_usage(int argc, char **argv)
 {
@@ -112,88 +119,90 @@ static int uci_do_export(int argc, char **argv)
 	return 0;
 }
 
-static int uci_do_get(int argc, char **argv)
+static int uci_do_cmd(int cmd, int argc, char **argv)
 {
 	char *package = NULL;
 	char *section = NULL;
 	char *option = NULL;
+	char *value = NULL;
 	struct uci_package *p = NULL;
 	struct uci_element *e = NULL;
-	char *value = NULL;
 
 	if (argc != 2)
 		return 255;
 
-	if (uci_parse_tuple(ctx, argv[1], &package, &section, &option, NULL) != UCI_OK)
+	if (uci_parse_tuple(ctx, argv[1], &package, &section, &option, (cmd == CMD_SET ? &value : NULL)) != UCI_OK)
 		return 1;
 
 	if (uci_load(ctx, package, &p) != UCI_OK) {
-		uci_perror(ctx, "uci");
+		uci_perror(ctx, appname);
 		return 1;
 	}
 
 	if (uci_lookup(ctx, &e, p, section, option) != UCI_OK)
 		return 1;
 
-	switch(e->type) {
-	case UCI_TYPE_SECTION:
-		value = uci_to_section(e)->type;
+	switch(cmd) {
+	case CMD_GET:
+		switch(e->type) {
+		case UCI_TYPE_SECTION:
+			value = uci_to_section(e)->type;
+			break;
+		case UCI_TYPE_OPTION:
+			value = uci_to_option(e)->value;
+			break;
+		default:
+			/* should not happen */
+			return 1;
+		}
+		/* throw the value to stdout */
+		printf("%s\n", value);
 		break;
-	case UCI_TYPE_OPTION:
-		value = uci_to_option(e)->value;
+	case CMD_SET:
+		if (uci_set(ctx, p, section, option, value) != UCI_OK) {
+			uci_perror(ctx, appname);
+			return 1;
+		}
 		break;
-	default:
-		/* should not happen */
-		return 1;
+	case CMD_DEL:
+		if (uci_del(ctx, p, section, option) != UCI_OK) {
+			uci_perror(ctx, appname);
+			return 1;
+		}
+		break;
 	}
 
-	/* throw the value to stdout */
-	printf("%s\n", value);
+	/* no save necessary for get */
+	if (cmd == CMD_GET)
+		return 0;
 
-	return 0;
-}
-
-static int uci_do_set(int argc, char **argv)
-{
-	struct uci_package *p;
-	char *package = NULL;
-	char *section = NULL;
-	char *option = NULL;
-	char *value = NULL;
-
-	if (argc != 2)
-		return 255;
-
-	if (uci_parse_tuple(ctx, argv[1], &package, &section, &option, &value) != UCI_OK)
-		return 1;
-
-	if (uci_load(ctx, package, &p) != UCI_OK) {
-		uci_perror(ctx, "uci");
-		return 1;
-	}
-
-	if (uci_set(ctx, package, section, option, value) != UCI_OK) {
-		uci_perror(ctx, "uci");
-		return 1;
-	}
+	/* save changes, but don't commit them yet */
 	if (uci_save(ctx, p) != UCI_OK) {
-		uci_perror(ctx, "uci");
+		uci_perror(ctx, appname);
 		return 1;
 	}
+
 	return 0;
 }
 
 static int uci_cmd(int argc, char **argv)
 {
+	int cmd;
+
 	if (!strcasecmp(argv[0], "show"))
 		return uci_show(argc, argv);
 	if (!strcasecmp(argv[0], "export"))
 		return uci_do_export(argc, argv);
+
 	if (!strcasecmp(argv[0], "get"))
-		return uci_do_get(argc, argv);
-	if (!strcasecmp(argv[0], "set"))
-		return uci_do_set(argc, argv);
-	return 255;
+		cmd = CMD_GET;
+	else if (!strcasecmp(argv[0], "set"))
+		cmd = CMD_SET;
+	else if (!strcasecmp(argv[0], "del"))
+		cmd = CMD_DEL;
+	else
+		return 255;
+	return uci_do_cmd(cmd, argc, argv);
 }
 
 int main(int argc, char **argv)

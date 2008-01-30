@@ -76,7 +76,7 @@
 #define UCI_INTERNAL(func, ctx, ...) do { \
 	ctx->internal = true;		\
 	func(ctx, __VA_ARGS__);		\
-} while (0);
+} while (0)
 
 /*
  * check the specified condition.
