@@ -749,7 +749,7 @@ int uci_save(struct uci_context *ctx, struct uci_package *p)
 			fprintf(f, "\n");
 		else
 			fprintf(f, "=%s\n", h->value);
-		uci_list_del(&e->list);
+		uci_free_history(h);
 	}
 
 done:

@@ -173,7 +173,7 @@ uci_free_package(struct uci_package *p)
 }
 
 /* record a change that was done to a package */
-static inline void
+static void
 uci_add_history(struct uci_context *ctx, struct uci_package *p, int cmd, char *section, char *option, char *value)
 {
 	struct uci_history *h;
@@ -195,6 +195,19 @@ uci_add_history(struct uci_context *ctx, struct uci_package *p, int cmd, char *s
 		h->value = strcpy(ptr, value);
 	}
 	uci_list_add(&p->history, &h->e.list);
+}
+
+static void
+uci_free_history(struct uci_history *h)
+{
+	if (!h)
+		return;
+	if ((h->section != NULL) &&
+		(h->section != uci_dataptr(h))) {
+		free(h->section);
+		free(h->value);
+	}
+	uci_free_element(&h->e);
 }
 
 static struct uci_element *uci_lookup_list(struct uci_context *ctx, struct uci_list *list, const char *name)
