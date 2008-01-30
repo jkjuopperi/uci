@@ -73,6 +73,12 @@
 	memcpy(ctx->trap, __old_trap, sizeof(ctx->trap)); \
 } while(0)
 
+/**
+ * UCI_INTERNAL: Do an internal call of a public API function
+ * 
+ * Sets Exception handling to passthrough mode.
+ * Allows API functions to change behavior compared to public use
+ */
 #define UCI_INTERNAL(func, ctx, ...) do { \
 	ctx->internal = true;		\
 	func(ctx, __VA_ARGS__);		\
