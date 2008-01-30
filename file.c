@@ -526,8 +526,14 @@ int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct u
  */
 static FILE *uci_open_stream(struct uci_context *ctx, const char *filename, int pos, bool write)
 {
+	struct stat statbuf;
 	FILE *file = NULL;
 	int fd, ret;
+
+	if (!write && ((stat(filename, &statbuf) < 0) ||
+		((statbuf.st_mode &  S_IFMT) != S_IFREG))) {
+		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
+	}
 
 	fd = open(filename, (write ? O_RDWR | O_CREAT : O_RDONLY));
 	if (fd <= 0)
@@ -645,7 +651,6 @@ done:
 
 int uci_load(struct uci_context *ctx, const char *name, struct uci_package **package)
 {
-	struct stat statbuf;
 	char *filename;
 	bool confdir;
 	FILE *file = NULL;
@@ -673,11 +678,6 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 		sprintf(filename, UCI_CONFDIR "/%s", name);
 		confdir = true;
 		break;
-	}
-
-	if ((stat(filename, &statbuf) < 0) ||
-		((statbuf.st_mode &  S_IFMT) != S_IFREG)) {
-		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 	}
 
 	file = uci_open_stream(ctx, filename, SEEK_SET, false);
