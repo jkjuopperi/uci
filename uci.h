@@ -220,6 +220,11 @@ enum uci_type {
 	UCI_TYPE_OPTION = 3
 };
 
+enum uci_flags {
+	UCI_FLAG_STRICT = (1 << 0), /* strict mode for the parser */
+	UCI_FLAG_PERROR = (1 << 1), /* print error messages to stderr */
+};
+
 struct uci_element
 {
 	struct uci_list list;
@@ -234,6 +239,9 @@ struct uci_context
 
 	/* parser context, use for error handling only */
 	struct uci_parse_context *pctx;
+
+	/* uci runtime flags */
+	enum uci_flags flags;
 
 	/* private: */
 	int errno;

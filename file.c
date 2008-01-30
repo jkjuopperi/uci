@@ -502,8 +502,18 @@ int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct u
 
 	while (!feof(pctx->file)) {
 		uci_getln(ctx, 0);
+
+		UCI_TRAP_SAVE(ctx, error);
 		if (pctx->buf[0])
 			uci_parse_line(ctx, single);
+		UCI_TRAP_RESTORE(ctx);
+		continue;
+error:
+		if (ctx->flags & UCI_FLAG_PERROR)
+			uci_perror(ctx, NULL);
+		if ((ctx->errno != UCI_ERR_PARSE) ||
+			(ctx->flags & UCI_FLAG_STRICT))
+			UCI_THROW(ctx, ctx->errno);
 	}
 
 	if (package)

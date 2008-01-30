@@ -47,6 +47,7 @@ struct uci_context *uci_alloc_context(void)
 	ctx = (struct uci_context *) malloc(sizeof(struct uci_context));
 	memset(ctx, 0, sizeof(struct uci_context));
 	uci_list_init(&ctx->root);
+	ctx->flags = UCI_FLAG_STRICT;
 
 	return ctx;
 }

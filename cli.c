@@ -12,6 +12,7 @@
  */
 #include <strings.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "uci.h"
 
 static const char *appname = "uci";
@@ -208,13 +209,39 @@ static int uci_cmd(int argc, char **argv)
 int main(int argc, char **argv)
 {
 	int ret;
+	int c;
 
 	ctx = uci_alloc_context();
+	if (!ctx) {
+		fprintf(stderr, "Out of memory\n");
+		return 1;
+	}
+
+	while((c = getopt(argc, argv, "sS")) != -1) {
+		switch(c) {
+			case 's':
+				ctx->flags |= UCI_FLAG_STRICT;
+				break;
+			case 'S':
+				ctx->flags &= ~UCI_FLAG_STRICT;
+				ctx->flags |= UCI_FLAG_PERROR;
+				break;
+			default:
+				uci_usage(argc, argv);
+				break;
+		}
+	}
+	if (optind > 1)
+		argv[optind - 1] = argv[0];
+	argv += optind - 1;
+	argc -= optind - 1;
+
 	if (argc < 2)
 		uci_usage(argc, argv);
 	ret = uci_cmd(argc - 1, argv + 1);
 	if (ret == 255)
 		uci_usage(argc, argv);
+
 	uci_free_context(ctx);
 
 	return ret;
