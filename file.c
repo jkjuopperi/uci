@@ -244,11 +244,16 @@ static char *next_arg(struct uci_context *ctx, char **str, bool required, bool n
 	val = ptr = *str;
 	skip_whitespace(ctx, str);
 	parse_str(ctx, str, &ptr);
-	if (required && !*val)
-		uci_parse_error(ctx, *str, "insufficient arguments");
+	if (!*val) {
+		if (required)
+			uci_parse_error(ctx, *str, "insufficient arguments");
+		goto done;
+	}
+
 	if (name && !uci_validate_name(val))
 		uci_parse_error(ctx, val, "invalid character in field");
 
+done:
 	return val;
 }
 
