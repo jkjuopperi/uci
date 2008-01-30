@@ -195,9 +195,10 @@ uci_alloc_package(struct uci_context *ctx, const char *name)
 }
 
 static void
-uci_free_package(struct uci_package *p)
+uci_free_package(struct uci_package **package)
 {
 	struct uci_element *e, *tmp;
+	struct uci_package *p = *package;
 
 	if(!p)
 		return;
@@ -211,6 +212,7 @@ uci_free_package(struct uci_package *p)
 		uci_free_history(uci_to_history(e));
 	}
 	uci_free_element(&p->e);
+	*package = NULL;
 }
 
 static struct uci_element *uci_lookup_list(struct uci_context *ctx, struct uci_list *list, const char *name)
@@ -410,7 +412,10 @@ int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char 
 	 * if the section/option is to be modified and it is not found
 	 * create a new element in the appropriate list
 	 */
-	UCI_INTERNAL(uci_lookup, ctx, &e, p, section, NULL);
+	e = uci_lookup_list(ctx, &p->sections, section);
+	if (!e)
+		goto notfound;
+
 	s = uci_to_section(e);
 	if (option) {
 		e = uci_lookup_list(ctx, &s->options, option);
@@ -462,7 +467,7 @@ int uci_unload(struct uci_context *ctx, struct uci_package *p)
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, p != NULL);
 
-	uci_free_package(p);
+	uci_free_package(&p);
 	return 0;
 }
 

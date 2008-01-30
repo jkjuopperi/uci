@@ -202,9 +202,12 @@ extern int uci_save(struct uci_context *ctx, struct uci_package *p);
 /**
  * uci_commit: commit changes to a package
  * @ctx: uci context
- * @p: uci_package struct
+ * @p: uci_package struct pointer
+ *
+ * committing may reload the whole uci_package data,
+ * the supplied pointer is updated accordingly
  */
-extern int uci_commit(struct uci_context *ctx, struct uci_package *p);
+extern int uci_commit(struct uci_context *ctx, struct uci_package **p);
 
 /**
  * uci_list_configs: List available uci config files

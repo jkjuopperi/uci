@@ -127,6 +127,35 @@ static int uci_do_export(int argc, char **argv)
 	return 0;
 }
 
+static int uci_do_commit(int argc, char **argv)
+{
+	char **configs = NULL;
+	char **p;
+
+	if ((uci_list_configs(ctx, &configs) != UCI_OK) || !configs) {
+		uci_perror(ctx, appname);
+		return 1;
+	}
+
+	for (p = configs; *p; p++) {
+		if ((argc < 2) || !strcmp(argv[1], *p)) {
+			struct uci_package *package = NULL;
+			int ret;
+
+			if (uci_load(ctx, *p, &package) != UCI_OK) {
+				uci_perror(ctx, appname);
+				continue;
+			}
+			if (uci_commit(ctx, &package) != UCI_OK)
+				uci_perror(ctx, appname);
+
+			uci_unload(ctx, package);
+		}
+	}
+	return 0;
+}
+
+
 static int uci_do_cmd(int cmd, int argc, char **argv)
 {
 	char *package = NULL;
@@ -147,11 +176,11 @@ static int uci_do_cmd(int cmd, int argc, char **argv)
 		return 1;
 	}
 
-	if (uci_lookup(ctx, &e, p, section, option) != UCI_OK)
-		return 1;
-
 	switch(cmd) {
 	case CMD_GET:
+		if (uci_lookup(ctx, &e, p, section, option) != UCI_OK)
+			return 1;
+
 		switch(e->type) {
 		case UCI_TYPE_SECTION:
 			value = uci_to_section(e)->type;
@@ -201,6 +230,8 @@ static int uci_cmd(int argc, char **argv)
 		return uci_show(argc, argv);
 	if (!strcasecmp(argv[0], "export"))
 		return uci_do_export(argc, argv);
+	if (!strcasecmp(argv[0], "commit"))
+		return uci_do_commit(argc, argv);
 
 	if (!strcasecmp(argv[0], "get"))
 		cmd = CMD_GET;

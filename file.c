@@ -93,7 +93,7 @@ static void uci_file_cleanup(struct uci_context *ctx)
 
 	ctx->pctx = NULL;
 	if (pctx->package)
-		uci_free_package(pctx->package);
+		uci_free_package(&pctx->package);
 
 	if (pctx->buf)
 		free(pctx->buf);
@@ -502,7 +502,6 @@ int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct u
 
 	while (!feof(pctx->file)) {
 		uci_getln(ctx, 0);
-
 		UCI_TRAP_SAVE(ctx, error);
 		if (pctx->buf[0])
 			uci_parse_line(ctx, single);
@@ -534,33 +533,34 @@ error:
  * note: when opening for write and seeking to the beginning of
  * the stream, truncate the file
  */
-static FILE *uci_open_stream(struct uci_context *ctx, const char *filename, int pos, bool write)
+static FILE *uci_open_stream(struct uci_context *ctx, const char *filename, int pos, bool write, bool create)
 {
 	struct stat statbuf;
 	FILE *file = NULL;
 	int fd, ret;
+	int mode = (write ? O_RDWR : O_RDONLY);
+
+	if (create)
+		mode |= O_CREAT;
 
 	if (!write && ((stat(filename, &statbuf) < 0) ||
 		((statbuf.st_mode &  S_IFMT) != S_IFREG))) {
 		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 	}
 
-	fd = open(filename, (write ? O_RDWR | O_CREAT : O_RDONLY), UCI_FILEMODE);
+	fd = open(filename, mode, UCI_FILEMODE);
 	if (fd <= 0)
 		goto error;
 
 	if (flock(fd, (write ? LOCK_EX : LOCK_SH)) < 0)
 		goto error;
 
-	if (write && (pos == SEEK_SET))
-		ret = ftruncate(fd, 0);
-	else
-		ret = lseek(fd, 0, pos);
+	ret = lseek(fd, 0, pos);
 
 	if (ret < 0)
 		goto error;
 
-	file = fdopen(fd, (write ? "w" : "r"));
+	file = fdopen(fd, (write ? "w+" : "r"));
 	if (file)
 		goto done;
 
@@ -626,19 +626,27 @@ static void uci_parse_history(struct uci_context *ctx, FILE *stream, struct uci_
 	ctx->pctx = pctx;
 	pctx->file = stream;
 
-	rewind(stream);
 	while (!feof(pctx->file)) {
 		uci_getln(ctx, 0);
 		if (!pctx->buf[0])
 			continue;
+
+		/*
+		 * ignore parse errors in single lines, we want to preserve as much
+		 * history as possible
+		 */
+		UCI_TRAP_SAVE(ctx, error);
 		uci_parse_history_line(ctx, p, pctx->buf);
+		UCI_TRAP_RESTORE(ctx);
+error:
+		continue;
 	}
 
 	/* no error happened, we can get rid of the parser context now */
 	uci_file_cleanup(ctx);
 }
 
-static void uci_load_history(struct uci_context *ctx, struct uci_package *p)
+static void uci_load_history(struct uci_context *ctx, struct uci_package *p, bool flush)
 {
 	char *filename = NULL;
 	FILE *f = NULL;
@@ -649,15 +657,21 @@ static void uci_load_history(struct uci_context *ctx, struct uci_package *p)
 		UCI_THROW(ctx, UCI_ERR_MEM);
 
 	UCI_TRAP_SAVE(ctx, done);
-	f = uci_open_stream(ctx, filename, SEEK_SET, false);
+	f = uci_open_stream(ctx, filename, SEEK_SET, flush, false);
 	uci_parse_history(ctx, f, p);
 	UCI_TRAP_RESTORE(ctx);
+
 done:
+	if (flush && f) {
+		rewind(f);
+		ftruncate(fileno(f), 0);
+	}
 	if (filename)
 		free(filename);
 	uci_close_stream(f);
 	ctx->errno = 0;
 }
+
 
 int uci_load(struct uci_context *ctx, const char *name, struct uci_package **package)
 {
@@ -690,7 +704,7 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 		break;
 	}
 
-	file = uci_open_stream(ctx, filename, SEEK_SET, false);
+	file = uci_open_stream(ctx, filename, SEEK_SET, false, false);
 	ctx->errno = 0;
 	UCI_TRAP_SAVE(ctx, done);
 	uci_import(ctx, file, name, package, true);
@@ -699,7 +713,7 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 	if (*package) {
 		(*package)->path = filename;
 		(*package)->confdir = confdir;
-		uci_load_history(ctx, *package);
+		uci_load_history(ctx, *package, false);
 	}
 
 done:
@@ -719,10 +733,11 @@ int uci_save(struct uci_context *ctx, struct uci_package *p)
 	/* 
 	 * if the config file was outside of the /etc/config path,
 	 * don't save the history to a file, update the real file
-	 * directly
+	 * directly.
+	 * does not modify the uci_package pointer
 	 */
 	if (!p->confdir)
-		return uci_commit(ctx, p);
+		return uci_commit(ctx, &p);
 
 	if (uci_list_empty(&p->history))
 		return 0;
@@ -732,7 +747,7 @@ int uci_save(struct uci_context *ctx, struct uci_package *p)
 
 	ctx->errno = 0;
 	UCI_TRAP_SAVE(ctx, done);
-	f = uci_open_stream(ctx, filename, SEEK_END, true);
+	f = uci_open_stream(ctx, filename, SEEK_END, true, true);
 	UCI_TRAP_RESTORE(ctx);
 
 	uci_foreach_element_safe(&p->history, tmp, e) {
@@ -762,21 +777,56 @@ done:
 	return 0;
 }
 
-int uci_commit(struct uci_context *ctx, struct uci_package *p)
+int uci_commit(struct uci_context *ctx, struct uci_package **package)
 {
+	struct uci_package *p;
 	FILE *f = NULL;
+	char *name = NULL;
+	char *path = NULL;
 
 	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, package != NULL);
+	p = *package;
+
 	UCI_ASSERT(ctx, p != NULL);
 	UCI_ASSERT(ctx, p->path != NULL);
 
-	f = uci_open_stream(ctx, p->path, SEEK_SET, true);
+	/* open the config file for writing now, so that it is locked */
+	f = uci_open_stream(ctx, p->path, SEEK_SET, true, true);
 
+	/* flush unsaved changes and reload from history file */
 	UCI_TRAP_SAVE(ctx, done);
+	if (p->confdir) {
+		name = uci_strdup(ctx, p->e.name);
+		path = uci_strdup(ctx, p->path);
+		if (!uci_list_empty(&p->history))
+			UCI_INTERNAL(uci_save, ctx, p);
+		uci_free_package(&p);
+		uci_file_cleanup(ctx);
+		UCI_INTERNAL(uci_import, ctx, f, name, &p, true);
+
+		p->path = path;
+		p->confdir = true;
+		*package = p;
+
+		/* freed together with the uci_package */
+		path = NULL;
+
+		/* check for updated history, just in case */
+		uci_load_history(ctx, p, true);
+	}
+
+	rewind(f);
+	ftruncate(fileno(f), 0);
+
 	uci_export(ctx, f, p, false);
 	UCI_TRAP_RESTORE(ctx);
 
 done:
+	if (name)
+		free(name);
+	if (path)
+		free(path);
 	uci_close_stream(f);
 	if (ctx->errno)
 		UCI_THROW(ctx, ctx->errno);

@@ -41,6 +41,7 @@
  * and UCI_TRAP_RESTORE.
  */
 #define UCI_HANDLE_ERR(ctx) do {	\
+	DPRINTF("ENTER: %s\n", __func__); \
 	int __val = 0;			\
 	if (!ctx)			\
 		return UCI_ERR_INVAL;	\

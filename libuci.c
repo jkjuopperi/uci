@@ -59,7 +59,8 @@ void uci_free_context(struct uci_context *ctx)
 	UCI_TRAP_SAVE(ctx, ignore);
 	uci_cleanup(ctx);
 	uci_foreach_element_safe(&ctx->root, tmp, e) {
-		uci_free_package(uci_to_package(e));
+		struct uci_package *p = uci_to_package(e);
+		uci_free_package(&p);
 	}
 	free(ctx);
 	UCI_TRAP_RESTORE(ctx);
