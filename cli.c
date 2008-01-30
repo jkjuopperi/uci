@@ -33,6 +33,10 @@ static void uci_usage(int argc, char **argv)
 		"\tshow     [<config>[.<section>[.<option>]]]\n"
 		"\tget      <config>.<section>[.<option>]\n"
 		"\tset      <config>.<section>[.<option>]=<value>\n"
+		"\n"
+		"Options:\n"
+		"\t-s       force strict mode (stop on parser errors)\n"
+		"\t-S       disable strict mode\n"
 		"\n",
 		argv[0]
 	);
