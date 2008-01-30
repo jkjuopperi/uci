@@ -144,34 +144,6 @@ uci_free_section(struct uci_section *s)
 	uci_free_element(&s->e);
 }
 
-static struct uci_package *
-uci_alloc_package(struct uci_context *ctx, const char *name)
-{
-	struct uci_package *p;
-
-	p = uci_alloc_element(ctx, package, name, 0);
-	p->ctx = ctx;
-	uci_list_init(&p->sections);
-	uci_list_init(&p->history);
-	return p;
-}
-
-static void
-uci_free_package(struct uci_package *p)
-{
-	struct uci_element *e, *tmp;
-
-	if(!p)
-		return;
-
-	if (p->path)
-		free(p->path);
-	uci_foreach_element_safe(&p->sections, tmp, e) {
-		uci_free_section(uci_to_section(e));
-	}
-	uci_free_element(&p->e);
-}
-
 /* record a change that was done to a package */
 static void
 uci_add_history(struct uci_context *ctx, struct uci_package *p, int cmd, char *section, char *option, char *value)
@@ -208,6 +180,37 @@ uci_free_history(struct uci_history *h)
 		free(h->value);
 	}
 	uci_free_element(&h->e);
+}
+
+static struct uci_package *
+uci_alloc_package(struct uci_context *ctx, const char *name)
+{
+	struct uci_package *p;
+
+	p = uci_alloc_element(ctx, package, name, 0);
+	p->ctx = ctx;
+	uci_list_init(&p->sections);
+	uci_list_init(&p->history);
+	return p;
+}
+
+static void
+uci_free_package(struct uci_package *p)
+{
+	struct uci_element *e, *tmp;
+
+	if(!p)
+		return;
+
+	if (p->path)
+		free(p->path);
+	uci_foreach_element_safe(&p->sections, tmp, e) {
+		uci_free_section(uci_to_section(e));
+	}
+	uci_foreach_element_safe(&p->history, tmp, e) {
+		uci_free_history(uci_to_history(e));
+	}
+	uci_free_element(&p->e);
 }
 
 static struct uci_element *uci_lookup_list(struct uci_context *ctx, struct uci_list *list, const char *name)
