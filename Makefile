@@ -3,7 +3,7 @@ VERSION=0.1
 COPTS=-O2
 WOPTS=-pedantic -Wno-unused -Werror
 FPIC=-fPIC
-CFLAGS=$(COPTS) -Wall -std=gnu99
+CFLAGS=$(COPTS) $(WOPTS) -Wall -std=gnu99
 
 AR=ar
 LD=ld
