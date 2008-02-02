@@ -20,7 +20,7 @@ ifeq ($(OS),Darwin)
   SHLIB_EXT=dylib
   SHLIB_FLAGS=-dylib
 else
-  LD=gcc
+  LD=$(CC)
   SHLIB_EXT=so
   SHLIB_FLAGS=-shared -Wl,-soname,$(SHLIB_FILE)
 endif
