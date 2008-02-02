@@ -91,7 +91,7 @@ static int package_cmd(int cmd, char *package)
 	}
 	switch(cmd) {
 	case CMD_COMMIT:
-		if (uci_commit(ctx, &p) != UCI_OK)
+		if (uci_commit(ctx, &p, false) != UCI_OK)
 			uci_perror(ctx, appname);
 		break;
 	case CMD_EXPORT:
@@ -128,8 +128,17 @@ static int uci_do_import(int argc, char **argv)
 			package = NULL;
 	}
 	ret = uci_import(ctx, input, name, &package, (name != NULL));
-	if ((ret == UCI_OK) && (flags & CLI_FLAG_MERGE)) {
-		ret = uci_save(ctx, package);
+	if (ret == UCI_OK) {
+		if (flags & CLI_FLAG_MERGE) {
+			ret = uci_save(ctx, package);
+		} else {
+			struct uci_element *e;
+			/* loop through all config sections and overwrite existing data */
+			uci_foreach_element(&ctx->root, e) {
+				struct uci_package *p = uci_to_package(e);
+				ret = uci_commit(ctx, &p, true);
+			}
+		}
 	}
 
 	if (ret != UCI_OK) {

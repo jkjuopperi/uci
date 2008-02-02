@@ -214,11 +214,12 @@ extern int uci_save(struct uci_context *ctx, struct uci_package *p);
  * uci_commit: commit changes to a package
  * @ctx: uci context
  * @p: uci_package struct pointer
+ * @overwrite: overwrite existing config data and flush history
  *
  * committing may reload the whole uci_package data,
  * the supplied pointer is updated accordingly
  */
-extern int uci_commit(struct uci_context *ctx, struct uci_package **p);
+extern int uci_commit(struct uci_context *ctx, struct uci_package **p, bool overwrite);
 
 /**
  * uci_list_configs: List available uci config files

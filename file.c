@@ -745,7 +745,8 @@ static void uci_load_history(struct uci_context *ctx, struct uci_package *p, boo
 
 	UCI_TRAP_SAVE(ctx, done);
 	f = uci_open_stream(ctx, filename, SEEK_SET, flush, false);
-	uci_parse_history(ctx, f, p);
+	if (p)
+		uci_parse_history(ctx, f, p);
 	UCI_TRAP_RESTORE(ctx);
 
 done:
@@ -759,6 +760,18 @@ done:
 	ctx->errno = 0;
 }
 
+
+static char *uci_config_path(struct uci_context *ctx, const char *name)
+{
+	char *filename;
+
+	if (strchr(name, '/'))
+		UCI_THROW(ctx, UCI_ERR_INVAL);
+	filename = uci_malloc(ctx, strlen(name) + sizeof(UCI_CONFDIR) + 2);
+	sprintf(filename, UCI_CONFDIR "/%s", name);
+
+	return filename;
+}
 
 int uci_load(struct uci_context *ctx, const char *name, struct uci_package **package)
 {
@@ -783,10 +796,7 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 		break;
 	default:
 		/* config in /etc/config */
-		if (strchr(name, '/'))
-			UCI_THROW(ctx, UCI_ERR_INVAL);
-		filename = uci_malloc(ctx, strlen(name) + sizeof(UCI_CONFDIR) + 2);
-		sprintf(filename, UCI_CONFDIR "/%s", name);
+		filename = uci_config_path(ctx, name);
 		confdir = true;
 		break;
 	}
@@ -824,7 +834,7 @@ int uci_save(struct uci_context *ctx, struct uci_package *p)
 	 * does not modify the uci_package pointer
 	 */
 	if (!p->confdir)
-		return uci_commit(ctx, &p);
+		return uci_commit(ctx, &p, false);
 
 	if (uci_list_empty(&p->history))
 		return 0;
@@ -866,7 +876,7 @@ done:
 	return 0;
 }
 
-int uci_commit(struct uci_context *ctx, struct uci_package **package)
+int uci_commit(struct uci_context *ctx, struct uci_package **package, bool overwrite)
 {
 	struct uci_package *p;
 	FILE *f = NULL;
@@ -878,7 +888,13 @@ int uci_commit(struct uci_context *ctx, struct uci_package **package)
 	p = *package;
 
 	UCI_ASSERT(ctx, p != NULL);
-	UCI_ASSERT(ctx, p->path != NULL);
+	if (!p->path) {
+		if (overwrite)
+			p->path = uci_config_path(ctx, p->e.name);
+		else
+			UCI_THROW(ctx, UCI_ERR_INVAL);
+	}
+
 
 	/* open the config file for writing now, so that it is locked */
 	f = uci_open_stream(ctx, p->path, SEEK_SET, true, true);
@@ -886,23 +902,28 @@ int uci_commit(struct uci_context *ctx, struct uci_package **package)
 	/* flush unsaved changes and reload from history file */
 	UCI_TRAP_SAVE(ctx, done);
 	if (p->confdir) {
-		name = uci_strdup(ctx, p->e.name);
-		path = uci_strdup(ctx, p->path);
-		if (!uci_list_empty(&p->history))
-			UCI_INTERNAL(uci_save, ctx, p);
-		uci_free_package(&p);
-		uci_file_cleanup(ctx);
-		UCI_INTERNAL(uci_import, ctx, f, name, &p, true);
+		if (!overwrite) {
+			name = uci_strdup(ctx, p->e.name);
+			path = uci_strdup(ctx, p->path);
+			if (!uci_list_empty(&p->history))
+				UCI_INTERNAL(uci_save, ctx, p);
+			uci_free_package(&p);
+			uci_file_cleanup(ctx);
+			UCI_INTERNAL(uci_import, ctx, f, name, &p, true);
 
-		p->path = path;
-		p->confdir = true;
-		*package = p;
+			p->path = path;
+			p->confdir = true;
+			*package = p;
 
-		/* freed together with the uci_package */
-		path = NULL;
+			/* freed together with the uci_package */
+			path = NULL;
 
-		/* check for updated history, just in case */
-		uci_load_history(ctx, p, true);
+			/* check for updated history, just in case */
+			uci_load_history(ctx, p, true);
+		} else {
+			/* flush history */
+			uci_load_history(ctx, NULL, true);
+		}
 	}
 
 	rewind(f);
