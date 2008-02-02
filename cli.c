@@ -137,13 +137,14 @@ static int uci_do_package_cmd(int cmd, int argc, char **argv)
 
 static int uci_do_section_cmd(int cmd, int argc, char **argv)
 {
+	struct uci_package *p = NULL;
+	struct uci_element *e = NULL;
 	char *package = NULL;
 	char *section = NULL;
 	char *option = NULL;
 	char *value = NULL;
 	char **ptr = NULL;
-	struct uci_package *p = NULL;
-	struct uci_element *e = NULL;
+	int ret = UCI_OK;
 
 	if (argc != 2)
 		return 255;
@@ -184,22 +185,13 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 		printf("%s\n", value);
 		break;
 	case CMD_RENAME:
-		if (uci_rename(ctx, p, section, option, value) != UCI_OK) {
-			uci_perror(ctx, appname);
-			return 1;
-		}
+		ret = uci_rename(ctx, p, section, option, value);
 		break;
 	case CMD_SET:
-		if (uci_set(ctx, p, section, option, value) != UCI_OK) {
-			uci_perror(ctx, appname);
-			return 1;
-		}
+		ret = uci_set(ctx, p, section, option, value);
 		break;
 	case CMD_DEL:
-		if (uci_delete(ctx, p, section, option) != UCI_OK) {
-			uci_perror(ctx, appname);
-			return 1;
-		}
+		ret = uci_delete(ctx, p, section, option);
 		break;
 	}
 
@@ -208,7 +200,10 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 		return 0;
 
 	/* save changes, but don't commit them yet */
-	if (uci_save(ctx, p) != UCI_OK) {
+	if (ret == UCI_OK)
+		ret = uci_save(ctx, p);
+
+	if (ret != UCI_OK) {
 		uci_perror(ctx, appname);
 		return 1;
 	}
