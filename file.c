@@ -782,7 +782,7 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 	file = uci_open_stream(ctx, filename, SEEK_SET, false, false);
 	ctx->errno = 0;
 	UCI_TRAP_SAVE(ctx, done);
-	uci_import(ctx, file, name, package, true);
+	UCI_INTERNAL(uci_import, ctx, file, name, package, true);
 	UCI_TRAP_RESTORE(ctx);
 
 	if (*package) {
