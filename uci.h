@@ -237,8 +237,9 @@ enum uci_type {
 };
 
 enum uci_flags {
-	UCI_FLAG_STRICT = (1 << 0), /* strict mode for the parser */
-	UCI_FLAG_PERROR = (1 << 1), /* print error messages to stderr */
+	UCI_FLAG_STRICT =      (1 << 0), /* strict mode for the parser */
+	UCI_FLAG_PERROR =      (1 << 1), /* print parser error messages */
+	UCI_FLAG_EXPORT_NAME = (1 << 2), /* when exporting, name unnamed sections */
 };
 
 struct uci_element

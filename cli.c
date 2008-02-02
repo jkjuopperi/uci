@@ -50,8 +50,10 @@ static void uci_usage(int argc, char **argv)
 		"Options:\n"
 		"\t-f <file>  use <file> as input instead of stdin\n"
 		"\t-m         when importing, merge data into an existing package\n"
-		"\t-s         force strict mode (stop on parser errors)\n"
+		"\t-s         force strict mode (stop on parser errors, default)\n"
 		"\t-S         disable strict mode\n"
+		"\t-n         name unnamed sections on export (default)\n"
+		"\t-N         don't name unnamed sections\n"
 		"\n",
 		argv[0]
 	);
@@ -299,7 +301,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	while((c = getopt(argc, argv, "mf:sS")) != -1) {
+	while((c = getopt(argc, argv, "mf:sSnN")) != -1) {
 		switch(c) {
 			case 'f':
 				input = fopen(optarg, "r");
@@ -317,6 +319,12 @@ int main(int argc, char **argv)
 			case 'S':
 				ctx->flags &= ~UCI_FLAG_STRICT;
 				ctx->flags |= UCI_FLAG_PERROR;
+				break;
+			case 'n':
+				ctx->flags |= UCI_FLAG_EXPORT_NAME;
+				break;
+			case 'N':
+				ctx->flags &= ~UCI_FLAG_EXPORT_NAME;
 				break;
 			default:
 				uci_usage(argc, argv);
