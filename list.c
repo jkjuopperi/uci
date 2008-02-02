@@ -113,18 +113,18 @@ uci_alloc_section(struct uci_package *p, const char *type, const char *name)
 {
 	struct uci_context *ctx = p->ctx;
 	struct uci_section *s;
-	char buf[16];
 
-	if (!name || !name[0]) {
-		snprintf(buf, 16, "cfg%d", p->n_section);
-		name = buf;
-	}
+	if (name && !name[0])
+		name = NULL;
 
 	s = uci_alloc_element(ctx, section, name, strlen(type) + 1);
+	uci_list_init(&s->options);
 	s->type = uci_dataptr(s);
 	s->package = p;
 	strcpy(s->type, type);
-	uci_list_init(&s->options);
+	if (name == NULL)
+		s->anonymous = true;
+
 	uci_list_add(&p->sections, &s->e.list);
 
 	return s;

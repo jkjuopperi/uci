@@ -290,6 +290,7 @@ struct uci_section
 	struct uci_element e;
 	struct uci_list options;
 	struct uci_package *package;
+	bool anonymous;
 	char *type;
 };
 

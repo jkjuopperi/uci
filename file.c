@@ -323,14 +323,60 @@ static void uci_parse_package(struct uci_context *ctx, char **str, bool single)
 	uci_switch_config(ctx);
 }
 
+/* Based on an efficient hash function published by D. J. Bernstein */
+static unsigned int djbhash(unsigned int hash, char *str)
+{
+	int len = strlen(str);
+	int i;
+
+	/* initial value */
+	if (hash == ~0)
+		hash = 5381;
+
+	for(i = 0; i < len; i++) {
+		hash = ((hash << 5) + hash) + str[i];
+	}
+	return (hash & 0x7FFFFFFF);
+}
+
+/* fix up an unnamed section */
+static void uci_fixup_section(struct uci_context *ctx, struct uci_section *s)
+{
+	unsigned int hash = ~0;
+	struct uci_element *e;
+	char buf[16];
+
+	if (!s || s->e.name)
+		return;
+
+	/*
+	 * Generate a name for unnamed sections. This is used as reference
+	 * when locating or updating the section from apps/scripts.
+	 * To make multiple concurrent versions somewhat safe for updating,
+	 * the name is generated from a hash of its type and name/value
+	 * pairs of its option, and it is prefixed by a counter value.
+	 * If the order of the unnamed sections changes for some reason,
+	 * updates to them will be rejected.
+	 */
+	hash = djbhash(hash, s->type);
+	uci_foreach_element(&s->options, e) {
+		hash = djbhash(hash, e->name);
+		hash = djbhash(hash, uci_to_option(e)->value);
+	}
+	sprintf(buf, "cfg%02x%04x", ++s->package->n_section, hash % (1 << 16));
+	s->e.name = uci_strdup(ctx, buf);
+}
+
 /*
  * parse the 'config' uci command (open a section)
  */
 static void uci_parse_config(struct uci_context *ctx, char **str)
 {
+	struct uci_section *s;
 	char *name = NULL;
 	char *type = NULL;
 
+	uci_fixup_section(ctx, ctx->pctx->section);
 	if (!ctx->pctx->package) {
 		if (!ctx->pctx->name)
 			uci_parse_error(ctx, *str, "attempting to import a file without a package name");
@@ -458,7 +504,9 @@ static void uci_export_package(struct uci_package *p, FILE *stream, bool header)
 	uci_foreach_element(&p->sections, s) {
 		struct uci_section *sec = uci_to_section(s);
 		fprintf(stream, "\nconfig '%s'", uci_escape(ctx, sec->type));
-		fprintf(stream, " '%s'\n", uci_escape(ctx, sec->e.name));
+		if (!sec->anonymous)
+			fprintf(stream, " '%s'", uci_escape(ctx, sec->e.name));
+		fprintf(stream, "\n");
 		uci_foreach_element(&sec->options, o) {
 			struct uci_option *opt = uci_to_option(o);
 			fprintf(stream, "\toption '%s'", uci_escape(ctx, opt->e.name));
@@ -520,6 +568,7 @@ error:
 			UCI_THROW(ctx, ctx->errno);
 	}
 
+	uci_fixup_section(ctx, ctx->pctx->section);
 	if (package)
 		*package = pctx->package;
 
