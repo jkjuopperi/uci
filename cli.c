@@ -109,10 +109,8 @@ static int package_cmd(int cmd, char *package)
 static int uci_do_import(int argc, char **argv)
 {
 	struct uci_package *package = NULL;
-	char **configs = NULL;
 	char *name = NULL;
 	int ret = UCI_OK;
-	char **p;
 
 	if (argc > 2)
 		return 255;

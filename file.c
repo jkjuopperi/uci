@@ -373,7 +373,6 @@ static void uci_fixup_section(struct uci_context *ctx, struct uci_section *s)
 static void uci_parse_config(struct uci_context *ctx, char **str)
 {
 	struct uci_parse_context *pctx = ctx->pctx;
-	struct uci_section *s;
 	char *name = NULL;
 	char *type = NULL;
 

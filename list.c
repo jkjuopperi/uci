@@ -237,7 +237,6 @@ int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_pac
 {
 	struct uci_element *e;
 	struct uci_section *s;
-	struct uci_option *o;
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, res != NULL);
@@ -384,8 +383,6 @@ int uci_rename(struct uci_context *ctx, struct uci_package *p, char *section, ch
 	/* NB: UCI_INTERNAL use means without history tracking */
 	bool internal = ctx->internal;
 	struct uci_element *e;
-	struct uci_section *s = NULL;
-	struct uci_option *o = NULL;
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, p != NULL);
@@ -410,8 +407,6 @@ int uci_delete(struct uci_context *ctx, struct uci_package *p, char *section, ch
 	/* NB: pass on internal flag to uci_del_element */
 	bool internal = ctx->internal;
 	struct uci_element *e;
-	struct uci_section *s = NULL;
-	struct uci_option *o = NULL;
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, p != NULL);
@@ -433,7 +428,6 @@ int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char 
 	struct uci_element *e = NULL;
 	struct uci_section *s = NULL;
 	struct uci_option *o = NULL;
-	struct uci_history *h;
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, p != NULL);
@@ -501,8 +495,6 @@ notfound:
 
 int uci_unload(struct uci_context *ctx, struct uci_package *p)
 {
-	struct uci_element *e;
-
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, p != NULL);
 
