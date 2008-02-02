@@ -301,7 +301,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	while((c = getopt(argc, argv, "mfsS")) != -1) {
+	while((c = getopt(argc, argv, "mf:sS")) != -1) {
 		switch(c) {
 			case 'f':
 				input = fopen(optarg, "r");
