@@ -1,4 +1,7 @@
 uci
+uci-static
 *.[oa]
+*.so*
+*.dylib*
 .*.swp
 .gdb*
