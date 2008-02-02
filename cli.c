@@ -19,7 +19,7 @@ static const char *appname = "uci";
 static enum {
 	CLI_FLAG_MERGE = (1 << 0),
 } flags;
-static FILE *input = stdin;
+static FILE *input;
 
 static struct uci_context *ctx;
 enum {
@@ -295,6 +295,7 @@ int main(int argc, char **argv)
 	int ret;
 	int c;
 
+	input = stdin;
 	ctx = uci_alloc_context();
 	if (!ctx) {
 		fprintf(stderr, "Out of memory\n");
