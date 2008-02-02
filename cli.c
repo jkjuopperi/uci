@@ -108,6 +108,35 @@ static int package_cmd(int cmd, char *package)
 
 static int uci_do_import(int argc, char **argv)
 {
+	struct uci_package *package = NULL;
+	char **configs = NULL;
+	char *name = NULL;
+	int ret = UCI_OK;
+	char **p;
+
+	if (argc > 2)
+		return 255;
+
+	if (argc == 2)
+		name = argv[1];
+	else if (flags & CLI_FLAG_MERGE)
+		/* need a package to merge */
+		return 255;
+
+	if (flags & CLI_FLAG_MERGE) {
+		if (uci_load(ctx, name, &package) != UCI_OK)
+			package = NULL;
+	}
+	ret = uci_import(ctx, input, name, &package, (name != NULL));
+	if ((ret == UCI_OK) && (flags & CLI_FLAG_MERGE)) {
+		ret = uci_save(ctx, package);
+	}
+
+	if (ret != UCI_OK) {
+		uci_perror(ctx, appname);
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -263,7 +292,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	while((c = getopt(argc, argv, "sS")) != -1) {
+	while((c = getopt(argc, argv, "mfsS")) != -1) {
 		switch(c) {
 			case 'f':
 				input = fopen(optarg, "r");

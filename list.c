@@ -450,13 +450,14 @@ int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char 
 		goto notfound;
 
 	s = uci_to_section(e);
+	if (ctx->pctx)
+		ctx->pctx->section = s;
+
 	if (option) {
 		e = uci_lookup_list(ctx, &s->options, option);
 		if (!e)
 			goto notfound;
 		o = uci_to_option(e);
-	} else if (internal && ctx->pctx) {
-		ctx->pctx->section = s;
 	}
 
 	/* 
@@ -489,8 +490,11 @@ notfound:
 		uci_add_history(ctx, p, UCI_CMD_ADD, section, option, value);
 	if (s)
 		uci_alloc_option(s, option, value);
-	else
-		uci_alloc_section(p, value, section);
+	else {
+		s = uci_alloc_section(p, value, section);
+		if (ctx->pctx)
+			ctx->pctx->section = s;
+	}
 
 	return 0;
 }

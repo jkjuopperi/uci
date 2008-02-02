@@ -392,9 +392,14 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 	name = next_arg(ctx, str, false, true);
 	assert_eol(ctx, str);
 
-	if (pctx->merge)
-		UCI_INTERNAL(uci_set, ctx, pctx->package, name, NULL, type);
-	else
+	if (pctx->merge) {
+		UCI_TRAP_SAVE(ctx, error);
+		uci_set(ctx, pctx->package, name, NULL, type);
+		UCI_TRAP_RESTORE(ctx);
+		return;
+error:
+		UCI_THROW(ctx, ctx->errno);
+	} else
 		pctx->section = uci_alloc_section(pctx->package, type, name);
 }
 
@@ -417,9 +422,14 @@ static void uci_parse_option(struct uci_context *ctx, char **str)
 	value = next_arg(ctx, str, true, false);
 	assert_eol(ctx, str);
 
-	if (pctx->merge)
-		UCI_INTERNAL(uci_set, ctx, pctx->package, pctx->section->e.name, name, value);
-	else
+	if (pctx->merge) {
+		UCI_TRAP_SAVE(ctx, error);
+		uci_set(ctx, pctx->package, pctx->section->e.name, name, value);
+		UCI_TRAP_RESTORE(ctx);
+		return;
+error:
+		UCI_THROW(ctx, ctx->errno);
+	} else
 		uci_alloc_option(pctx->section, name, value);
 }
 
@@ -586,6 +596,8 @@ error:
 	uci_fixup_section(ctx, ctx->pctx->section);
 	if (package)
 		*package = pctx->package;
+	if (pctx->merge)
+		pctx->package = NULL;
 
 	pctx->name = NULL;
 	uci_switch_config(ctx);
