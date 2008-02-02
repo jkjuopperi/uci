@@ -16,6 +16,10 @@
 #include "uci.h"
 
 static const char *appname = "uci";
+static enum {
+	CLI_FLAG_MERGE = (1 << 0),
+} flags;
+static FILE *input = stdin;
 
 static struct uci_context *ctx;
 enum {
@@ -26,6 +30,7 @@ enum {
 	CMD_RENAME,
 	/* package cmds */
 	CMD_SHOW,
+	CMD_IMPORT,
 	CMD_EXPORT,
 	CMD_COMMIT,
 };
@@ -35,14 +40,18 @@ static void uci_usage(int argc, char **argv)
 	fprintf(stderr,
 		"Usage: %s [<options>] <command> [<arguments>]\n\n"
 		"Commands:\n"
-		"\texport   [<config>]\n"
-		"\tshow     [<config>[.<section>[.<option>]]]\n"
-		"\tget      <config>.<section>[.<option>]\n"
-		"\tset      <config>.<section>[.<option>]=<value>\n"
+		"\texport     [<config>]\n"
+		"\timport     [<config>]\n"
+		"\tshow       [<config>[.<section>[.<option>]]]\n"
+		"\tget        <config>.<section>[.<option>]\n"
+		"\tset        <config>.<section>[.<option>]=<value>\n"
+		"\trename     <config>.<section>[.<option>]=<name>\n"
 		"\n"
 		"Options:\n"
-		"\t-s       force strict mode (stop on parser errors)\n"
-		"\t-S       disable strict mode\n"
+		"\t-f <file>  use <file> as input instead of stdin\n"
+		"\t-m         when importing, merge data into an existing package\n"
+		"\t-s         force strict mode (stop on parser errors)\n"
+		"\t-S         disable strict mode\n"
 		"\n",
 		argv[0]
 	);
@@ -94,6 +103,11 @@ static int package_cmd(int cmd, char *package)
 	}
 
 	uci_unload(ctx, p);
+	return 0;
+}
+
+static int uci_do_import(int argc, char **argv)
+{
 	return 0;
 }
 
@@ -221,6 +235,8 @@ static int uci_cmd(int argc, char **argv)
 		cmd = CMD_RENAME;
 	else if (!strcasecmp(argv[0], "del"))
 		cmd = CMD_DEL;
+	else if (!strcasecmp(argv[0], "import"))
+		cmd = CMD_IMPORT;
 	else
 		cmd = -1;
 
@@ -234,6 +250,8 @@ static int uci_cmd(int argc, char **argv)
 		case CMD_EXPORT:
 		case CMD_COMMIT:
 			return uci_do_package_cmd(cmd, argc, argv);
+		case CMD_IMPORT:
+			return uci_do_import(argc, argv);
 		default:
 			return 255;
 	}
@@ -252,6 +270,16 @@ int main(int argc, char **argv)
 
 	while((c = getopt(argc, argv, "sS")) != -1) {
 		switch(c) {
+			case 'f':
+				input = fopen(optarg, "r");
+				if (!input) {
+					perror("uci");
+					return 1;
+				}
+				break;
+			case 'm':
+				flags |= CLI_FLAG_MERGE;
+				break;
 			case 's':
 				ctx->flags |= UCI_FLAG_STRICT;
 				break;
@@ -272,6 +300,8 @@ int main(int argc, char **argv)
 	if (argc < 2)
 		uci_usage(argc, argv);
 	ret = uci_cmd(argc - 1, argv + 1);
+	if (input != stdin)
+		fclose(input);
 	if (ret == 255)
 		uci_usage(argc, argv);
 
