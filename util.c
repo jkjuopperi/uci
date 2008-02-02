@@ -51,7 +51,7 @@ static char *uci_strdup(struct uci_context *ctx, const char *str)
 	return ptr;
 }
 
-static bool uci_validate_name(char *str)
+static bool uci_validate_name(const char *str)
 {
 	if (!*str)
 		return false;
