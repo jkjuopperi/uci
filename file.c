@@ -16,8 +16,10 @@
  * This file contains the code for parsing uci config files
  */
 
+#define _GNU_SOURCE
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/file.h>
 #include <stdbool.h>
 #include <unistd.h>
 #include <fcntl.h>

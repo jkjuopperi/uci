@@ -20,8 +20,9 @@ ifeq ($(OS),Darwin)
   SHLIB_EXT=dylib
   SHLIB_FLAGS=-dylib
 else
+  LD=gcc
   SHLIB_EXT=so
-  SHLIB_FLAGS=-shared -Wl,soname,$(SHLIB_FILE)
+  SHLIB_FLAGS=-shared -Wl,-soname,$(SHLIB_FILE)
 endif
 SHLIB_FILE=libuci.$(SHLIB_EXT).$(VERSION)
 
