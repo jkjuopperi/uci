@@ -61,23 +61,30 @@ uci_alloc_generic(struct uci_context *ctx, int type, const char *name, int size)
 	int datalen = size;
 	void *ptr;
 
-	if (name)
-		datalen += strlen(name) + 1;
 	ptr = uci_malloc(ctx, datalen);
 	e = (struct uci_element *) ptr;
 	e->type = type;
 	if (name) {
-		e->name = (char *) ptr + size;
-		strcpy(e->name, name);
+		UCI_TRAP_SAVE(ctx, error);
+		e->name = uci_strdup(ctx, name);
+		UCI_TRAP_RESTORE(ctx);
 	}
 	uci_list_init(&e->list);
+	goto done;
 
+error:
+	free(ptr);
+	UCI_THROW(ctx, ctx->errno);
+
+done:
 	return e;
 }
 
 static void
 uci_free_element(struct uci_element *e)
 {
+	if (e->name)
+		free(e->name);
 	if (!uci_list_empty(&e->list))
 		uci_list_del(&e->list);
 	free(e);
@@ -372,7 +379,33 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 	return 0;
 }
 
-int uci_del(struct uci_context *ctx, struct uci_package *p, char *section, char *option)
+int uci_rename(struct uci_context *ctx, struct uci_package *p, char *section, char *option, char *name)
+{
+	/* NB: UCI_INTERNAL use means without history tracking */
+	bool internal = ctx->internal;
+	struct uci_element *e;
+	struct uci_section *s = NULL;
+	struct uci_option *o = NULL;
+
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, p != NULL);
+	UCI_ASSERT(ctx, section != NULL);
+
+	UCI_INTERNAL(uci_lookup, ctx, &e, p, section, option);
+
+	if (!internal)
+		uci_add_history(ctx, p, UCI_CMD_RENAME, section, option, name);
+
+	name = uci_strdup(ctx, name);
+	if (e->name)
+		free(e->name);
+	e->name = name;
+
+	return 0;
+}
+
+
+int uci_delete(struct uci_context *ctx, struct uci_package *p, char *section, char *option)
 {
 	/* NB: pass on internal flag to uci_del_element */
 	bool internal = ctx->internal;

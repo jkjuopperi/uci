@@ -177,20 +177,30 @@ extern int uci_set_element_value(struct uci_context *ctx, struct uci_element **e
 extern int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char *option, char *value);
 
 /**
- * uci_del_element: Delete a section or option
+ * uci_rename: Rename an element
+ * @ctx: uci context
+ * @package: package name
+ * @section: section name
+ * @option: option name
+ * @name: new name
+ */
+extern int uci_rename(struct uci_context *ctx, struct uci_package *p, char *section, char *option, char *name);
+
+/**
+ * uci_delete_element: Delete a section or option
  * @ctx: uci context
  * @e: element (section or option)
  */
-extern int uci_del_element(struct uci_context *ctx, struct uci_element *e);
+extern int uci_delete_element(struct uci_context *ctx, struct uci_element *e);
 
 /**
- * uci_del: Delete a section or option
+ * uci_delete: Delete a section or option
  * @ctx: uci context
  * @p: uci package
  * @section: section name
  * @option: option name (optional)
  */
-extern int uci_del(struct uci_context *ctx, struct uci_package *p, char *section, char *option);
+extern int uci_delete(struct uci_context *ctx, struct uci_package *p, char *section, char *option);
 
 /**
  * uci_save: save change history for a package
@@ -304,7 +314,8 @@ struct uci_option
 enum uci_command {
 	UCI_CMD_ADD,
 	UCI_CMD_REMOVE,
-	UCI_CMD_CHANGE
+	UCI_CMD_CHANGE,
+	UCI_CMD_RENAME
 };
 
 struct uci_history

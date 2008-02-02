@@ -20,13 +20,14 @@ static const char *appname = "uci";
 static struct uci_context *ctx;
 enum {
 	/* section cmds */
-	CMD_GET = 1,
-	CMD_SET = 2,
-	CMD_DEL = 3,
+	CMD_GET,
+	CMD_SET,
+	CMD_DEL,
+	CMD_RENAME,
 	/* package cmds */
-	CMD_SHOW = 4,
-	CMD_EXPORT = 5,
-	CMD_COMMIT = 6,
+	CMD_SHOW,
+	CMD_EXPORT,
+	CMD_COMMIT,
 };
 
 static void uci_usage(int argc, char **argv)
@@ -126,13 +127,22 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 	char *section = NULL;
 	char *option = NULL;
 	char *value = NULL;
+	char **ptr = NULL;
 	struct uci_package *p = NULL;
 	struct uci_element *e = NULL;
 
 	if (argc != 2)
 		return 255;
 
-	if (uci_parse_tuple(ctx, argv[1], &package, &section, &option, (cmd == CMD_SET ? &value : NULL)) != UCI_OK)
+	switch(cmd) {
+	case CMD_SET:
+	case CMD_RENAME:
+		ptr = &value;
+		break;
+	default:
+		break;
+	}
+	if (uci_parse_tuple(ctx, argv[1], &package, &section, &option, ptr) != UCI_OK)
 		return 1;
 
 	if (uci_load(ctx, package, &p) != UCI_OK) {
@@ -159,6 +169,12 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 		/* throw the value to stdout */
 		printf("%s\n", value);
 		break;
+	case CMD_RENAME:
+		if (uci_rename(ctx, p, section, option, value) != UCI_OK) {
+			uci_perror(ctx, appname);
+			return 1;
+		}
+		break;
 	case CMD_SET:
 		if (uci_set(ctx, p, section, option, value) != UCI_OK) {
 			uci_perror(ctx, appname);
@@ -166,7 +182,7 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 		}
 		break;
 	case CMD_DEL:
-		if (uci_del(ctx, p, section, option) != UCI_OK) {
+		if (uci_delete(ctx, p, section, option) != UCI_OK) {
 			uci_perror(ctx, appname);
 			return 1;
 		}
@@ -200,13 +216,19 @@ static int uci_cmd(int argc, char **argv)
 		cmd = CMD_GET;
 	else if (!strcasecmp(argv[0], "set"))
 		cmd = CMD_SET;
+	else if (!strcasecmp(argv[0], "ren") ||
+	         !strcasecmp(argv[0], "rename"))
+		cmd = CMD_RENAME;
 	else if (!strcasecmp(argv[0], "del"))
 		cmd = CMD_DEL;
+	else
+		cmd = -1;
 
 	switch(cmd) {
 		case CMD_GET:
 		case CMD_SET:
 		case CMD_DEL:
+		case CMD_RENAME:
 			return uci_do_section_cmd(cmd, argc, argv);
 		case CMD_SHOW:
 		case CMD_EXPORT:

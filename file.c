@@ -639,6 +639,7 @@ static void uci_close_stream(FILE *stream)
 static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *p, char *buf)
 {
 	bool delete = false;
+	bool rename = false;
 	char *package = NULL;
 	char *section = NULL;
 	char *option = NULL;
@@ -646,6 +647,9 @@ static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *
 
 	if (buf[0] == '-') {
 		delete = true;
+		buf++;
+	} else if (buf[0] == '@') {
+		rename = true;
 		buf++;
 	}
 
@@ -659,8 +663,10 @@ static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *
 	if (option && !uci_validate_name(option))
 		goto error;
 
-	if (delete)
-		UCI_INTERNAL(uci_del, ctx, p, section, option);
+	if (rename)
+		UCI_INTERNAL(uci_rename, ctx, p, section, option, value);
+	else if (delete)
+		UCI_INTERNAL(uci_delete, ctx, p, section, option);
 	else
 		UCI_INTERNAL(uci_set, ctx, p, section, option, value);
 
@@ -809,6 +815,8 @@ int uci_save(struct uci_context *ctx, struct uci_package *p)
 
 		if (h->cmd == UCI_CMD_REMOVE)
 			fprintf(f, "-");
+		else if (h->cmd == UCI_CMD_RENAME)
+			fprintf(f, "@");
 
 		fprintf(f, "%s.%s", p->e.name, h->section);
 		if (e->name)
