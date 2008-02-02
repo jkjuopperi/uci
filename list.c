@@ -455,6 +455,8 @@ int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char 
 		if (!e)
 			goto notfound;
 		o = uci_to_option(e);
+	} else if (internal && ctx->pctx) {
+		ctx->pctx->section = s;
 	}
 
 	/* 

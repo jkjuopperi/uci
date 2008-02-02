@@ -105,6 +105,7 @@ extern void uci_perror(struct uci_context *ctx, const char *str);
  * @single: ignore the 'package' keyword and parse everything into a single package
  *
  * the name parameter is for config files that don't explicitly use the 'package <...>' keyword
+ * if 'package' points to a non-null struct pointer, enable history tracking and merge 
  */
 extern int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct uci_package **package, bool single);
 
@@ -276,6 +277,7 @@ struct uci_parse_context
 	/* private: */
 	struct uci_package *package;
 	struct uci_section *section;
+	bool merge;
 	FILE *file;
 	const char *name;
 	char *buf;

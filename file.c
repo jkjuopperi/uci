@@ -372,6 +372,7 @@ static void uci_fixup_section(struct uci_context *ctx, struct uci_section *s)
  */
 static void uci_parse_config(struct uci_context *ctx, char **str)
 {
+	struct uci_parse_context *pctx = ctx->pctx;
 	struct uci_section *s;
 	char *name = NULL;
 	char *type = NULL;
@@ -390,7 +391,11 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 	type = next_arg(ctx, str, true, true);
 	name = next_arg(ctx, str, false, true);
 	assert_eol(ctx, str);
-	ctx->pctx->section = uci_alloc_section(ctx->pctx->package, type, name);
+
+	if (pctx->merge)
+		UCI_INTERNAL(uci_set, ctx, pctx->package, name, NULL, type);
+	else
+		pctx->section = uci_alloc_section(pctx->package, type, name);
 }
 
 /*
@@ -398,10 +403,11 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
  */
 static void uci_parse_option(struct uci_context *ctx, char **str)
 {
+	struct uci_parse_context *pctx = ctx->pctx;
 	char *name = NULL;
 	char *value = NULL;
 
-	if (!ctx->pctx->section)
+	if (!pctx->section)
 		uci_parse_error(ctx, *str, "option command found before the first section");
 
 	/* command string null-terminated by strtok */
@@ -410,7 +416,11 @@ static void uci_parse_option(struct uci_context *ctx, char **str)
 	name = next_arg(ctx, str, true, true);
 	value = next_arg(ctx, str, true, false);
 	assert_eol(ctx, str);
-	uci_alloc_option(ctx->pctx->section, name, value);
+
+	if (pctx->merge)
+		UCI_INTERNAL(uci_set, ctx, pctx->package, pctx->section->e.name, name, value);
+	else
+		uci_alloc_option(pctx->section, name, value);
 }
 
 
@@ -537,6 +547,7 @@ int uci_export(struct uci_context *ctx, FILE *stream, struct uci_package *packag
 int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct uci_package **package, bool single)
 {
 	struct uci_parse_context *pctx;
+	UCI_HANDLE_ERR(ctx);
 
 	/* make sure no memory from previous parse attempts is leaked */
 	uci_file_cleanup(ctx);
@@ -544,6 +555,10 @@ int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct u
 	pctx = (struct uci_parse_context *) uci_malloc(ctx, sizeof(struct uci_parse_context));
 	ctx->pctx = pctx;
 	pctx->file = stream;
+	if (*package && single) {
+		pctx->package = *package;
+		pctx->merge = true;
+	}
 
 	/*
 	 * If 'name' was supplied, assume that the supplied stream does not contain
