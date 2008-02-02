@@ -1,5 +1,6 @@
 COPTS=-O2
-CFLAGS=$(COPTS) -fPIC -Wall -pedantic -std=gnu99 -Wno-unused -Werror
+WOPTS=-pedantic -Wno-unused -Werror
+CFLAGS=$(COPTS) -fPIC -Wall -std=gnu99
 ifneq ($(DEBUG),)
   COPTS = -O0
   CFLAGS += -g3 -DDEBUG_ALL
