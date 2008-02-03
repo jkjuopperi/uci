@@ -245,6 +245,9 @@ extern int uci_set_confdir(struct uci_context *ctx, const char *dir);
  * uci_add_history_path: add a directory to the search path for change history files
  * @ctx: uci context
  * @dir: directory name
+ *
+ * This function allows you to add directories, which contain 'overlays'
+ * for the active config, that will never be committed.
  */
 extern int uci_add_history_path(struct uci_context *ctx, const char *dir);
 
