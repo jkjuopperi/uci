@@ -752,7 +752,7 @@ static void uci_load_history(struct uci_context *ctx, struct uci_package *p, boo
 	if (!p->confdir)
 		return;
 
-	if ((asprintf(&filename, "%s/%s", UCI_SAVEDIR, p->e.name) < 0) || !filename)
+	if ((asprintf(&filename, "%s/%s", ctx->savedir, p->e.name) < 0) || !filename)
 		UCI_THROW(ctx, UCI_ERR_MEM);
 
 	UCI_TRAP_SAVE(ctx, done);
@@ -778,8 +778,8 @@ static char *uci_config_path(struct uci_context *ctx, const char *name)
 	char *filename;
 
 	UCI_ASSERT(ctx, uci_validate_name(name));
-	filename = uci_malloc(ctx, strlen(name) + sizeof(UCI_CONFDIR) + 2);
-	sprintf(filename, UCI_CONFDIR "/%s", name);
+	filename = uci_malloc(ctx, strlen(name) + strlen(ctx->confdir) + 2);
+	sprintf(filename, "%s/%s", ctx->confdir, name);
 
 	return filename;
 }
@@ -849,7 +849,7 @@ int uci_save(struct uci_context *ctx, struct uci_package *p)
 	if (uci_list_empty(&p->history))
 		return 0;
 
-	if ((asprintf(&filename, "%s/%s", UCI_SAVEDIR, p->e.name) < 0) || !filename)
+	if ((asprintf(&filename, "%s/%s", ctx->savedir, p->e.name) < 0) || !filename)
 		UCI_THROW(ctx, UCI_ERR_MEM);
 
 	ctx->errno = 0;
@@ -984,10 +984,13 @@ int uci_list_configs(struct uci_context *ctx, char ***list)
 	glob_t globbuf;
 	int size, i;
 	char *buf;
+	char *dir;
 
 	UCI_HANDLE_ERR(ctx);
 
-	if (glob(UCI_CONFDIR "/*", GLOB_MARK, NULL, &globbuf) != 0)
+	dir = uci_malloc(ctx, strlen(ctx->confdir) + 1 + sizeof("/*"));
+	sprintf(dir, "%s/*", ctx->confdir);
+	if (glob(dir, GLOB_MARK, NULL, &globbuf) != 0)
 		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 
 	size = sizeof(char *) * (globbuf.gl_pathc + 1);
@@ -1015,6 +1018,7 @@ int uci_list_configs(struct uci_context *ctx, char ***list)
 		buf += strlen(buf) + 1;
 	}
 	*list = configs;
+	free(dir);
 
 	return 0;
 }

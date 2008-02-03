@@ -25,6 +25,9 @@
 #include "uci.h"
 #include "err.h"
 
+static const char *uci_confdir = UCI_CONFDIR;
+static const char *uci_savedir = UCI_SAVEDIR;
+
 static const char *uci_errstr[] = {
 	[UCI_OK] =            "Success",
 	[UCI_ERR_MEM] =       "Out of memory",
@@ -50,12 +53,20 @@ struct uci_context *uci_alloc_context(void)
 	uci_list_init(&ctx->root);
 	ctx->flags = UCI_FLAG_STRICT;
 
+	ctx->confdir = (char *) uci_confdir;
+	ctx->savedir = (char *) uci_savedir;
+
 	return ctx;
 }
 
 void uci_free_context(struct uci_context *ctx)
 {
 	struct uci_element *e, *tmp;
+
+	if (ctx->confdir != uci_confdir)
+		free(ctx->confdir);
+	if (ctx->savedir != uci_savedir)
+		free(ctx->savedir);
 
 	UCI_TRAP_SAVE(ctx, ignore);
 	uci_cleanup(ctx);
@@ -68,6 +79,24 @@ void uci_free_context(struct uci_context *ctx)
 
 ignore:
 	return;
+}
+
+int uci_set_confdir(struct uci_context *ctx, char *dir)
+{
+	dir = uci_strdup(ctx, dir);
+	if (ctx->confdir != uci_confdir)
+		free(ctx->confdir);
+	ctx->confdir = dir;
+	return 0;
+}
+
+int uci_set_savedir(struct uci_context *ctx, char *dir)
+{
+	dir = uci_strdup(ctx, dir);
+	if (ctx->savedir != uci_savedir)
+		free(ctx->savedir);
+	ctx->savedir = dir;
+	return 0;
 }
 
 int uci_cleanup(struct uci_context *ctx)

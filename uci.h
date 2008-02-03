@@ -223,10 +223,24 @@ extern int uci_commit(struct uci_context *ctx, struct uci_package **p, bool over
 
 /**
  * uci_list_configs: List available uci config files
- *
  * @ctx: uci context
  */
 extern int uci_list_configs(struct uci_context *ctx, char ***list);
+
+/** 
+ * uci_set_savedir: override the default history save directory
+ * @ctx: uci context
+ * @dir: directory name
+ */
+extern int uci_set_savedir(struct uci_context *ctx, char *dir);
+
+/** 
+ * uci_set_savedir: override the default config storage directory
+ * @ctx: uci context
+ * @dir: directory name
+ */
+extern int uci_set_confdir(struct uci_context *ctx, char *dir);
+
 
 /* UCI data structures */
 enum uci_type {
@@ -259,6 +273,9 @@ struct uci_context
 
 	/* uci runtime flags */
 	enum uci_flags flags;
+
+	char *confdir;
+	char *savedir;
 
 	/* private: */
 	int errno;
