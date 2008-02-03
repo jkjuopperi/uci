@@ -241,7 +241,9 @@ int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_pac
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, res != NULL);
 	UCI_ASSERT(ctx, p != NULL);
-	UCI_ASSERT(ctx, section != NULL);
+	UCI_ASSERT(ctx, uci_validate_name(section));
+	if (option)
+		UCI_ASSERT(ctx, uci_validate_name(option));
 
 	e = uci_lookup_list(ctx, &p->sections, section);
 	if (!e)
@@ -322,9 +324,7 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 	int size;
 
 	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, value != NULL);
-	UCI_ASSERT(ctx, element != NULL);
-	UCI_ASSERT(ctx, *element != NULL);
+	UCI_ASSERT(ctx, (element != NULL) && (*element != NULL));
 
 	/* what the 'value' of an element means depends on the type
 	 * for a section, the 'value' means its type
@@ -339,12 +339,14 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 	list = e->list.prev;
 	switch(e->type) {
 	case UCI_TYPE_SECTION:
+		UCI_ASSERT(ctx, uci_validate_name(value));
 		size = sizeof(struct uci_section);
 		s = uci_to_section(e);
 		section = e->name;
 		option = NULL;
 		break;
 	case UCI_TYPE_OPTION:
+		UCI_ASSERT(ctx, value != NULL);
 		size = sizeof(struct uci_option);
 		s = uci_to_option(e)->section;
 		section = s->e.name;
@@ -385,9 +387,8 @@ int uci_rename(struct uci_context *ctx, struct uci_package *p, char *section, ch
 	struct uci_element *e;
 
 	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, p != NULL);
-	UCI_ASSERT(ctx, section != NULL);
 
+	/* NB: p, section, option validated by uci_lookup */
 	UCI_INTERNAL(uci_lookup, ctx, &e, p, section, option);
 
 	if (!internal)
@@ -409,9 +410,8 @@ int uci_delete(struct uci_context *ctx, struct uci_package *p, char *section, ch
 	struct uci_element *e;
 
 	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, p != NULL);
-	UCI_ASSERT(ctx, section != NULL);
 
+	/* NB: p, section, option validated by uci_lookup */
 	UCI_INTERNAL(uci_lookup, ctx, &e, p, section, option);
 
 	if (!internal)
@@ -431,8 +431,13 @@ int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char 
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, p != NULL);
-	UCI_ASSERT(ctx, section != NULL);
-	UCI_ASSERT(ctx, value != NULL);
+	UCI_ASSERT(ctx, uci_validate_name(section));
+	if (option) {
+		UCI_ASSERT(ctx, uci_validate_name(option));
+		UCI_ASSERT(ctx, value != NULL);
+	} else {
+		UCI_ASSERT(ctx, uci_validate_name(value));
+	}
 
 	/*
 	 * look up the package, section and option (if set)

@@ -576,8 +576,10 @@ int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct u
 	 * the appropriate 'package <name>' string to specify the config name
 	 * NB: the config file can still override the package name
 	 */
-	if (name)
+	if (name) {
+		UCI_ASSERT(ctx, uci_validate_name(name));
 		pctx->name = name;
+	}
 
 	while (!feof(pctx->file)) {
 		uci_getln(ctx, 0);
@@ -682,13 +684,13 @@ static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *
 	}
 
 	UCI_INTERNAL(uci_parse_tuple, ctx, buf, &package, &section, &option, &value);
-	if (!package || !section || (!delete && !value))
-		goto error;
-	if (strcmp(package, p->e.name) != 0)
+	if (!package || (strcmp(package, p->e.name) != 0))
 		goto error;
 	if (!uci_validate_name(section))
 		goto error;
 	if (option && !uci_validate_name(option))
+		goto error;
+	if ((rename || !delete) && !uci_validate_name(value))
 		goto error;
 
 	if (rename)
@@ -741,6 +743,7 @@ static void uci_load_history(struct uci_context *ctx, struct uci_package *p, boo
 
 	if (!p->confdir)
 		return;
+
 	if ((asprintf(&filename, "%s/%s", UCI_SAVEDIR, p->e.name) < 0) || !filename)
 		UCI_THROW(ctx, UCI_ERR_MEM);
 
@@ -766,8 +769,7 @@ static char *uci_config_path(struct uci_context *ctx, const char *name)
 {
 	char *filename;
 
-	if (strchr(name, '/'))
-		UCI_THROW(ctx, UCI_ERR_INVAL);
+	UCI_ASSERT(ctx, uci_validate_name(name));
 	filename = uci_malloc(ctx, strlen(name) + sizeof(UCI_CONFDIR) + 2);
 	sprintf(filename, UCI_CONFDIR "/%s", name);
 
@@ -796,7 +798,6 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 		break;
 	default:
 		/* config in /etc/config */
-		UCI_ASSERT(ctx, uci_validate_name(name));
 		filename = uci_config_path(ctx, name);
 		confdir = true;
 		break;
