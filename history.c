@@ -52,6 +52,20 @@ int uci_add_history_path(struct uci_context *ctx, const char *dir)
 	return 0;
 }
 
+static inline void uci_parse_history_tuple(struct uci_context *ctx, char **buf, char **package, char **section, char **option, char **value, bool *delete, bool *rename)
+{
+	if (**buf == '-') {
+		if (delete)
+			*delete = true;
+		*buf += 1;
+	} else if (**buf == '@') {
+		if (rename)
+			*rename = true;
+		*buf += 1;
+	}
+
+	UCI_INTERNAL(uci_parse_tuple, ctx, *buf, package, section, option, value);
+}
 static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *p, char *buf)
 {
 	bool delete = false;
@@ -61,15 +75,7 @@ static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *
 	char *option = NULL;
 	char *value = NULL;
 
-	if (buf[0] == '-') {
-		delete = true;
-		buf++;
-	} else if (buf[0] == '@') {
-		rename = true;
-		buf++;
-	}
-
-	UCI_INTERNAL(uci_parse_tuple, ctx, buf, &package, &section, &option, &value);
+	uci_parse_history_tuple(ctx, &buf, &package, &section, &option, &value, &delete, &rename);
 	if (!package || (strcmp(package, p->e.name) != 0))
 		goto error;
 	if (!uci_validate_name(section))
@@ -169,6 +175,114 @@ static void uci_load_history(struct uci_context *ctx, struct uci_package *p, boo
 		free(filename);
 	uci_close_stream(f);
 	ctx->errno = 0;
+}
+
+static void uci_filter_history(struct uci_context *ctx, const char *name, char *section, char *option)
+{
+	struct uci_parse_context *pctx;
+	struct uci_element *e, *tmp;
+	struct uci_list list;
+	char *filename = NULL;
+	char *p = NULL;
+	char *s = NULL;
+	char *o = NULL;
+	char *v = NULL;
+	FILE *f = NULL;
+
+	uci_list_init(&list);
+	uci_alloc_parse_context(ctx);
+	pctx = ctx->pctx;
+
+	if ((asprintf(&filename, "%s/%s", ctx->savedir, name) < 0) || !filename)
+		UCI_THROW(ctx, UCI_ERR_MEM);
+
+	UCI_TRAP_SAVE(ctx, done);
+	f = uci_open_stream(ctx, filename, SEEK_SET, true, false);
+	pctx->file = f;
+	while (!feof(f)) {
+		struct uci_element *e;
+		char *buf;
+
+		uci_getln(ctx, 0);
+		buf = pctx->buf;
+		if (!buf[0])
+			continue;
+
+		/* NB: need to allocate the element before the call to 
+		 * uci_parse_history_tuple, otherwise the original string 
+		 * gets modified before it is saved */
+		e = uci_alloc_generic(ctx, UCI_TYPE_HISTORY, pctx->buf, sizeof(struct uci_element));
+		uci_list_add(&list, &e->list);
+
+		uci_parse_history_tuple(ctx, &buf, &p, &s, &o, &v, NULL, NULL);
+		if (section) {
+			if (!s || (strcmp(section, s) != 0))
+				continue;
+		}
+		if (option) {
+			if (!o || (strcmp(option, o) != 0))
+				continue;
+		}
+		/* match, drop this element again */
+		uci_free_element(e);
+	}
+
+	/* rebuild the history file */
+	rewind(f);
+	ftruncate(fileno(f), 0);
+	uci_foreach_element_safe(&list, tmp, e) {
+		fprintf(f, "%s\n", e->name);
+		uci_free_element(e);
+	}
+	UCI_TRAP_RESTORE(ctx);
+
+done:
+	if (filename)
+		free(filename);
+	uci_close_stream(f);
+	uci_foreach_element_safe(&list, tmp, e) {
+		uci_free_element(e);
+	}
+	ctx->internal = true;
+	uci_cleanup(ctx);
+}
+
+int uci_revert(struct uci_context *ctx, struct uci_package **pkg, char *section, char *option)
+{
+	struct uci_package *p;
+	char *name = NULL;
+
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, pkg != NULL);
+	p = *pkg;
+	UCI_ASSERT(ctx, p != NULL);
+	UCI_ASSERT(ctx, p->confdir);
+
+	/* 
+	 * - flush unwritten changes
+	 * - save the package name
+	 * - unload the package
+	 * - filter the history
+	 * - reload the package
+	 */
+	UCI_TRAP_SAVE(ctx, error);
+	UCI_INTERNAL(uci_save, ctx, p);
+	name = uci_strdup(ctx, p->e.name);
+
+	*pkg = NULL;
+	uci_free_package(&p);
+	uci_filter_history(ctx, name, section, option);
+
+	UCI_INTERNAL(uci_load, ctx, name, &p);
+	UCI_TRAP_RESTORE(ctx);
+
+	goto done;
+error:
+	if (name)
+		free(name);
+	UCI_THROW(ctx, ctx->errno);
+done:
+	return 0;
 }
 
 int uci_save(struct uci_context *ctx, struct uci_package *p)

@@ -31,6 +31,7 @@ enum {
 	CMD_SET,
 	CMD_DEL,
 	CMD_RENAME,
+	CMD_REVERT,
 	/* package cmds */
 	CMD_SHOW,
 	CMD_IMPORT,
@@ -49,6 +50,7 @@ static void uci_usage(int argc, char **argv)
 		"\tget        <config>.<section>[.<option>]\n"
 		"\tset        <config>.<section>[.<option>]=<value>\n"
 		"\trename     <config>.<section>[.<option>]=<name>\n"
+		"\trevert     <config>[.<section>[.<option>]]\n"
 		"\n"
 		"Options:\n"
 		"\t-f <file>  use <file> as input instead of stdin\n"
@@ -245,6 +247,9 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 	case CMD_RENAME:
 		ret = uci_rename(ctx, p, section, option, value);
 		break;
+	case CMD_REVERT:
+		ret = uci_revert(ctx, &p, section, option);
+		break;
 	case CMD_SET:
 		ret = uci_set(ctx, p, section, option, value);
 		break;
@@ -254,7 +259,7 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 	}
 
 	/* no save necessary for get */
-	if (cmd == CMD_GET)
+	if ((cmd == CMD_GET) || (cmd == CMD_REVERT))
 		return 0;
 
 	/* save changes, but don't commit them yet */
@@ -286,6 +291,8 @@ static int uci_cmd(int argc, char **argv)
 	else if (!strcasecmp(argv[0], "ren") ||
 	         !strcasecmp(argv[0], "rename"))
 		cmd = CMD_RENAME;
+	else if (!strcasecmp(argv[0], "revert"))
+		cmd = CMD_REVERT;
 	else if (!strcasecmp(argv[0], "del"))
 		cmd = CMD_DEL;
 	else if (!strcasecmp(argv[0], "import"))
@@ -298,6 +305,7 @@ static int uci_cmd(int argc, char **argv)
 		case CMD_SET:
 		case CMD_DEL:
 		case CMD_RENAME:
+		case CMD_REVERT:
 			return uci_do_section_cmd(cmd, argc, argv);
 		case CMD_SHOW:
 		case CMD_EXPORT:

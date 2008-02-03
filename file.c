@@ -521,8 +521,8 @@ int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct u
 	/* make sure no memory from previous parse attempts is leaked */
 	uci_file_cleanup(ctx);
 
-	pctx = (struct uci_parse_context *) uci_malloc(ctx, sizeof(struct uci_parse_context));
-	ctx->pctx = pctx;
+	uci_alloc_parse_context(ctx);
+	pctx = ctx->pctx;
 	pctx->file = stream;
 	if (*package && single) {
 		pctx->package = *package;
@@ -673,7 +673,7 @@ int uci_commit(struct uci_context *ctx, struct uci_package **package, bool overw
 			/* freed together with the uci_package */
 			path = NULL;
 
-			/* check for updated history, just in case */
+			/* check for updated history, flush */
 			uci_load_history(ctx, p, true);
 		} else {
 			/* flush history */

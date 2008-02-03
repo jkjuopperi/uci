@@ -72,6 +72,11 @@ static bool uci_validate_name(const char *str)
 	return true;
 }
 
+static void uci_alloc_parse_context(struct uci_context *ctx)
+{
+	ctx->pctx = (struct uci_parse_context *) uci_malloc(ctx, sizeof(struct uci_parse_context));
+}
+
 int uci_parse_tuple(struct uci_context *ctx, char *str, char **package, char **section, char **option, char **value)
 {
 	char *last = NULL;

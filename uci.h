@@ -251,6 +251,15 @@ extern int uci_set_confdir(struct uci_context *ctx, const char *dir);
  */
 extern int uci_add_history_path(struct uci_context *ctx, const char *dir);
 
+/**
+ * uci_revert: revert all changes to a config item
+ * @ctx: uci context
+ * @p: pointer to a uci_package struct ptr (will be replaced by the revert)
+ * @section: section name (optional)
+ * @option option name (optional)
+ */
+extern int uci_revert(struct uci_context *ctx, struct uci_package **p, char *section, char *option);
+
 /* UCI data structures */
 enum uci_type {
 	UCI_TYPE_HISTORY = 0,
