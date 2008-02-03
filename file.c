@@ -268,7 +268,7 @@ static void assert_eol(struct uci_context *ctx, char **str)
 	char *tmp;
 
 	tmp = next_arg(ctx, str, false, false);
-	if (tmp && *tmp)
+	if (tmp && *tmp && (ctx->flags & UCI_FLAG_STRICT))
 		uci_parse_error(ctx, *str, "too many arguments");
 }
 
