@@ -163,7 +163,7 @@ uci_add_history(struct uci_context *ctx, struct uci_package *p, int cmd, char *s
 		return;
 
 	if (value)
-		size += strlen(section) + 1;
+		size += strlen(value) + 1;
 
 	h = uci_alloc_element(ctx, history, option, size);
 	ptr = uci_dataptr(h);
@@ -446,7 +446,7 @@ int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char 
 		goto notfound;
 
 	s = uci_to_section(e);
-	if (ctx->pctx)
+	if (ctx->pctx && ctx->pctx->merge)
 		ctx->pctx->section = s;
 
 	if (option) {
@@ -485,7 +485,7 @@ notfound:
 		uci_alloc_option(s, option, value);
 	else {
 		s = uci_alloc_section(p, value, section);
-		if (ctx->pctx)
+		if (ctx->pctx && ctx->pctx->merge)
 			ctx->pctx->section = s;
 	}
 

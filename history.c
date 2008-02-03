@@ -82,7 +82,7 @@ static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *
 		goto error;
 	if (option && !uci_validate_name(option))
 		goto error;
-	if ((rename || !delete) && !uci_validate_name(value))
+	if ((rename || (!option && !delete)) && !uci_validate_name(value))
 		goto error;
 
 	if (rename)
