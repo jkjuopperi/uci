@@ -414,11 +414,8 @@ int uci_delete(struct uci_context *ctx, struct uci_package *p, char *section, ch
 	/* NB: p, section, option validated by uci_lookup */
 	UCI_INTERNAL(uci_lookup, ctx, &e, p, section, option);
 
-	if (!internal)
-		return uci_del_element(ctx, e);
-	UCI_INTERNAL(uci_del_element, ctx, e);
-
-	return 0;
+	ctx->internal = internal;
+	return uci_del_element(ctx, e);
 }
 
 int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char *option, char *value)
@@ -468,11 +465,8 @@ int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char 
 	else
 		e = &s->e;
 
-	if (!internal)
-		return uci_set_element_value(ctx, &e, value);
-
-	UCI_INTERNAL(uci_set_element_value, ctx, &e, value);
-	return 0;
+	ctx->internal = internal;
+	return uci_set_element_value(ctx, &e, value);
 
 notfound:
 	/* 
