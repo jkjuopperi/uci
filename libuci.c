@@ -41,6 +41,7 @@ static const char *uci_errstr[] = {
 
 #include "util.c"
 #include "list.c"
+#include "history.c"
 #include "file.c"
 
 /* exported functions */
@@ -85,18 +86,6 @@ ignore:
 	return;
 }
 
-int uci_add_history_path(struct uci_context *ctx, const char *dir)
-{
-	struct uci_element *e;
-
-	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, dir != NULL);
-	e = uci_alloc_generic(ctx, UCI_TYPE_PATH, dir, sizeof(struct uci_element));
-	uci_list_add(&ctx->history_path, &e->list);
-
-	return 0;
-}
-
 int uci_set_confdir(struct uci_context *ctx, const char *dir)
 {
 	char *cdir;
@@ -108,20 +97,6 @@ int uci_set_confdir(struct uci_context *ctx, const char *dir)
 	if (ctx->confdir != uci_confdir)
 		free(ctx->confdir);
 	ctx->confdir = cdir;
-	return 0;
-}
-
-int uci_set_savedir(struct uci_context *ctx, const char *dir)
-{
-	char *sdir;
-
-	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, dir != NULL);
-
-	sdir = uci_strdup(ctx, dir);
-	if (ctx->savedir != uci_savedir)
-		free(ctx->savedir);
-	ctx->savedir = sdir;
 	return 0;
 }
 

@@ -27,6 +27,8 @@ else
 endif
 SHLIB_FILE=libuci.$(SHLIB_EXT).$(VERSION)
 
+LIBUCI_DEPS=file.c history.c list.c util.c err.h uci.h
+
 all: uci-static uci libuci.$(SHLIB_EXT)
 
 cli.o: cli.c uci.h
@@ -37,10 +39,10 @@ uci: cli.o libuci.$(SHLIB_EXT)
 uci-static: cli.o libuci.a
 	$(CC) $(CFLAGS) -o $@ $^
 
-libuci-static.o: libuci.c file.c uci.h list.c err.h util.c
+libuci-static.o: libuci.c $(LIBUCI_DEPS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-libuci-shared.o: libuci.c file.c uci.h list.c err.h util.c
+libuci-shared.o: libuci.c $(LIBUCI_DEPS)
 	$(CC) $(CFLAGS) $(FPIC) -c -o $@ $<
 
 libuci.a: libuci-static.o
