@@ -17,8 +17,9 @@
 
 static const char *appname = "uci";
 static enum {
-	CLI_FLAG_MERGE = (1 << 0),
-	CLI_FLAG_QUIET = (1 << 1)
+	CLI_FLAG_MERGE =    (1 << 0),
+	CLI_FLAG_QUIET =    (1 << 1),
+	CLI_FLAG_NOCOMMIT = (1 << 2),
 } flags;
 static FILE *input;
 
@@ -107,6 +108,8 @@ static int package_cmd(int cmd, char *package)
 		return 0;
 	switch(cmd) {
 	case CMD_COMMIT:
+		if (flags & CLI_FLAG_NOCOMMIT)
+			return 0;
 		if (uci_commit(ctx, &p, false) != UCI_OK)
 			cli_perror();
 		break;
@@ -349,6 +352,7 @@ int main(int argc, char **argv)
 			case 'P':
 				uci_add_history_path(ctx, ctx->savedir);
 				uci_set_savedir(ctx, optarg);
+				flags |= CLI_FLAG_NOCOMMIT;
 				break;
 			case 'q':
 				flags |= CLI_FLAG_QUIET;
