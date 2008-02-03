@@ -101,6 +101,8 @@ static int package_cmd(int cmd, char *package)
 		cli_perror();
 		return 1;
 	}
+	if (!p)
+		return 0;
 	switch(cmd) {
 	case CMD_COMMIT:
 		if (uci_commit(ctx, &p, false) != UCI_OK)
@@ -212,6 +214,8 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 		cli_perror();
 		return 1;
 	}
+	if (!p)
+		return 0;
 
 	switch(cmd) {
 	case CMD_GET:

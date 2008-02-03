@@ -453,6 +453,9 @@ static void uci_parse_line(struct uci_context *ctx, bool single)
 		char *pbrk = NULL;
 		word = strtok_r(word, " \t", &pbrk);
 
+		if (!word)
+			continue;
+
 		switch(word[0]) {
 			case '#':
 				return;
