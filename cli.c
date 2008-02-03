@@ -53,6 +53,8 @@ static void uci_usage(int argc, char **argv)
 		"\t-m         when importing, merge data into an existing package\n"
 		"\t-n         name unnamed sections on export (default)\n"
 		"\t-N         don't name unnamed sections\n"
+		"\t-p <path>  add a search path for config change files\n"
+		"\t-P <path>  add a search path for config change files and use as default\n"
 		"\t-q         quiet mode (don't print error messages)\n"
 		"\t-s         force strict mode (stop on parser errors, default)\n"
 		"\t-S         disable strict mode\n"
@@ -316,7 +318,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	while((c = getopt(argc, argv, "mf:sSnNq")) != -1) {
+	while((c = getopt(argc, argv, "f:mnNp:P:sSq")) != -1) {
 		switch(c) {
 			case 'f':
 				input = fopen(optarg, "r");
@@ -340,6 +342,13 @@ int main(int argc, char **argv)
 				break;
 			case 'N':
 				ctx->flags &= ~UCI_FLAG_EXPORT_NAME;
+				break;
+			case 'p':
+				uci_add_history_path(ctx, optarg);
+				break;
+			case 'P':
+				uci_add_history_path(ctx, ctx->savedir);
+				uci_set_savedir(ctx, optarg);
 				break;
 			case 'q':
 				flags |= CLI_FLAG_QUIET;
