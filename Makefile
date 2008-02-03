@@ -17,10 +17,11 @@ ifneq ($(DEBUG),)
 endif
 OS=$(shell uname)
 ifeq ($(OS),Darwin)
+  LINK=$(LD)
   SHLIB_EXT=dylib
   SHLIB_FLAGS=-dylib
 else
-  LD=$(CC)
+  LINK=$(CC)
   SHLIB_EXT=so
   SHLIB_FLAGS=-shared -Wl,-soname,$(SHLIB_FILE)
 endif
@@ -48,7 +49,7 @@ libuci.a: libuci-static.o
 	$(RANLIB) $@
 
 libuci.$(SHLIB_EXT): libuci-shared.o
-	$(LD) $(SHLIB_FLAGS) -o $(SHLIB_FILE) $^ $(LIBS)
+	$(LINK) $(SHLIB_FLAGS) -o $(SHLIB_FILE) $^ $(LIBS)
 	ln -sf $(SHLIB_FILE) $@
 
 clean:
