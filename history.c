@@ -275,13 +275,13 @@ int uci_revert(struct uci_context *ctx, struct uci_package **pkg, char *section,
 
 	UCI_INTERNAL(uci_load, ctx, name, &p);
 	UCI_TRAP_RESTORE(ctx);
+	ctx->errno = 0;
 
-	goto done;
 error:
 	if (name)
 		free(name);
-	UCI_THROW(ctx, ctx->errno);
-done:
+	if (ctx->errno)
+		UCI_THROW(ctx, ctx->errno);
 	return 0;
 }
 
