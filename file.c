@@ -210,6 +210,9 @@ static void parse_str(struct uci_context *ctx, char **str, char **target)
 		case '"':
 			parse_double_quote(ctx, str, target);
 			break;
+		case '#':
+			**str = 0;
+			/* fall through */
 		case 0:
 			goto done;
 		case '\\':
@@ -451,6 +454,8 @@ static void uci_parse_line(struct uci_context *ctx, bool single)
 		word = strtok_r(word, " \t", &pbrk);
 
 		switch(word[0]) {
+			case '#':
+				return;
 			case 'p':
 				if ((word[1] == 0) || !strcmp(word + 1, "ackage"))
 					uci_parse_package(ctx, &word, single);
