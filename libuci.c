@@ -51,6 +51,7 @@ struct uci_context *uci_alloc_context(void)
 	ctx = (struct uci_context *) malloc(sizeof(struct uci_context));
 	memset(ctx, 0, sizeof(struct uci_context));
 	uci_list_init(&ctx->root);
+	uci_list_init(&ctx->history_path);
 	ctx->flags = UCI_FLAG_STRICT;
 
 	ctx->confdir = (char *) uci_confdir;
@@ -74,6 +75,9 @@ void uci_free_context(struct uci_context *ctx)
 		struct uci_package *p = uci_to_package(e);
 		uci_free_package(&p);
 	}
+	uci_foreach_element_safe(&ctx->history_path, tmp, e) {
+		uci_free_element(e);
+	}
 	free(ctx);
 	UCI_TRAP_RESTORE(ctx);
 
@@ -81,21 +85,43 @@ ignore:
 	return;
 }
 
-int uci_set_confdir(struct uci_context *ctx, char *dir)
+int uci_add_history_path(struct uci_context *ctx, const char *dir)
 {
-	dir = uci_strdup(ctx, dir);
-	if (ctx->confdir != uci_confdir)
-		free(ctx->confdir);
-	ctx->confdir = dir;
+	struct uci_element *e;
+
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, dir != NULL);
+	e = uci_alloc_generic(ctx, UCI_TYPE_PATH, dir, sizeof(struct uci_element));
+	uci_list_add(&ctx->history_path, &e->list);
+
 	return 0;
 }
 
-int uci_set_savedir(struct uci_context *ctx, char *dir)
+int uci_set_confdir(struct uci_context *ctx, const char *dir)
 {
-	dir = uci_strdup(ctx, dir);
+	char *cdir;
+
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, dir != NULL);
+
+	cdir = uci_strdup(ctx, dir);
+	if (ctx->confdir != uci_confdir)
+		free(ctx->confdir);
+	ctx->confdir = cdir;
+	return 0;
+}
+
+int uci_set_savedir(struct uci_context *ctx, const char *dir)
+{
+	char *sdir;
+
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, dir != NULL);
+
+	sdir = uci_strdup(ctx, dir);
 	if (ctx->savedir != uci_savedir)
 		free(ctx->savedir);
-	ctx->savedir = dir;
+	ctx->savedir = sdir;
 	return 0;
 }
 

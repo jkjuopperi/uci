@@ -744,24 +744,43 @@ error:
 	uci_file_cleanup(ctx);
 }
 
+static void uci_load_history_file(struct uci_context *ctx, struct uci_package *p, char *filename, FILE **f, bool flush)
+{
+	FILE *stream = NULL;
+
+	UCI_TRAP_SAVE(ctx, done);
+	stream = uci_open_stream(ctx, filename, SEEK_SET, flush, false);
+	if (p)
+		uci_parse_history(ctx, stream, p);
+	UCI_TRAP_RESTORE(ctx);
+done:
+	if (f)
+		*f = stream;
+	else if (stream)
+		uci_close_stream(stream);
+}
+
 static void uci_load_history(struct uci_context *ctx, struct uci_package *p, bool flush)
 {
+	struct uci_element *e;
 	char *filename = NULL;
 	FILE *f = NULL;
 
 	if (!p->confdir)
 		return;
 
+	uci_foreach_element(&ctx->history_path, e) {
+		if ((asprintf(&filename, "%s/%s", e->name, p->e.name) < 0) || !filename)
+			UCI_THROW(ctx, UCI_ERR_MEM);
+
+		uci_load_history_file(ctx, p, filename, NULL, false);
+		free(filename);
+	}
+
 	if ((asprintf(&filename, "%s/%s", ctx->savedir, p->e.name) < 0) || !filename)
 		UCI_THROW(ctx, UCI_ERR_MEM);
 
-	UCI_TRAP_SAVE(ctx, done);
-	f = uci_open_stream(ctx, filename, SEEK_SET, flush, false);
-	if (p)
-		uci_parse_history(ctx, f, p);
-	UCI_TRAP_RESTORE(ctx);
-
-done:
+	uci_load_history_file(ctx, p, filename, &f, flush);
 	if (flush && f) {
 		rewind(f);
 		ftruncate(fileno(f), 0);

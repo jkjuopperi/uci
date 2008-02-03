@@ -232,22 +232,29 @@ extern int uci_list_configs(struct uci_context *ctx, char ***list);
  * @ctx: uci context
  * @dir: directory name
  */
-extern int uci_set_savedir(struct uci_context *ctx, char *dir);
+extern int uci_set_savedir(struct uci_context *ctx, const char *dir);
 
 /** 
  * uci_set_savedir: override the default config storage directory
  * @ctx: uci context
  * @dir: directory name
  */
-extern int uci_set_confdir(struct uci_context *ctx, char *dir);
+extern int uci_set_confdir(struct uci_context *ctx, const char *dir);
 
+/**
+ * uci_add_history_path: add a directory to the search path for change history files
+ * @ctx: uci context
+ * @dir: directory name
+ */
+extern int uci_add_history_path(struct uci_context *ctx, const char *dir);
 
 /* UCI data structures */
 enum uci_type {
 	UCI_TYPE_HISTORY = 0,
 	UCI_TYPE_PACKAGE = 1,
 	UCI_TYPE_SECTION = 2,
-	UCI_TYPE_OPTION = 3
+	UCI_TYPE_OPTION = 3,
+	UCI_TYPE_PATH = 4
 };
 
 enum uci_flags {
@@ -276,6 +283,9 @@ struct uci_context
 
 	char *confdir;
 	char *savedir;
+
+	/* search path for history files */
+	struct uci_list history_path;
 
 	/* private: */
 	int errno;
