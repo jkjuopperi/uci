@@ -781,7 +781,6 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 	FILE *file = NULL;
 
 	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, uci_validate_name(name));
 
 	switch (name[0]) {
 	case '.':
@@ -797,6 +796,7 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 		break;
 	default:
 		/* config in /etc/config */
+		UCI_ASSERT(ctx, uci_validate_name(name));
 		filename = uci_config_path(ctx, name);
 		confdir = true;
 		break;
