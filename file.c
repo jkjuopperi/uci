@@ -907,8 +907,14 @@ int uci_commit(struct uci_context *ctx, struct uci_package **package, bool overw
 		if (!overwrite) {
 			name = uci_strdup(ctx, p->e.name);
 			path = uci_strdup(ctx, p->path);
+			/* dump our own changes to the history file */
 			if (!uci_list_empty(&p->history))
 				UCI_INTERNAL(uci_save, ctx, p);
+
+			/* 
+			 * other processes might have modified the config 
+			 * as well. dump and reload 
+			 */
 			uci_free_package(&p);
 			uci_file_cleanup(ctx);
 			UCI_INTERNAL(uci_import, ctx, f, name, &p, true);
