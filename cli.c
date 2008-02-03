@@ -18,6 +18,7 @@
 static const char *appname = "uci";
 static enum {
 	CLI_FLAG_MERGE = (1 << 0),
+	CLI_FLAG_QUIET = (1 << 1)
 } flags;
 static FILE *input;
 
@@ -50,14 +51,23 @@ static void uci_usage(int argc, char **argv)
 		"Options:\n"
 		"\t-f <file>  use <file> as input instead of stdin\n"
 		"\t-m         when importing, merge data into an existing package\n"
-		"\t-s         force strict mode (stop on parser errors, default)\n"
-		"\t-S         disable strict mode\n"
 		"\t-n         name unnamed sections on export (default)\n"
 		"\t-N         don't name unnamed sections\n"
+		"\t-q         quiet mode (don't print error messages)\n"
+		"\t-s         force strict mode (stop on parser errors, default)\n"
+		"\t-S         disable strict mode\n"
 		"\n",
 		argv[0]
 	);
 	exit(255);
+}
+
+static void cli_perror(void)
+{
+	if (flags & CLI_FLAG_QUIET)
+		return;
+
+	uci_perror(ctx, appname);
 }
 
 static void uci_show_section(struct uci_section *p)
@@ -88,13 +98,13 @@ static int package_cmd(int cmd, char *package)
 	struct uci_package *p = NULL;
 
 	if (uci_load(ctx, package, &p) != UCI_OK) {
-		uci_perror(ctx, appname);
+		cli_perror();
 		return 1;
 	}
 	switch(cmd) {
 	case CMD_COMMIT:
 		if (uci_commit(ctx, &p, false) != UCI_OK)
-			uci_perror(ctx, appname);
+			cli_perror();
 		break;
 	case CMD_EXPORT:
 		uci_export(ctx, stdout, p, true);
@@ -142,7 +152,7 @@ static int uci_do_import(int argc, char **argv)
 	}
 
 	if (ret != UCI_OK) {
-		uci_perror(ctx, appname);
+		cli_perror();
 		return 1;
 	}
 
@@ -161,7 +171,7 @@ static int uci_do_package_cmd(int cmd, int argc, char **argv)
 		return package_cmd(cmd, argv[1]);
 
 	if ((uci_list_configs(ctx, &configs) != UCI_OK) || !configs) {
-		uci_perror(ctx, appname);
+		cli_perror();
 		return 1;
 	}
 
@@ -199,7 +209,7 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 		return 1;
 
 	if (uci_load(ctx, package, &p) != UCI_OK) {
-		uci_perror(ctx, appname);
+		cli_perror();
 		return 1;
 	}
 
@@ -242,7 +252,7 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 		ret = uci_save(ctx, p);
 
 	if (ret != UCI_OK) {
-		uci_perror(ctx, appname);
+		cli_perror();
 		return 1;
 	}
 
@@ -302,7 +312,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	while((c = getopt(argc, argv, "mf:sSnN")) != -1) {
+	while((c = getopt(argc, argv, "mf:sSnNq")) != -1) {
 		switch(c) {
 			case 'f':
 				input = fopen(optarg, "r");
@@ -326,6 +336,9 @@ int main(int argc, char **argv)
 				break;
 			case 'N':
 				ctx->flags &= ~UCI_FLAG_EXPORT_NAME;
+				break;
+			case 'q':
+				flags |= CLI_FLAG_QUIET;
 				break;
 			default:
 				uci_usage(argc, argv);
