@@ -373,7 +373,7 @@ static void uci_parse_option(struct uci_context *ctx, char **str)
 	*str += strlen(*str) + 1;
 
 	name = next_arg(ctx, str, true, true);
-	value = next_arg(ctx, str, true, false);
+	value = next_arg(ctx, str, false, false);
 	assert_eol(ctx, str);
 
 	if (pctx->merge) {
