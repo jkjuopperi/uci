@@ -676,10 +676,12 @@ int uci_commit(struct uci_context *ctx, struct uci_package **package, bool overw
 			path = NULL;
 
 			/* check for updated history, flush */
-			uci_load_history(ctx, p, true);
+			if (!uci_load_history(ctx, p, true))
+				goto done;
 		} else {
 			/* flush history */
-			uci_load_history(ctx, NULL, true);
+			if (!uci_load_history(ctx, NULL, true))
+				goto done;
 		}
 	}
 

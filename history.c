@@ -97,9 +97,11 @@ error:
 	UCI_THROW(ctx, UCI_ERR_PARSE);
 }
 
-static void uci_parse_history(struct uci_context *ctx, FILE *stream, struct uci_package *p)
+/* returns the number of changes that were successfully parsed */
+static int uci_parse_history(struct uci_context *ctx, FILE *stream, struct uci_package *p)
 {
 	struct uci_parse_context *pctx;
+	int changes = 0;
 
 	/* make sure no memory from previous parse attempts is leaked */
 	ctx->internal = true;
@@ -121,6 +123,7 @@ static void uci_parse_history(struct uci_context *ctx, FILE *stream, struct uci_
 		UCI_TRAP_SAVE(ctx, error);
 		uci_parse_history_line(ctx, p, pctx->buf);
 		UCI_TRAP_RESTORE(ctx);
+		changes++;
 error:
 		continue;
 	}
@@ -128,32 +131,38 @@ error:
 	/* no error happened, we can get rid of the parser context now */
 	ctx->internal = true;
 	uci_cleanup(ctx);
+	return changes;
 }
 
-static void uci_load_history_file(struct uci_context *ctx, struct uci_package *p, char *filename, FILE **f, bool flush)
+/* returns the number of changes that were successfully parsed */
+static int uci_load_history_file(struct uci_context *ctx, struct uci_package *p, char *filename, FILE **f, bool flush)
 {
 	FILE *stream = NULL;
+	int changes = 0;
 
 	UCI_TRAP_SAVE(ctx, done);
 	stream = uci_open_stream(ctx, filename, SEEK_SET, flush, false);
 	if (p)
-		uci_parse_history(ctx, stream, p);
+		changes = uci_parse_history(ctx, stream, p);
 	UCI_TRAP_RESTORE(ctx);
 done:
 	if (f)
 		*f = stream;
 	else if (stream)
 		uci_close_stream(stream);
+	return changes;
 }
 
-static void uci_load_history(struct uci_context *ctx, struct uci_package *p, bool flush)
+/* returns the number of changes that were successfully parsed */
+static int uci_load_history(struct uci_context *ctx, struct uci_package *p, bool flush)
 {
 	struct uci_element *e;
 	char *filename = NULL;
 	FILE *f = NULL;
+	int changes = 0;
 
 	if (!p->confdir)
-		return;
+		return 0;
 
 	uci_foreach_element(&ctx->history_path, e) {
 		if ((asprintf(&filename, "%s/%s", e->name, p->e.name) < 0) || !filename)
@@ -166,8 +175,8 @@ static void uci_load_history(struct uci_context *ctx, struct uci_package *p, boo
 	if ((asprintf(&filename, "%s/%s", ctx->savedir, p->e.name) < 0) || !filename)
 		UCI_THROW(ctx, UCI_ERR_MEM);
 
-	uci_load_history_file(ctx, p, filename, &f, flush);
-	if (flush && f) {
+	changes = uci_load_history_file(ctx, p, filename, &f, flush);
+	if (flush && f && (changes > 0)) {
 		rewind(f);
 		ftruncate(fileno(f), 0);
 	}
@@ -175,6 +184,7 @@ static void uci_load_history(struct uci_context *ctx, struct uci_package *p, boo
 		free(filename);
 	uci_close_stream(f);
 	ctx->errno = 0;
+	return changes;
 }
 
 static void uci_filter_history(struct uci_context *ctx, const char *name, char *section, char *option)
