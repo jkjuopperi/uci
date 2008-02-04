@@ -342,7 +342,9 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 	/* command string null-terminated by strtok */
 	*str += strlen(*str) + 1;
 
-	type = next_arg(ctx, str, true, true);
+	type = next_arg(ctx, str, true, false);
+	if (!uci_validate_str(type, false))
+		uci_parse_error(ctx, type, "invalid character in field");
 	name = next_arg(ctx, str, false, true);
 	assert_eol(ctx, str);
 

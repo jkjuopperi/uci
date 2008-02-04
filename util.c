@@ -59,17 +59,30 @@ static char *uci_strdup(struct uci_context *ctx, const char *str)
 	return ptr;
 }
 
-static bool uci_validate_name(const char *str)
+/*
+ * validate strings for names and types, reject special characters
+ * for names, only alphanum and _ is allowed (shell compatibility)
+ * for types, we allow more characters
+ */
+static bool uci_validate_str(const char *str, bool name)
 {
 	if (!*str)
 		return false;
 
 	while (*str) {
-		if (!isalnum(*str) && (*str != '_'))
-			return false;
+		char c = *str;
+		if (!isalnum(c) && c != '_') {
+			if (name || (c < 33) || (c > 126))
+				return false;
+		}
 		str++;
 	}
 	return true;
+}
+
+static inline bool uci_validate_name(const char *str)
+{
+	return uci_validate_str(str, true);
 }
 
 static void uci_alloc_parse_context(struct uci_context *ctx)

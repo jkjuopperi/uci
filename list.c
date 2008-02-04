@@ -339,7 +339,7 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 	list = e->list.prev;
 	switch(e->type) {
 	case UCI_TYPE_SECTION:
-		UCI_ASSERT(ctx, uci_validate_name(value));
+		UCI_ASSERT(ctx, uci_validate_str(value, false));
 		size = sizeof(struct uci_section);
 		s = uci_to_section(e);
 		section = e->name;
@@ -433,7 +433,7 @@ int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char 
 		UCI_ASSERT(ctx, uci_validate_name(option));
 		UCI_ASSERT(ctx, value != NULL);
 	} else {
-		UCI_ASSERT(ctx, uci_validate_name(value));
+		UCI_ASSERT(ctx, uci_validate_str(value, false));
 	}
 
 	/*
