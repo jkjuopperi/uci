@@ -16,12 +16,16 @@
 #include <unistd.h>
 #include "uci.h"
 
-static const char *appname = "uci";
+#define MAX_ARGS	4 /* max command line arguments for batch mode */
+
+static const char *appname;
 static enum {
 	CLI_FLAG_MERGE =    (1 << 0),
 	CLI_FLAG_QUIET =    (1 << 1),
 	CLI_FLAG_NOCOMMIT = (1 << 2),
+	CLI_FLAG_BATCH =    (1 << 3),
 } flags;
+
 static FILE *input;
 
 static struct uci_context *ctx;
@@ -34,16 +38,21 @@ enum {
 	CMD_REVERT,
 	/* package cmds */
 	CMD_SHOW,
-	CMD_IMPORT,
 	CMD_EXPORT,
 	CMD_COMMIT,
+	/* other cmds */
+	CMD_IMPORT,
+	CMD_HELP,
 };
 
-static void uci_usage(int argc, char **argv)
+static int uci_cmd(int argc, char **argv);
+
+static void uci_usage(void)
 {
 	fprintf(stderr,
 		"Usage: %s [<options>] <command> [<arguments>]\n\n"
 		"Commands:\n"
+		"\tbatch\n"
 		"\texport     [<config>]\n"
 		"\timport     [<config>]\n"
 		"\tshow       [<config>[.<section>[.<option>]]]\n"
@@ -63,9 +72,8 @@ static void uci_usage(int argc, char **argv)
 		"\t-s         force strict mode (stop on parser errors, default)\n"
 		"\t-S         disable strict mode\n"
 		"\n",
-		argv[0]
+		appname
 	);
-	exit(255);
 }
 
 static void cli_perror(void)
@@ -274,11 +282,78 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 	return 0;
 }
 
+static int uci_batch_cmd(void)
+{
+	char *argv[MAX_ARGS];
+	char *str = NULL;
+	int ret = 0;
+	int i, j;
+
+	for(i = 0; i <= MAX_ARGS; i++) {
+		if (i == MAX_ARGS) {
+			fprintf(stderr, "Too many arguments\n");
+			return 1;
+		}
+		argv[i] = NULL;
+		if ((ret = uci_parse_argument(ctx, input, &str, &argv[i])) != UCI_OK) {
+			cli_perror();
+			i = 0;
+			break;
+		}
+		if (!argv[i][0])
+			break;
+		argv[i] = strdup(argv[i]);
+		if (!argv[i]) {
+			perror("uci");
+			return 1;
+		}
+	}
+	argv[i] = NULL;
+
+	if (i > 0) {
+		if (!strcasecmp(argv[0], "exit"))
+			return 254;
+		ret = uci_cmd(i, argv);
+	} else
+		return 0;
+
+	for (j = 0; j < i; j++) {
+		if (argv[j])
+			free(argv[j]);
+	}
+
+	return ret;
+}
+
+static int uci_batch(void)
+{
+	int ret = 0;
+
+	while (!feof(input)) {
+		struct uci_element *e, *tmp;
+
+		ret = uci_batch_cmd();
+		if (ret == 254)
+			return 0;
+		else if (ret == 255)
+			fprintf(stderr, "Unknown command\n");
+
+		/* clean up */
+		uci_cleanup(ctx);
+		uci_foreach_element_safe(&ctx->root, tmp, e) {
+			uci_unload(ctx, uci_to_package(e));
+		}
+	}
+	return 0;
+}
+
 static int uci_cmd(int argc, char **argv)
 {
 	int cmd = 0;
 
-	if (!strcasecmp(argv[0], "show"))
+	if (!strcasecmp(argv[0], "batch") && !(flags & CLI_FLAG_BATCH))
+		return uci_batch();
+	else if (!strcasecmp(argv[0], "show"))
 		cmd = CMD_SHOW;
 	else if (!strcasecmp(argv[0], "export"))
 		cmd = CMD_EXPORT;
@@ -297,6 +372,8 @@ static int uci_cmd(int argc, char **argv)
 		cmd = CMD_DEL;
 	else if (!strcasecmp(argv[0], "import"))
 		cmd = CMD_IMPORT;
+	else if (!strcasecmp(argv[0], "help"))
+		cmd = CMD_HELP;
 	else
 		cmd = -1;
 
@@ -313,6 +390,9 @@ static int uci_cmd(int argc, char **argv)
 			return uci_do_package_cmd(cmd, argc, argv);
 		case CMD_IMPORT:
 			return uci_do_import(argc, argv);
+		case CMD_HELP:
+			uci_usage();
+			return 0;
 		default:
 			return 255;
 	}
@@ -323,6 +403,7 @@ int main(int argc, char **argv)
 	int ret;
 	int c;
 
+	appname = argv[0];
 	input = stdin;
 	ctx = uci_alloc_context();
 	if (!ctx) {
@@ -367,8 +448,8 @@ int main(int argc, char **argv)
 				flags |= CLI_FLAG_QUIET;
 				break;
 			default:
-				uci_usage(argc, argv);
-				break;
+				uci_usage();
+				return 0;
 		}
 	}
 	if (optind > 1)
@@ -376,13 +457,17 @@ int main(int argc, char **argv)
 	argv += optind - 1;
 	argc -= optind - 1;
 
-	if (argc < 2)
-		uci_usage(argc, argv);
+	if (argc < 2) {
+		uci_usage();
+		return 0;
+	}
 	ret = uci_cmd(argc - 1, argv + 1);
 	if (input != stdin)
 		fclose(input);
-	if (ret == 255)
-		uci_usage(argc, argv);
+	if (ret == 255) {
+		uci_usage();
+		return 0;
+	}
 
 	uci_free_context(ctx);
 
