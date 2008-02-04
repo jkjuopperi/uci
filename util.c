@@ -146,7 +146,10 @@ static void uci_parse_error(struct uci_context *ctx, char *pos, char *reason)
 	struct uci_parse_context *pctx = ctx->pctx;
 
 	pctx->reason = reason;
-	pctx->byte = pos - pctx->buf;
+	if ((pos < pctx->buf) || (pos > pctx->buf + pctx->bufsz))
+		pctx->byte = 0;
+	else
+		pctx->byte = pos - pctx->buf;
 	UCI_THROW(ctx, UCI_ERR_PARSE);
 }
 
@@ -188,6 +191,176 @@ static void uci_getln(struct uci_context *ctx, int offset)
 		pctx->buf = uci_realloc(ctx, pctx->buf, pctx->bufsz);
 	} while (1);
 }
+
+/* 
+ * parse a character escaped by '\'
+ * returns true if the escaped character is to be parsed
+ * returns false if the escaped character is to be ignored
+ */
+static inline bool parse_backslash(struct uci_context *ctx, char **str)
+{
+	/* skip backslash */
+	*str += 1;
+
+	/* undecoded backslash at the end of line, fetch the next line */
+	if (!**str) {
+		*str += 1;
+		uci_getln(ctx, *str - ctx->pctx->buf);
+		return false;
+	}
+
+	/* FIXME: decode escaped char, necessary? */
+	return true;
+}
+
+/*
+ * move the string pointer forward until a non-whitespace character or
+ * EOL is reached
+ */
+static void skip_whitespace(struct uci_context *ctx, char **str)
+{
+restart:
+	while (**str && isspace(**str))
+		*str += 1;
+
+	if (**str == '\\') {
+		if (!parse_backslash(ctx, str))
+			goto restart;
+	}
+}
+
+static inline void addc(char **dest, char **src)
+{
+	**dest = **src;
+	*dest += 1;
+	*src += 1;
+}
+
+/*
+ * parse a double quoted string argument from the command line
+ */
+static void parse_double_quote(struct uci_context *ctx, char **str, char **target)
+{
+	char c;
+
+	/* skip quote character */
+	*str += 1;
+
+	while ((c = **str)) {
+		switch(c) {
+		case '"':
+			**target = 0;
+			*str += 1;
+			return;
+		case '\\':
+			if (!parse_backslash(ctx, str))
+				continue;
+			/* fall through */
+		default:
+			addc(target, str);
+			break;
+		}
+	}
+	uci_parse_error(ctx, *str, "unterminated \"");
+}
+
+/*
+ * parse a single quoted string argument from the command line
+ */
+static void parse_single_quote(struct uci_context *ctx, char **str, char **target)
+{
+	char c;
+	/* skip quote character */
+	*str += 1;
+
+	while ((c = **str)) {
+		switch(c) {
+		case '\'':
+			**target = 0;
+			*str += 1;
+			return;
+		default:
+			addc(target, str);
+		}
+	}
+	uci_parse_error(ctx, *str, "unterminated '");
+}
+
+/*
+ * parse a string from the command line and detect the quoting style
+ */
+static void parse_str(struct uci_context *ctx, char **str, char **target)
+{
+	do {
+		switch(**str) {
+		case '\'':
+			parse_single_quote(ctx, str, target);
+			break;
+		case '"':
+			parse_double_quote(ctx, str, target);
+			break;
+		case '#':
+			**str = 0;
+			/* fall through */
+		case 0:
+			goto done;
+		case '\\':
+			if (!parse_backslash(ctx, str))
+				continue;
+			/* fall through */
+		default:
+			addc(target, str);
+			break;
+		}
+	} while (**str && !isspace(**str));
+done:
+
+	/* 
+	 * if the string was unquoted and we've stopped at a whitespace
+	 * character, skip to the next one, because the whitespace will
+	 * be overwritten by a null byte here
+	 */
+	if (**str)
+		*str += 1;
+
+	/* terminate the parsed string */
+	**target = 0;
+}
+
+/*
+ * extract the next argument from the command line
+ */
+static char *next_arg(struct uci_context *ctx, char **str, bool required, bool name)
+{
+	char *val;
+	char *ptr;
+
+	val = ptr = *str;
+	skip_whitespace(ctx, str);
+	parse_str(ctx, str, &ptr);
+	if (!*val) {
+		if (required)
+			uci_parse_error(ctx, *str, "insufficient arguments");
+		goto done;
+	}
+
+	if (name && !uci_validate_name(val))
+		uci_parse_error(ctx, val, "invalid character in field");
+
+done:
+	return val;
+}
+
+int uci_parse_argument(struct uci_context *ctx, char **str, char **result)
+{
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, (str != NULL) && (*str != NULL));
+	UCI_ASSERT(ctx, result != NULL);
+
+	*result = next_arg(ctx, str, false, false);
+	return 0;
+}
+
 
 /*
  * open a stream and go to the right position

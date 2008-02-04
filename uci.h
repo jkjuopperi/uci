@@ -260,6 +260,14 @@ extern int uci_add_history_path(struct uci_context *ctx, const char *dir);
  */
 extern int uci_revert(struct uci_context *ctx, struct uci_package **p, char *section, char *option);
 
+/**
+ * uci_parse_argument: parse a shell-style argument, with an arbitrary quoting style
+ * @ctx: uci context
+ * @str: pointer to the input string (will be changed to the end of the parsed string)
+ * @result: pointer for the result
+ */
+extern int uci_parse_argument(struct uci_context *ctx, char **str, char **result);
+
 /* UCI data structures */
 enum uci_type {
 	UCI_TYPE_HISTORY = 0,
