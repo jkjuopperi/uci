@@ -146,10 +146,7 @@ static void uci_parse_error(struct uci_context *ctx, char *pos, char *reason)
 	struct uci_parse_context *pctx = ctx->pctx;
 
 	pctx->reason = reason;
-	if ((pos < pctx->buf) || (pos > pctx->buf + pctx->bufsz))
-		pctx->byte = 0;
-	else
-		pctx->byte = pos - pctx->buf;
+	pctx->byte = pos - pctx->buf;
 	UCI_THROW(ctx, UCI_ERR_PARSE);
 }
 
@@ -351,13 +348,28 @@ done:
 	return val;
 }
 
-int uci_parse_argument(struct uci_context *ctx, char **str, char **result)
+int uci_parse_argument(struct uci_context *ctx, FILE *stream, char **str, char **result)
 {
 	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, (str != NULL) && (*str != NULL));
+	UCI_ASSERT(ctx, str != NULL);
 	UCI_ASSERT(ctx, result != NULL);
 
+	if (ctx->pctx) {
+		if (ctx->pctx->file != stream) {
+			ctx->internal = true;
+			uci_cleanup(ctx);
+		}
+	} else {
+		uci_alloc_parse_context(ctx);
+		ctx->pctx->file = stream;
+	}
+	if (!*str) {
+		uci_getln(ctx, 0);
+		*str = ctx->pctx->buf;
+	}
+
 	*result = next_arg(ctx, str, false, false);
+
 	return 0;
 }
 

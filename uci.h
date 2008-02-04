@@ -263,10 +263,11 @@ extern int uci_revert(struct uci_context *ctx, struct uci_package **p, char *sec
 /**
  * uci_parse_argument: parse a shell-style argument, with an arbitrary quoting style
  * @ctx: uci context
- * @str: pointer to the input string (will be changed to the end of the parsed string)
+ * @stream: input stream
+ * @str: pointer to the current line (use NULL for parsing the next line)
  * @result: pointer for the result
  */
-extern int uci_parse_argument(struct uci_context *ctx, char **str, char **result);
+extern int uci_parse_argument(struct uci_context *ctx, FILE *stream, char **str, char **result);
 
 /* UCI data structures */
 enum uci_type {
