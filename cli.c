@@ -57,6 +57,7 @@ static void uci_usage(void)
 		"\tbatch\n"
 		"\texport     [<config>]\n"
 		"\timport     [<config>]\n"
+		"\tchanges    [<config>]\n"
 		"\tshow       [<config>[.<section>[.<option>]]]\n"
 		"\tget        <config>.<section>[.<option>]\n"
 		"\tset        <config>.<section>[.<option>]=<value>\n"
