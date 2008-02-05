@@ -97,30 +97,29 @@ int uci_parse_tuple(struct uci_context *ctx, char *str, char **package, char **s
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, str && package && section && option);
 
+	last = strchr(str, '=');
+	if (last) {
+		*last = 0;
+		last++;
+	}
+
 	*package = strtok(str, ".");
 	if (!*package || !uci_validate_name(*package))
 		goto error;
 
-	last = *package;
 	*section = strtok(NULL, ".");
 	if (!*section)
 		goto lastval;
 
-	last = *section;
 	*option = strtok(NULL, ".");
 	if (!*option)
 		goto lastval;
 
-	last = *option;
-
 lastval:
-	last = strchr(last, '=');
 	if (last) {
 		if (!value)
 			goto error;
 
-		*last = 0;
-		last++;
 		if (!*last)
 			goto error;
 		*value = last;
