@@ -218,6 +218,8 @@ int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_pac
 	if (option) {
 		s = uci_to_section(e);
 		e = uci_lookup_list(ctx, &s->options, option);
+		if (!e)
+			goto notfound;
 	}
 
 	*res = e;
