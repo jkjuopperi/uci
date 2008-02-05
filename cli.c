@@ -171,6 +171,7 @@ static int uci_do_import(int argc, char **argv)
 	struct uci_package *package = NULL;
 	char *name = NULL;
 	int ret = UCI_OK;
+	bool merge = false;
 
 	if (argc > 2)
 		return 255;
@@ -184,10 +185,12 @@ static int uci_do_import(int argc, char **argv)
 	if (flags & CLI_FLAG_MERGE) {
 		if (uci_load(ctx, name, &package) != UCI_OK)
 			package = NULL;
+		else
+			merge = true;
 	}
 	ret = uci_import(ctx, input, name, &package, (name != NULL));
 	if (ret == UCI_OK) {
-		if (flags & CLI_FLAG_MERGE) {
+		if (merge) {
 			ret = uci_save(ctx, package);
 		} else {
 			struct uci_element *e;

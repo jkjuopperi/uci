@@ -43,6 +43,7 @@
 #define UCI_HANDLE_ERR(ctx) do {	\
 	DPRINTF("ENTER: %s\n", __func__); \
 	int __val = 0;			\
+	ctx->errno = 0;			\
 	if (!ctx)			\
 		return UCI_ERR_INVAL;	\
 	if (!ctx->internal)		\
