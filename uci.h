@@ -279,9 +279,10 @@ enum uci_type {
 };
 
 enum uci_flags {
-	UCI_FLAG_STRICT =      (1 << 0), /* strict mode for the parser */
-	UCI_FLAG_PERROR =      (1 << 1), /* print parser error messages */
-	UCI_FLAG_EXPORT_NAME = (1 << 2), /* when exporting, name unnamed sections */
+	UCI_FLAG_STRICT =        (1 << 0), /* strict mode for the parser */
+	UCI_FLAG_PERROR =        (1 << 1), /* print parser error messages */
+	UCI_FLAG_EXPORT_NAME =   (1 << 2), /* when exporting, name unnamed sections */
+	UCI_FLAG_SAVED_HISTORY = (1 << 3), /* store the saved history in memory as well */
 };
 
 struct uci_element
@@ -317,23 +318,6 @@ struct uci_context
 	int bufsz;
 };
 
-struct uci_parse_context
-{
-	/* error context */
-	const char *reason;
-	int line;
-	int byte;
-
-	/* private: */
-	struct uci_package *package;
-	struct uci_section *section;
-	bool merge;
-	FILE *file;
-	const char *name;
-	char *buf;
-	int bufsz;
-};
-
 struct uci_package
 {
 	struct uci_element e;
@@ -345,6 +329,7 @@ struct uci_package
 	/* private: */
 	int n_section;
 	struct uci_list history;
+	struct uci_list saved_history;
 };
 
 struct uci_section

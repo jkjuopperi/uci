@@ -26,6 +26,42 @@
 #include <stdio.h>
 #include <ctype.h>
 
+/* record a change that was done to a package */
+static void
+uci_add_history(struct uci_context *ctx, struct uci_list *list, int cmd, char *section, char *option, char *value)
+{
+	struct uci_history *h;
+	int size = strlen(section) + 1;
+	char *ptr;
+
+	if (value)
+		size += strlen(value) + 1;
+
+	h = uci_alloc_element(ctx, history, option, size);
+	ptr = uci_dataptr(h);
+	h->cmd = cmd;
+	h->section = strcpy(ptr, section);
+	if (value) {
+		ptr += strlen(ptr) + 1;
+		h->value = strcpy(ptr, value);
+	}
+	uci_list_add(list, &h->e.list);
+}
+
+static void
+uci_free_history(struct uci_history *h)
+{
+	if (!h)
+		return;
+	if ((h->section != NULL) &&
+		(h->section != uci_dataptr(h))) {
+		free(h->section);
+		free(h->value);
+	}
+	uci_free_element(&h->e);
+}
+
+
 int uci_set_savedir(struct uci_context *ctx, const char *dir)
 {
 	char *sdir;
@@ -84,6 +120,20 @@ static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *
 		goto error;
 	if (rename && !uci_validate_str(value, (option || delete)))
 		goto error;
+
+	if (ctx->flags & UCI_FLAG_SAVED_HISTORY) {
+		int cmd;
+
+		/* NB: no distinction between CMD_CHANGE and CMD_ADD possible at this point */
+		if(delete)
+			cmd = UCI_CMD_REMOVE;
+		else if (rename)
+			cmd = UCI_CMD_RENAME;
+		else
+			cmd = UCI_CMD_CHANGE;
+
+		uci_add_history(ctx, &p->saved_history, cmd, section, option, value);
+	}
 
 	if (rename)
 		UCI_INTERNAL(uci_rename, ctx, p, section, option, value);

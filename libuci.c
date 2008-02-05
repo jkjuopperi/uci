@@ -39,6 +39,7 @@ static const char *uci_errstr[] = {
 	[UCI_ERR_UNKNOWN] =   "Unknown error",
 };
 
+#include "uci_internal.h"
 #include "util.c"
 #include "list.c"
 #include "history.c"

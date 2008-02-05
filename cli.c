@@ -38,6 +38,7 @@ enum {
 	CMD_REVERT,
 	/* package cmds */
 	CMD_SHOW,
+	CMD_CHANGES,
 	CMD_EXPORT,
 	CMD_COMMIT,
 	/* other cmds */
@@ -106,18 +107,45 @@ static void uci_show_package(struct uci_package *p)
 	}
 }
 
+static void uci_show_changes(struct uci_package *p)
+{
+	struct uci_element *e;
+
+	uci_foreach_element(&p->saved_history, e) {
+		struct uci_history *h = uci_to_history(e);
+
+		if (h->cmd == UCI_CMD_REMOVE)
+			printf("-");
+		printf("%s.%s", p->e.name, h->section);
+		if (e->name)
+			printf(".%s", e->name);
+		if (h->cmd != UCI_CMD_REMOVE)
+			printf("=%s", h->value);
+		printf("\n");
+	}
+}
 
 static int package_cmd(int cmd, char *package)
 {
 	struct uci_package *p = NULL;
+	int ret;
 
-	if (uci_load(ctx, package, &p) != UCI_OK) {
+	if (cmd == CMD_CHANGES)
+		ctx->flags |= UCI_FLAG_SAVED_HISTORY;
+	ret = uci_load(ctx, package, &p);
+	if (cmd == CMD_CHANGES)
+		ctx->flags &= ~UCI_FLAG_SAVED_HISTORY;
+
+	if (ret != UCI_OK) {
 		cli_perror();
 		return 1;
 	}
 	if (!p)
 		return 0;
 	switch(cmd) {
+	case CMD_CHANGES:
+		uci_show_changes(p);
+		break;
 	case CMD_COMMIT:
 		if (flags & CLI_FLAG_NOCOMMIT)
 			return 0;
@@ -355,6 +383,8 @@ static int uci_cmd(int argc, char **argv)
 		return uci_batch();
 	else if (!strcasecmp(argv[0], "show"))
 		cmd = CMD_SHOW;
+	else if (!strcasecmp(argv[0], "changes"))
+		cmd = CMD_CHANGES;
 	else if (!strcasecmp(argv[0], "export"))
 		cmd = CMD_EXPORT;
 	else if (!strcasecmp(argv[0], "commit"))
@@ -387,6 +417,7 @@ static int uci_cmd(int argc, char **argv)
 		case CMD_SHOW:
 		case CMD_EXPORT:
 		case CMD_COMMIT:
+		case CMD_CHANGES:
 			return uci_do_package_cmd(cmd, argc, argv);
 		case CMD_IMPORT:
 			return uci_do_import(argc, argv);

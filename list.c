@@ -151,44 +151,6 @@ uci_free_section(struct uci_section *s)
 	uci_free_element(&s->e);
 }
 
-/* record a change that was done to a package */
-static void
-uci_add_history(struct uci_context *ctx, struct uci_package *p, int cmd, char *section, char *option, char *value)
-{
-	struct uci_history *h;
-	int size = strlen(section) + 1;
-	char *ptr;
-
-	if (!p->confdir)
-		return;
-
-	if (value)
-		size += strlen(value) + 1;
-
-	h = uci_alloc_element(ctx, history, option, size);
-	ptr = uci_dataptr(h);
-	h->cmd = cmd;
-	h->section = strcpy(ptr, section);
-	if (value) {
-		ptr += strlen(ptr) + 1;
-		h->value = strcpy(ptr, value);
-	}
-	uci_list_add(&p->history, &h->e.list);
-}
-
-static void
-uci_free_history(struct uci_history *h)
-{
-	if (!h)
-		return;
-	if ((h->section != NULL) &&
-		(h->section != uci_dataptr(h))) {
-		free(h->section);
-		free(h->value);
-	}
-	uci_free_element(&h->e);
-}
-
 static struct uci_package *
 uci_alloc_package(struct uci_context *ctx, const char *name)
 {
@@ -198,6 +160,7 @@ uci_alloc_package(struct uci_context *ctx, const char *name)
 	p->ctx = ctx;
 	uci_list_init(&p->sections);
 	uci_list_init(&p->history);
+	uci_list_init(&p->saved_history);
 	return p;
 }
 
@@ -216,6 +179,9 @@ uci_free_package(struct uci_package **package)
 		uci_free_section(uci_to_section(e));
 	}
 	uci_foreach_element_safe(&p->history, tmp, e) {
+		uci_free_history(uci_to_history(e));
+	}
+	uci_foreach_element_safe(&p->saved_history, tmp, e) {
 		uci_free_history(uci_to_history(e));
 	}
 	uci_free_element(&p->e);
@@ -294,8 +260,8 @@ int uci_del_element(struct uci_context *ctx, struct uci_element *e)
 	}
 
 	p = s->package;
-	if (!internal)
-		uci_add_history(ctx, p, UCI_CMD_REMOVE, s->e.name, option, NULL);
+	if (!internal && p->confdir)
+		uci_add_history(ctx, &p->history, UCI_CMD_REMOVE, s->e.name, option, NULL);
 
 	switch(e->type) {
 	case UCI_TYPE_SECTION:
@@ -357,8 +323,8 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 		return 0;
 	}
 	p = s->package;
-	if (!internal)
-		uci_add_history(ctx, p, UCI_CMD_CHANGE, section, option, value);
+	if (!internal && p->confdir)
+		uci_add_history(ctx, &p->history, UCI_CMD_CHANGE, section, option, value);
 
 	uci_list_del(&e->list);
 	e = uci_realloc(ctx, e, size);
@@ -391,8 +357,8 @@ int uci_rename(struct uci_context *ctx, struct uci_package *p, char *section, ch
 	/* NB: p, section, option validated by uci_lookup */
 	UCI_INTERNAL(uci_lookup, ctx, &e, p, section, option);
 
-	if (!internal)
-		uci_add_history(ctx, p, UCI_CMD_RENAME, section, option, name);
+	if (!internal && p->confdir)
+		uci_add_history(ctx, &p->history, UCI_CMD_RENAME, section, option, name);
 
 	name = uci_strdup(ctx, name);
 	if (e->name)
@@ -479,8 +445,8 @@ notfound:
 		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 
 	/* now add the missing entry */
-	if (!internal)
-		uci_add_history(ctx, p, UCI_CMD_ADD, section, option, value);
+	if (!internal && p->confdir)
+		uci_add_history(ctx, &p->history, UCI_CMD_ADD, section, option, value);
 	if (s)
 		uci_alloc_option(s, option, value);
 	else {
