@@ -396,7 +396,7 @@ static FILE *uci_open_stream(struct uci_context *ctx, const char *filename, int 
 	}
 
 	fd = open(filename, mode, UCI_FILEMODE);
-	if (fd <= 0)
+	if (fd < 0)
 		goto error;
 
 	if (flock(fd, (write ? LOCK_EX : LOCK_SH)) < 0)
