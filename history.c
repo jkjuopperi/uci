@@ -140,7 +140,7 @@ static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *
 	else if (delete)
 		UCI_INTERNAL(uci_delete, ctx, p, section, option);
 	else
-		UCI_INTERNAL(uci_set, ctx, p, section, option, value);
+		UCI_INTERNAL(uci_set, ctx, p, section, option, value, NULL);
 
 	return;
 error:

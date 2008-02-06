@@ -386,7 +386,7 @@ int uci_delete(struct uci_context *ctx, struct uci_package *p, char *section, ch
 	return uci_del_element(ctx, e);
 }
 
-int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char *option, char *value, struct uci_element **result)
+int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char *option, char *value, struct uci_element *res)
 {
 	/* NB: UCI_INTERNAL use means without history tracking */
 	bool internal = ctx->internal;
@@ -432,13 +432,13 @@ int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char 
 		e = &o->e;
 	else
 		e = &s->e;
-	if (result)
-		*result = e;
+	if (res)
+		*res = e;
 	else
-		result = &e;
+		res = &e;
 
 	ctx->internal = internal;
-	return uci_set_element_value(ctx, result, value);
+	return uci_set_element_value(ctx, res, value);
 
 notfound:
 	/* 
@@ -453,14 +453,10 @@ notfound:
 	/* now add the missing entry */
 	if (!internal && p->confdir)
 		uci_add_history(ctx, &p->history, UCI_CMD_ADD, section, option, value);
-	if (s) {
-		o = uci_alloc_option(s, option, value);
-		if (result)
-			*result = &o->e;
-	} else {
+	if (s)
+		uci_alloc_option(s, option, value);
+	else {
 		s = uci_alloc_section(p, value, section);
-		if (result)
-			*result = &s->e;
 		if (ctx->pctx && ctx->pctx->merge)
 			ctx->pctx->section = s;
 	}

@@ -174,8 +174,9 @@ extern int uci_set_element_value(struct uci_context *ctx, struct uci_element **e
  * @section: section name
  * @option: option name
  * @value: value (option) or type (section)
+ * @result: store the updated element in this variable (optional)
  */
-extern int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char *option, char *value);
+extern int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char *option, char *value, struct uci_element **result);
 
 /**
  * uci_rename: Rename an element

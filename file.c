@@ -191,7 +191,7 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 
 	if (pctx->merge) {
 		UCI_TRAP_SAVE(ctx, error);
-		uci_set(ctx, pctx->package, name, NULL, type);
+		uci_set(ctx, pctx->package, name, NULL, type, NULL);
 		UCI_TRAP_RESTORE(ctx);
 		return;
 error:
@@ -221,7 +221,7 @@ static void uci_parse_option(struct uci_context *ctx, char **str)
 
 	if (pctx->merge) {
 		UCI_TRAP_SAVE(ctx, error);
-		uci_set(ctx, pctx->package, pctx->section->e.name, name, value);
+		uci_set(ctx, pctx->package, pctx->section->e.name, name, value, NULL);
 		UCI_TRAP_RESTORE(ctx);
 		return;
 error:

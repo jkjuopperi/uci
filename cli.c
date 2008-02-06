@@ -292,7 +292,7 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 		ret = uci_revert(ctx, &p, section, option);
 		break;
 	case CMD_SET:
-		ret = uci_set(ctx, p, section, option, value);
+		ret = uci_set(ctx, p, section, option, value, NULL);
 		break;
 	case CMD_DEL:
 		ret = uci_delete(ctx, p, section, option);
