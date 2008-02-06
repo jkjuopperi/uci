@@ -103,15 +103,15 @@ int uci_parse_tuple(struct uci_context *ctx, char *str, char **package, char **s
 		last++;
 	}
 
-	*package = strtok(str, ".");
+	*package = strsep(&str, ".");
 	if (!*package || !uci_validate_name(*package))
 		goto error;
 
-	*section = strtok(NULL, ".");
+	*section = strsep(&str, ".");
 	if (!*section)
 		goto lastval;
 
-	*option = strtok(NULL, ".");
+	*option = strsep(&str, ".");
 	if (!*option)
 		goto lastval;
 
