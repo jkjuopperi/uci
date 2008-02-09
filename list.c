@@ -115,6 +115,34 @@ uci_free_option(struct uci_option *o)
 	uci_free_element(&o->e);
 }
 
+/* fix up an unnamed section, e.g. after adding options to it */
+static void uci_fixup_section(struct uci_context *ctx, struct uci_section *s)
+{
+	unsigned int hash = ~0;
+	struct uci_element *e;
+	char buf[16];
+
+	if (!s || s->e.name)
+		return;
+
+	/*
+	 * Generate a name for unnamed sections. This is used as reference
+	 * when locating or updating the section from apps/scripts.
+	 * To make multiple concurrent versions somewhat safe for updating,
+	 * the name is generated from a hash of its type and name/value
+	 * pairs of its option, and it is prefixed by a counter value.
+	 * If the order of the unnamed sections changes for some reason,
+	 * updates to them will be rejected.
+	 */
+	hash = djbhash(hash, s->type);
+	uci_foreach_element(&s->options, e) {
+		hash = djbhash(hash, e->name);
+		hash = djbhash(hash, uci_to_option(e)->value);
+	}
+	sprintf(buf, "cfg%02x%04x", ++s->package->n_section, hash % (1 << 16));
+	s->e.name = uci_strdup(ctx, buf);
+}
+
 static struct uci_section *
 uci_alloc_section(struct uci_package *p, const char *type, const char *name)
 {
@@ -131,6 +159,7 @@ uci_alloc_section(struct uci_package *p, const char *type, const char *name)
 	strcpy(s->type, type);
 	if (name == NULL)
 		s->anonymous = true;
+	p->n_section++;
 
 	uci_list_add(&p->sections, &s->e.list);
 
@@ -370,6 +399,19 @@ int uci_rename(struct uci_context *ctx, struct uci_package *p, char *section, ch
 	return 0;
 }
 
+int uci_add_section(struct uci_context *ctx, struct uci_package *p, char *type, struct uci_section **res)
+{
+	struct uci_section *s;
+
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, p != NULL);
+	s = uci_alloc_section(p, type, NULL);
+	uci_fixup_section(ctx, s);
+	*res = s;
+	uci_add_history(ctx, &p->history, UCI_CMD_ADD, s->e.name, NULL, type);
+
+	return 0;
+}
 
 int uci_delete(struct uci_context *ctx, struct uci_package *p, char *section, char *option)
 {
@@ -452,7 +494,7 @@ notfound:
 
 	/* now add the missing entry */
 	if (!internal && p->confdir)
-		uci_add_history(ctx, &p->history, UCI_CMD_ADD, section, option, value);
+		uci_add_history(ctx, &p->history, UCI_CMD_CHANGE, section, option, value);
 	if (s) {
 		o = uci_alloc_option(s, option, value);
 		if (result)

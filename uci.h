@@ -157,6 +157,15 @@ extern int uci_cleanup(struct uci_context *ctx);
 extern int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_package *package, char *section, char *option);
 
 /**
+ * uci_add_section: Add an unnamed section
+ * @ctx: uci context
+ * @p: package to add the section to
+ * @type: section type
+ * @res: pointer to store a reference to the new section in
+ */
+extern int uci_add_section(struct uci_context *ctx, struct uci_package *p, char *type, struct uci_section **res);
+
+/**
  * uci_set_element_value: Replace an element's value with a new one
  * @ctx: uci context
  * @element: pointer to an uci_element struct pointer

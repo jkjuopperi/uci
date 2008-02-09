@@ -43,6 +43,7 @@ enum {
 	CMD_EXPORT,
 	CMD_COMMIT,
 	/* other cmds */
+	CMD_ADD,
 	CMD_IMPORT,
 	CMD_HELP,
 };
@@ -58,6 +59,7 @@ static void uci_usage(void)
 		"\texport     [<config>]\n"
 		"\timport     [<config>]\n"
 		"\tchanges    [<config>]\n"
+		"\tadd        <config> <section-type>\n"
 		"\tshow       [<config>[.<section>[.<option>]]]\n"
 		"\tget        <config>.<section>[.<option>]\n"
 		"\tset        <config>.<section>[.<option>]=<value>\n"
@@ -233,6 +235,33 @@ static int uci_do_package_cmd(int cmd, int argc, char **argv)
 	return 0;
 }
 
+static int uci_do_add(int argc, char **argv)
+{
+	struct uci_package *p = NULL;
+	struct uci_section *s = NULL;
+	int ret;
+
+	if (argc != 3)
+		return 255;
+
+	ret = uci_load(ctx, argv[1], &p);
+	if (ret != UCI_OK)
+		goto done;
+
+	ret = uci_add_section(ctx, p, argv[2], &s);
+	if (ret != UCI_OK)
+		goto done;
+
+	ret = uci_save(ctx, p);
+
+done:
+	if (ret != UCI_OK)
+		cli_perror();
+	else if (s)
+		fprintf(stdout, "%s\n", s->e.name);
+
+	return ret;
+}
 
 static int uci_do_section_cmd(int cmd, int argc, char **argv)
 {
@@ -257,6 +286,8 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 		break;
 	}
 	if (uci_parse_tuple(ctx, argv[1], &package, &section, &option, ptr) != UCI_OK)
+		return 1;
+	if (section && !section[0])
 		return 1;
 
 	if (uci_load(ctx, package, &p) != UCI_OK) {
@@ -409,6 +440,8 @@ static int uci_cmd(int argc, char **argv)
 		cmd = CMD_IMPORT;
 	else if (!strcasecmp(argv[0], "help"))
 		cmd = CMD_HELP;
+	else if (!strcasecmp(argv[0], "add"))
+		cmd = CMD_ADD;
 	else
 		cmd = -1;
 
@@ -426,6 +459,8 @@ static int uci_cmd(int argc, char **argv)
 			return uci_do_package_cmd(cmd, argc, argv);
 		case CMD_IMPORT:
 			return uci_do_import(argc, argv);
+		case CMD_ADD:
+			return uci_do_add(argc, argv);
 		case CMD_HELP:
 			uci_usage();
 			return 0;

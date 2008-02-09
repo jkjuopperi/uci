@@ -13,8 +13,8 @@
  */
 
 /*
- * This file contains wrappers to standard functions, which
- * throw exceptions upon failure.
+ * This file contains misc utility functions and wrappers to standard
+ * functions, which throw exceptions upon failure.
  */
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -57,6 +57,22 @@ static char *uci_strdup(struct uci_context *ctx, const char *str)
 		UCI_THROW(ctx, UCI_ERR_MEM);
 
 	return ptr;
+}
+
+/* Based on an efficient hash function published by D. J. Bernstein */
+static unsigned int djbhash(unsigned int hash, char *str)
+{
+	int len = strlen(str);
+	int i;
+
+	/* initial value */
+	if (hash == ~0)
+		hash = 5381;
+
+	for(i = 0; i < len; i++) {
+		hash = ((hash << 5) + hash) + str[i];
+	}
+	return (hash & 0x7FFFFFFF);
 }
 
 /*
@@ -125,7 +141,7 @@ lastval:
 		*value = last;
 	}
 
-	if (*section && !uci_validate_name(*section))
+	if (*section && *section[0] && !uci_validate_name(*section))
 		goto error;
 	if (*option && !uci_validate_name(*option))
 		goto error;

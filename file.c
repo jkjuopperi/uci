@@ -119,50 +119,6 @@ static void uci_parse_package(struct uci_context *ctx, char **str, bool single)
 	uci_switch_config(ctx);
 }
 
-/* Based on an efficient hash function published by D. J. Bernstein */
-static unsigned int djbhash(unsigned int hash, char *str)
-{
-	int len = strlen(str);
-	int i;
-
-	/* initial value */
-	if (hash == ~0)
-		hash = 5381;
-
-	for(i = 0; i < len; i++) {
-		hash = ((hash << 5) + hash) + str[i];
-	}
-	return (hash & 0x7FFFFFFF);
-}
-
-/* fix up an unnamed section */
-static void uci_fixup_section(struct uci_context *ctx, struct uci_section *s)
-{
-	unsigned int hash = ~0;
-	struct uci_element *e;
-	char buf[16];
-
-	if (!s || s->e.name)
-		return;
-
-	/*
-	 * Generate a name for unnamed sections. This is used as reference
-	 * when locating or updating the section from apps/scripts.
-	 * To make multiple concurrent versions somewhat safe for updating,
-	 * the name is generated from a hash of its type and name/value
-	 * pairs of its option, and it is prefixed by a counter value.
-	 * If the order of the unnamed sections changes for some reason,
-	 * updates to them will be rejected.
-	 */
-	hash = djbhash(hash, s->type);
-	uci_foreach_element(&s->options, e) {
-		hash = djbhash(hash, e->name);
-		hash = djbhash(hash, uci_to_option(e)->value);
-	}
-	sprintf(buf, "cfg%02x%04x", ++s->package->n_section, hash % (1 << 16));
-	s->e.name = uci_strdup(ctx, buf);
-}
-
 /*
  * parse the 'config' uci command (open a section)
  */
