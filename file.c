@@ -122,7 +122,8 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 
 	if (pctx->merge) {
 		UCI_TRAP_SAVE(ctx, error);
-		uci_set(ctx, pctx->package, name, NULL, type, NULL);
+		if (uci_set(ctx, pctx->package, name, NULL, type, NULL) != UCI_OK)
+			goto error;
 		UCI_TRAP_RESTORE(ctx);
 		return;
 error:
