@@ -104,8 +104,28 @@ int uci_set_confdir(struct uci_context *ctx, const char *dir)
 
 int uci_cleanup(struct uci_context *ctx)
 {
+	struct uci_parse_context *pctx;
 	UCI_HANDLE_ERR(ctx);
-	uci_file_cleanup(ctx);
+
+	if (ctx->buf) {
+		free(ctx->buf);
+		ctx->buf = NULL;
+		ctx->bufsz = 0;
+	}
+
+	pctx = ctx->pctx;
+	if (!pctx)
+		goto done;
+
+	ctx->pctx = NULL;
+	if (pctx->package)
+		uci_free_package(&pctx->package);
+
+	if (pctx->buf)
+		free(pctx->buf);
+
+	free(pctx);
+done:
 	return 0;
 }
 

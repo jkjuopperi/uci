@@ -30,26 +30,6 @@
  */
 static void uci_file_cleanup(struct uci_context *ctx)
 {
-	struct uci_parse_context *pctx;
-
-	if (ctx->buf) {
-		free(ctx->buf);
-		ctx->buf = NULL;
-		ctx->bufsz = 0;
-	}
-
-	pctx = ctx->pctx;
-	if (!pctx)
-		return;
-
-	ctx->pctx = NULL;
-	if (pctx->package)
-		uci_free_package(&pctx->package);
-
-	if (pctx->buf)
-		free(pctx->buf);
-
-	free(pctx);
 }
 
 
