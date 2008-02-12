@@ -311,6 +311,10 @@ struct uci_backend
 	char **(*list_configs)(struct uci_context *ctx);
 	struct uci_package *(*load)(struct uci_context *ctx, const char *name);
 	void (*commit)(struct uci_context *ctx, struct uci_package **p, bool overwrite);
+
+	/* private: */
+	const void *ptr;
+	void *priv;
 };
 
 struct uci_context
@@ -389,17 +393,6 @@ struct uci_history
 	char *section;
 	char *value;
 };
-
-#define UCI_BACKEND(_var, _name, ...)	\
-struct uci_backend _var = {		\
-	.e.list = {			\
-		.next = &_var.e.list,	\
-		.prev = &_var.e.list,	\
-	},				\
-	.e.name = _name,		\
-	.e.type = UCI_TYPE_BACKEND,	\
-	__VA_ARGS__			\
-}
 
 
 /* linked list handling */

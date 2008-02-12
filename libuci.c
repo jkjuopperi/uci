@@ -193,17 +193,55 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 	return 0;
 }
 
-int uci_add_backend(struct uci_context *ctx, struct uci_backend *b)
+#ifdef UCI_PLUGIN_SUPPORT
+
+__plugin int uci_add_backend(struct uci_context *ctx, struct uci_backend *b)
 {
 	struct uci_element *e;
 	UCI_HANDLE_ERR(ctx);
+
 	e = uci_lookup_list(&ctx->backends, b->e.name);
 	if (e)
 		UCI_THROW(ctx, UCI_ERR_DUPLICATE);
 
-	uci_list_add(&ctx->backends, &b->e.list);
+	e = uci_malloc(ctx, sizeof(struct uci_backend));
+	memcpy(e, b, sizeof(struct uci_backend));
+
+	uci_list_add(&ctx->backends, &e->list);
 	return 0;
 }
+
+__plugin int uci_del_backend(struct uci_context *ctx, struct uci_backend *b)
+{
+	struct uci_element *e, *tmp;
+
+	UCI_HANDLE_ERR(ctx);
+
+	e = uci_lookup_list(&ctx->backends, b->e.name);
+	if (!e || uci_to_backend(e)->ptr != b->ptr)
+		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
+	b = uci_to_backend(e);
+
+	if (ctx->backend && ctx->backend->ptr == b->ptr)
+		ctx->backend = &uci_file_backend;
+
+	uci_foreach_element_safe(&ctx->root, tmp, e) {
+		struct uci_package *p = uci_to_package(e);
+
+		if (!p->backend)
+			continue;
+
+		if (p->backend->ptr == b->ptr)
+			UCI_INTERNAL(uci_unload, ctx, p);
+	}
+
+	uci_list_del(&b->e.list);
+	free(b);
+
+	return 0;
+}
+
+#endif
 
 int uci_set_backend(struct uci_context *ctx, const char *name)
 {

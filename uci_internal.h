@@ -15,6 +15,13 @@
 #ifndef __UCI_INTERNAL_H
 #define __UCI_INTERNAL_H
 
+#define __public
+#ifdef UCI_PLUGIN_SUPPORT
+#define __plugin extern
+#else
+#define __plugin static
+#endif
+
 struct uci_parse_context
 {
 	/* error context */
@@ -32,9 +39,45 @@ struct uci_parse_context
 	int bufsz;
 };
 
-int uci_add_backend(struct uci_context *ctx, struct uci_backend *b);
-void uci_add_history(struct uci_context *ctx, struct uci_list *list, int cmd, char *section, char *option, char *value);
-void uci_free_history(struct uci_history *h);
+__plugin void *uci_malloc(struct uci_context *ctx, size_t size);
+__plugin void *uci_realloc(struct uci_context *ctx, void *ptr, size_t size);
+__plugin char *uci_strdup(struct uci_context *ctx, const char *str);
+__plugin void uci_add_history(struct uci_context *ctx, struct uci_list *list, int cmd, char *section, char *option, char *value);
+__plugin void uci_free_history(struct uci_history *h);
+__plugin struct uci_package *uci_alloc_package(struct uci_context *ctx, const char *name);
+
+#ifdef UCI_PLUGIN_SUPPORT
+/**
+ * uci_add_backend: add an extra backend
+ * @ctx: uci context
+ * @name: name of the backend
+ *
+ * The default backend is "file", which uses /etc/config for config storage
+ */
+__plugin int uci_add_backend(struct uci_context *ctx, struct uci_backend *b);
+
+/**
+ * uci_add_backend: add an extra backend
+ * @ctx: uci context
+ * @name: name of the backend
+ *
+ * The default backend is "file", which uses /etc/config for config storage
+ */
+__plugin int uci_del_backend(struct uci_context *ctx, struct uci_backend *b);
+#endif
+
+#define UCI_BACKEND(_var, _name, ...)	\
+struct uci_backend _var = {		\
+	.e.list = {			\
+		.next = &_var.e.list,	\
+		.prev = &_var.e.list,	\
+	},				\
+	.e.name = _name,		\
+	.e.type = UCI_TYPE_BACKEND,	\
+	.ptr = &_var,			\
+	__VA_ARGS__			\
+}
+
 
 /*
  * functions for debug and error handling, for internal use only

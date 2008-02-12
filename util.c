@@ -27,7 +27,7 @@
 #define LINEBUF	32
 #define LINEBUF_MAX	4096
 
-static void *uci_malloc(struct uci_context *ctx, size_t size)
+__plugin void *uci_malloc(struct uci_context *ctx, size_t size)
 {
 	void *ptr;
 
@@ -39,7 +39,7 @@ static void *uci_malloc(struct uci_context *ctx, size_t size)
 	return ptr;
 }
 
-static void *uci_realloc(struct uci_context *ctx, void *ptr, size_t size)
+__plugin void *uci_realloc(struct uci_context *ctx, void *ptr, size_t size)
 {
 	ptr = realloc(ptr, size);
 	if (!ptr)
@@ -48,7 +48,7 @@ static void *uci_realloc(struct uci_context *ctx, void *ptr, size_t size)
 	return ptr;
 }
 
-static char *uci_strdup(struct uci_context *ctx, const char *str)
+__plugin char *uci_strdup(struct uci_context *ctx, const char *str)
 {
 	char *ptr;
 

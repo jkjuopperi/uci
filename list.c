@@ -180,7 +180,7 @@ uci_free_section(struct uci_section *s)
 	uci_free_element(&s->e);
 }
 
-static struct uci_package *
+__plugin struct uci_package *
 uci_alloc_package(struct uci_context *ctx, const char *name)
 {
 	struct uci_package *p;
