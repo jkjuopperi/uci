@@ -299,6 +299,7 @@ struct uci_element
 struct uci_backend
 {
 	const char *name;
+	char **(*list_configs)(struct uci_context *ctx);
 	struct uci_package *(*load)(struct uci_context *ctx, const char *name);
 	void (*commit)(struct uci_context *ctx, struct uci_package **p, bool overwrite);
 };

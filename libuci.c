@@ -158,6 +158,15 @@ void uci_perror(struct uci_context *ctx, const char *prefix)
 	}
 }
 
+int uci_list_configs(struct uci_context *ctx, char ***list)
+{
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, list != NULL);
+	UCI_ASSERT(ctx, ctx->backend && ctx->backend->list_configs);
+	*list = ctx->backend->list_configs(ctx);
+	return 0;
+}
+
 int uci_commit(struct uci_context *ctx, struct uci_package **package, bool overwrite)
 {
 	UCI_HANDLE_ERR(ctx);

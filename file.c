@@ -442,15 +442,13 @@ static inline char *get_filename(char *path)
 	return p;
 }
 
-int uci_list_configs(struct uci_context *ctx, char ***list)
+static char **uci_list_config_files(struct uci_context *ctx)
 {
 	char **configs;
 	glob_t globbuf;
 	int size, i;
 	char *buf;
 	char *dir;
-
-	UCI_HANDLE_ERR(ctx);
 
 	dir = uci_malloc(ctx, strlen(ctx->confdir) + 1 + sizeof("/*"));
 	sprintf(dir, "%s/*", ctx->confdir);
@@ -481,10 +479,8 @@ int uci_list_configs(struct uci_context *ctx, char ***list)
 		strcpy(buf, p);
 		buf += strlen(buf) + 1;
 	}
-	*list = configs;
 	free(dir);
-
-	return 0;
+	return configs;
 }
 
 static struct uci_package *uci_file_load(struct uci_context *ctx, const char *name)
@@ -536,4 +532,5 @@ static struct uci_backend uci_file_backend = {
 	.name = "file",
 	.load = uci_file_load,
 	.commit = uci_file_commit,
+	.list_configs = uci_list_config_files,
 };
