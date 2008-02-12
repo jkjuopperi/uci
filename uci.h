@@ -341,7 +341,7 @@ struct uci_package
 	struct uci_element e;
 	struct uci_list sections;
 	struct uci_context *ctx;
-	bool confdir;
+	bool has_history;
 	char *path;
 
 	/* private: */

@@ -371,7 +371,6 @@ int uci_parse_argument(struct uci_context *ctx, FILE *stream, char **str, char *
 
 	if (ctx->pctx) {
 		if (ctx->pctx->file != stream) {
-			ctx->internal = true;
 			uci_cleanup(ctx);
 		}
 	} else {

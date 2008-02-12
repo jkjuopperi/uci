@@ -291,7 +291,7 @@ int uci_del_element(struct uci_context *ctx, struct uci_element *e)
 	}
 
 	p = s->package;
-	if (!internal && p->confdir)
+	if (!internal && p->has_history)
 		uci_add_history(ctx, &p->history, UCI_CMD_REMOVE, s->e.name, option, NULL);
 
 	switch(e->type) {
@@ -354,7 +354,7 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 		return 0;
 	}
 	p = s->package;
-	if (!internal && p->confdir)
+	if (!internal && p->has_history)
 		uci_add_history(ctx, &p->history, UCI_CMD_CHANGE, section, option, value);
 
 	uci_list_del(&e->list);
@@ -388,7 +388,7 @@ int uci_rename(struct uci_context *ctx, struct uci_package *p, char *section, ch
 	/* NB: p, section, option validated by uci_lookup */
 	UCI_INTERNAL(uci_lookup, ctx, &e, p, section, option);
 
-	if (!internal && p->confdir)
+	if (!internal && p->has_history)
 		uci_add_history(ctx, &p->history, UCI_CMD_RENAME, section, option, name);
 
 	name = uci_strdup(ctx, name);
@@ -493,7 +493,7 @@ notfound:
 		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 
 	/* now add the missing entry */
-	if (!internal && p->confdir)
+	if (!internal && p->has_history)
 		uci_add_history(ctx, &p->history, UCI_CMD_CHANGE, section, option, value);
 	if (s) {
 		o = uci_alloc_option(s, option, value);

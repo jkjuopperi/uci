@@ -217,7 +217,7 @@ static int uci_load_history(struct uci_context *ctx, struct uci_package *p, bool
 	FILE *f = NULL;
 	int changes = 0;
 
-	if (!p->confdir)
+	if (!p->has_history)
 		return 0;
 
 	uci_foreach_element(&ctx->history_path, e) {
@@ -321,7 +321,7 @@ int uci_revert(struct uci_context *ctx, struct uci_package **pkg, char *section,
 	UCI_ASSERT(ctx, pkg != NULL);
 	p = *pkg;
 	UCI_ASSERT(ctx, p != NULL);
-	UCI_ASSERT(ctx, p->confdir);
+	UCI_ASSERT(ctx, p->has_history);
 
 	/* 
 	 * - flush unwritten changes
@@ -365,7 +365,7 @@ int uci_save(struct uci_context *ctx, struct uci_package *p)
 	 * directly.
 	 * does not modify the uci_package pointer
 	 */
-	if (!p->confdir)
+	if (!p->has_history)
 		return uci_commit(ctx, &p, false);
 
 	if (uci_list_empty(&p->history))

@@ -293,7 +293,6 @@ int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct u
 	UCI_HANDLE_ERR(ctx);
 
 	/* make sure no memory from previous parse attempts is leaked */
-	ctx->internal = true;
 	uci_cleanup(ctx);
 
 	uci_alloc_parse_context(ctx);
@@ -375,7 +374,7 @@ void uci_file_commit(struct uci_context *ctx, struct uci_package **package, bool
 
 	/* flush unsaved changes and reload from history file */
 	UCI_TRAP_SAVE(ctx, done);
-	if (p->confdir) {
+	if (p->has_history) {
 		if (!overwrite) {
 			name = uci_strdup(ctx, p->e.name);
 			path = uci_strdup(ctx, p->path);
@@ -392,7 +391,7 @@ void uci_file_commit(struct uci_context *ctx, struct uci_package **package, bool
 			UCI_INTERNAL(uci_import, ctx, f, name, &p, true);
 
 			p->path = path;
-			p->confdir = true;
+			p->has_history = true;
 			*package = p;
 
 			/* freed together with the uci_package */
@@ -517,7 +516,7 @@ static struct uci_package *uci_file_load(struct uci_context *ctx, const char *na
 
 	if (package) {
 		package->path = filename;
-		package->confdir = confdir;
+		package->has_history = confdir;
 		uci_load_history(ctx, package, false);
 	}
 
