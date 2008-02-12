@@ -27,7 +27,7 @@
 #include <ctype.h>
 
 /* record a change that was done to a package */
-static void
+void
 uci_add_history(struct uci_context *ctx, struct uci_list *list, int cmd, char *section, char *option, char *value)
 {
 	struct uci_history *h;
@@ -48,7 +48,7 @@ uci_add_history(struct uci_context *ctx, struct uci_list *list, int cmd, char *s
 	uci_list_add(list, &h->e.list);
 }
 
-static void
+void
 uci_free_history(struct uci_history *h)
 {
 	if (!h)

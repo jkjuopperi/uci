@@ -32,8 +32,9 @@ struct uci_parse_context
 	int bufsz;
 };
 
-static void uci_add_history(struct uci_context *ctx, struct uci_list *list, int cmd, char *section, char *option, char *value);
-static void uci_free_history(struct uci_history *h);
+int uci_add_backend(struct uci_context *ctx, struct uci_backend *b);
+void uci_add_history(struct uci_context *ctx, struct uci_list *list, int cmd, char *section, char *option, char *value);
+void uci_free_history(struct uci_history *h);
 
 /*
  * functions for debug and error handling, for internal use only

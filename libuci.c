@@ -193,6 +193,18 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 	return 0;
 }
 
+int uci_add_backend(struct uci_context *ctx, struct uci_backend *b)
+{
+	struct uci_element *e;
+	UCI_HANDLE_ERR(ctx);
+	e = uci_lookup_list(&ctx->backends, b->e.name);
+	if (e)
+		UCI_THROW(ctx, UCI_ERR_DUPLICATE);
+
+	uci_list_add(&ctx->backends, &b->e.list);
+	return 0;
+}
+
 int uci_set_backend(struct uci_context *ctx, const char *name)
 {
 	struct uci_element *e;
