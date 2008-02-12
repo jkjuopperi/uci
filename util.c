@@ -80,7 +80,7 @@ static unsigned int djbhash(unsigned int hash, char *str)
  * for names, only alphanum and _ is allowed (shell compatibility)
  * for types, we allow more characters
  */
-static bool uci_validate_str(const char *str, bool name)
+__plugin bool uci_validate_str(const char *str, bool name)
 {
 	if (!*str)
 		return false;
