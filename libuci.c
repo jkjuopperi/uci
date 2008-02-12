@@ -23,7 +23,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "uci.h"
-#include "err.h"
 
 static const char *uci_confdir = UCI_CONFDIR;
 static const char *uci_savedir = UCI_SAVEDIR;

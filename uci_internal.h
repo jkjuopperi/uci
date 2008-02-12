@@ -35,4 +35,90 @@ struct uci_parse_context
 static void uci_add_history(struct uci_context *ctx, struct uci_list *list, int cmd, char *section, char *option, char *value);
 static void uci_free_history(struct uci_history *h);
 
+/*
+ * functions for debug and error handling, for internal use only
+ */
+
+#ifdef UCI_DEBUG
+#define DPRINTF(...) fprintf(stderr, __VA_ARGS__)
+#else
+#define DPRINTF(...)
+#endif
+
+/* 
+ * throw an uci exception and store the error number
+ * in the context.
+ */
+#define UCI_THROW(ctx, err) do { 	\
+	DPRINTF("Exception: %s in %s, %s:%d\n", #err, __func__, __FILE__, __LINE__); \
+	longjmp(ctx->trap, err); 	\
+} while (0)
+
+/*
+ * store the return address for handling exceptions
+ * needs to be called in every externally visible library function
+ *
+ * NB: this does not handle recursion at all. Calling externally visible
+ * functions from other uci functions is only allowed at the end of the
+ * calling function, or by wrapping the function call in UCI_TRAP_SAVE
+ * and UCI_TRAP_RESTORE.
+ */
+#define UCI_HANDLE_ERR(ctx) do {	\
+	DPRINTF("ENTER: %s\n", __func__); \
+	int __val = 0;			\
+	ctx->errno = 0;			\
+	if (!ctx)			\
+		return UCI_ERR_INVAL;	\
+	if (!ctx->internal)		\
+		__val = setjmp(ctx->trap); \
+	ctx->internal = false;		\
+	if (__val) {			\
+		DPRINTF("LEAVE: %s, ret=%d\n", __func__, __val); \
+		ctx->errno = __val;	\
+		return __val;		\
+	}				\
+} while (0)
+
+/*
+ * In a block enclosed by UCI_TRAP_SAVE and UCI_TRAP_RESTORE, all exceptions
+ * are intercepted and redirected to the label specified in 'handler'
+ * after UCI_TRAP_RESTORE, or when reaching the 'handler' label, the old
+ * exception handler is restored
+ */
+#define UCI_TRAP_SAVE(ctx, handler) do {   \
+	jmp_buf	__old_trap;		\
+	int __val;			\
+	memcpy(__old_trap, ctx->trap, sizeof(ctx->trap)); \
+	__val = setjmp(ctx->trap);	\
+	if (__val) {			\
+		ctx->errno = __val;	\
+		memcpy(ctx->trap, __old_trap, sizeof(ctx->trap)); \
+		goto handler;		\
+	}
+#define UCI_TRAP_RESTORE(ctx)		\
+	memcpy(ctx->trap, __old_trap, sizeof(ctx->trap)); \
+} while(0)
+
+/**
+ * UCI_INTERNAL: Do an internal call of a public API function
+ * 
+ * Sets Exception handling to passthrough mode.
+ * Allows API functions to change behavior compared to public use
+ */
+#define UCI_INTERNAL(func, ctx, ...) do { \
+	ctx->internal = true;		\
+	func(ctx, __VA_ARGS__);		\
+} while (0)
+
+/*
+ * check the specified condition.
+ * throw an invalid argument exception if it's false
+ */
+#define UCI_ASSERT(ctx, expr) do {	\
+	if (!(expr)) {			\
+		DPRINTF("[%s:%d] Assertion failed\n", __FILE__, __LINE__); \
+		UCI_THROW(ctx, UCI_ERR_INVAL);	\
+	}				\
+} while (0)
+
 #endif

@@ -27,7 +27,7 @@ else
 endif
 SHLIB_FILE=libuci.$(SHLIB_EXT).$(VERSION)
 
-LIBUCI_DEPS=file.c history.c list.c util.c err.h uci.h
+LIBUCI_DEPS=file.c history.c list.c util.c uci.h uci_internal.h
 
 all: uci-static uci libuci.$(SHLIB_EXT)
 
