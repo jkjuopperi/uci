@@ -32,7 +32,8 @@
 
 #define UCI_CONFDIR "/etc/config"
 #define UCI_SAVEDIR "/tmp/.uci"
-#define UCI_FILEMODE	0600
+#define UCI_DIRMODE 0700
+#define UCI_FILEMODE 0600
 
 enum
 {
