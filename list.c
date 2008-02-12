@@ -236,7 +236,7 @@ int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_pac
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, res != NULL);
 	UCI_ASSERT(ctx, p != NULL);
-	UCI_ASSERT(ctx, uci_validate_name(section));
+	UCI_ASSERT(ctx, section && uci_validate_name(section));
 	if (option)
 		UCI_ASSERT(ctx, uci_validate_name(option));
 
