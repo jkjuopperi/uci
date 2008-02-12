@@ -15,6 +15,8 @@
 #ifndef __LIBUCI_H
 #define __LIBUCI_H
 
+#include "uci_config.h"
+
 /*
  * you can use these defines to enable debugging behavior for
  * apps compiled against libuci:
@@ -23,11 +25,6 @@
  *   enable uci_element typecast checking at run time
  *
  */
-
-#ifdef DEBUG_ALL
-#define UCI_DEBUG
-#define UCI_DEBUG_TYPECAST
-#endif
 
 #include <stdbool.h>
 #include <setjmp.h>

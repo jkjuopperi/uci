@@ -5,3 +5,4 @@ uci-static
 *.dylib*
 .*.swp
 .gdb*
+uci_config.h
