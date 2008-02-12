@@ -228,6 +228,8 @@ extern int uci_commit(struct uci_context *ctx, struct uci_package **p, bool over
 /**
  * uci_list_configs: List available uci config files
  * @ctx: uci context
+ *
+ * caller is responsible for freeing the allocated memory behind list
  */
 extern int uci_list_configs(struct uci_context *ctx, char ***list);
 
