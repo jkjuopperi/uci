@@ -1,4 +1,4 @@
-VERSION=0.2
+VERSION=0.3
 
 COPTS=-O2
 WOPTS=-pedantic -Wno-unused -Werror
