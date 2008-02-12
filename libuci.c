@@ -172,11 +172,13 @@ int uci_list_configs(struct uci_context *ctx, char ***list)
 
 int uci_commit(struct uci_context *ctx, struct uci_package **package, bool overwrite)
 {
+	struct uci_package *p;
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, package != NULL);
-	UCI_ASSERT(ctx, *package != NULL);
-	UCI_ASSERT(ctx, ctx->backend && ctx->backend->commit);
-	ctx->backend->commit(ctx, package, overwrite);
+	p = *package;
+	UCI_ASSERT(ctx, p != NULL);
+	UCI_ASSERT(ctx, p->backend && p->backend->commit);
+	p->backend->commit(ctx, package, overwrite);
 	return 0;
 }
 
