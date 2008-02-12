@@ -403,7 +403,6 @@ static int uci_batch(void)
 			fprintf(stderr, "Unknown command\n");
 
 		/* clean up */
-		uci_cleanup(ctx);
 		uci_foreach_element_safe(&ctx->root, tmp, e) {
 			uci_unload(ctx, uci_to_package(e));
 		}

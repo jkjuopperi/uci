@@ -39,6 +39,8 @@ static const char *uci_errstr[] = {
 	[UCI_ERR_UNKNOWN] =   "Unknown error",
 };
 
+static void uci_cleanup(struct uci_context *ctx);
+
 #include "uci_internal.h"
 #include "util.c"
 #include "list.c"
@@ -58,6 +60,7 @@ struct uci_context *uci_alloc_context(void)
 
 	ctx->confdir = (char *) uci_confdir;
 	ctx->savedir = (char *) uci_savedir;
+	ctx->backend = &uci_file_backend;
 
 	return ctx;
 }
@@ -71,9 +74,8 @@ void uci_free_context(struct uci_context *ctx)
 	if (ctx->savedir != uci_savedir)
 		free(ctx->savedir);
 
-	UCI_TRAP_SAVE(ctx, ignore);
-	ctx->internal = true;
 	uci_cleanup(ctx);
+	UCI_TRAP_SAVE(ctx, ignore);
 	uci_foreach_element_safe(&ctx->root, tmp, e) {
 		struct uci_package *p = uci_to_package(e);
 		uci_free_package(&p);
@@ -102,10 +104,9 @@ int uci_set_confdir(struct uci_context *ctx, const char *dir)
 	return 0;
 }
 
-int uci_cleanup(struct uci_context *ctx)
+static void uci_cleanup(struct uci_context *ctx)
 {
 	struct uci_parse_context *pctx;
-	UCI_HANDLE_ERR(ctx);
 
 	if (ctx->buf) {
 		free(ctx->buf);
@@ -115,7 +116,7 @@ int uci_cleanup(struct uci_context *ctx)
 
 	pctx = ctx->pctx;
 	if (!pctx)
-		goto done;
+		return;
 
 	ctx->pctx = NULL;
 	if (pctx->package)
@@ -125,8 +126,6 @@ int uci_cleanup(struct uci_context *ctx)
 		free(pctx->buf);
 
 	free(pctx);
-done:
-	return 0;
 }
 
 void uci_perror(struct uci_context *ctx, const char *prefix)
@@ -157,6 +156,28 @@ void uci_perror(struct uci_context *ctx, const char *prefix)
 		fprintf(stderr, "%s\n", uci_errstr[err]);
 		break;
 	}
+}
+
+int uci_commit(struct uci_context *ctx, struct uci_package **package, bool overwrite)
+{
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, package != NULL);
+	UCI_ASSERT(ctx, *package != NULL);
+	UCI_ASSERT(ctx, ctx->backend && ctx->backend->commit);
+	ctx->backend->commit(ctx, package, overwrite);
+	return 0;
+}
+
+int uci_load(struct uci_context *ctx, const char *name, struct uci_package **package)
+{
+	struct uci_package *p;
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, ctx->backend && ctx->backend->load);
+	p = ctx->backend->load(ctx, name);
+	if (package)
+		*package = p;
+
+	return 0;
 }
 
 

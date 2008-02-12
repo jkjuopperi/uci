@@ -25,13 +25,7 @@
 #include <stdio.h>
 #include <ctype.h>
 
-/*
- * Clean up all extra memory used by the parser and exporter
- */
-static void uci_file_cleanup(struct uci_context *ctx)
-{
-}
-
+static struct uci_backend uci_file_backend;
 
 /*
  * verify that the end of the line or command is reached.
@@ -61,6 +55,7 @@ static void uci_switch_config(struct uci_context *ctx)
 
 	/* add the last config to main config file list */
 	if (pctx->package) {
+		pctx->package->backend = ctx->backend;
 		uci_list_add(&ctx->root, &pctx->package->e.list);
 
 		pctx->package = NULL;
@@ -298,7 +293,8 @@ int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct u
 	UCI_HANDLE_ERR(ctx);
 
 	/* make sure no memory from previous parse attempts is leaked */
-	uci_file_cleanup(ctx);
+	ctx->internal = true;
+	uci_cleanup(ctx);
 
 	uci_alloc_parse_context(ctx);
 	pctx = ctx->pctx;
@@ -343,7 +339,7 @@ error:
 	uci_switch_config(ctx);
 
 	/* no error happened, we can get rid of the parser context now */
-	uci_file_cleanup(ctx);
+	uci_cleanup(ctx);
 
 	return 0;
 }
@@ -360,69 +356,19 @@ static char *uci_config_path(struct uci_context *ctx, const char *name)
 	return filename;
 }
 
-int uci_load(struct uci_context *ctx, const char *name, struct uci_package **package)
+void uci_file_commit(struct uci_context *ctx, struct uci_package **package, bool overwrite)
 {
-	char *filename;
-	bool confdir;
-	FILE *file = NULL;
-
-	UCI_HANDLE_ERR(ctx);
-
-	switch (name[0]) {
-	case '.':
-		/* relative path outside of /etc/config */
-		if (name[1] != '/')
-			UCI_THROW(ctx, UCI_ERR_NOTFOUND);
-		/* fall through */
-	case '/':
-		/* absolute path outside of /etc/config */
-		filename = uci_strdup(ctx, name);
-		name = strrchr(name, '/') + 1;
-		confdir = false;
-		break;
-	default:
-		/* config in /etc/config */
-		filename = uci_config_path(ctx, name);
-		confdir = true;
-		break;
-	}
-
-	file = uci_open_stream(ctx, filename, SEEK_SET, false, false);
-	ctx->errno = 0;
-	UCI_TRAP_SAVE(ctx, done);
-	UCI_INTERNAL(uci_import, ctx, file, name, package, true);
-	UCI_TRAP_RESTORE(ctx);
-
-	if (*package) {
-		(*package)->path = filename;
-		(*package)->confdir = confdir;
-		uci_load_history(ctx, *package, false);
-	}
-
-done:
-	uci_close_stream(file);
-	return ctx->errno;
-}
-
-int uci_commit(struct uci_context *ctx, struct uci_package **package, bool overwrite)
-{
-	struct uci_package *p;
+	struct uci_package *p = *package;
 	FILE *f = NULL;
 	char *name = NULL;
 	char *path = NULL;
 
-	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, package != NULL);
-	p = *package;
-
-	UCI_ASSERT(ctx, p != NULL);
 	if (!p->path) {
 		if (overwrite)
 			p->path = uci_config_path(ctx, p->e.name);
 		else
 			UCI_THROW(ctx, UCI_ERR_INVAL);
 	}
-
 
 	/* open the config file for writing now, so that it is locked */
 	f = uci_open_stream(ctx, p->path, SEEK_SET, true, true);
@@ -442,7 +388,7 @@ int uci_commit(struct uci_context *ctx, struct uci_package **package, bool overw
 			 * as well. dump and reload 
 			 */
 			uci_free_package(&p);
-			uci_file_cleanup(ctx);
+			uci_cleanup(ctx);
 			UCI_INTERNAL(uci_import, ctx, f, name, &p, true);
 
 			p->path = path;
@@ -476,8 +422,6 @@ done:
 	uci_close_stream(f);
 	if (ctx->errno)
 		UCI_THROW(ctx, ctx->errno);
-
-	return 0;
 }
 
 
@@ -543,3 +487,53 @@ int uci_list_configs(struct uci_context *ctx, char ***list)
 	return 0;
 }
 
+static struct uci_package *uci_file_load(struct uci_context *ctx, const char *name)
+{
+	struct uci_package *package = NULL;
+	char *filename;
+	bool confdir;
+	FILE *file = NULL;
+
+	switch (name[0]) {
+	case '.':
+		/* relative path outside of /etc/config */
+		if (name[1] != '/')
+			UCI_THROW(ctx, UCI_ERR_NOTFOUND);
+		/* fall through */
+	case '/':
+		/* absolute path outside of /etc/config */
+		filename = uci_strdup(ctx, name);
+		name = strrchr(name, '/') + 1;
+		confdir = false;
+		break;
+	default:
+		/* config in /etc/config */
+		filename = uci_config_path(ctx, name);
+		confdir = true;
+		break;
+	}
+
+	file = uci_open_stream(ctx, filename, SEEK_SET, false, false);
+	ctx->errno = 0;
+	UCI_TRAP_SAVE(ctx, done);
+	UCI_INTERNAL(uci_import, ctx, file, name, &package, true);
+	UCI_TRAP_RESTORE(ctx);
+
+	if (package) {
+		package->path = filename;
+		package->confdir = confdir;
+		uci_load_history(ctx, package, false);
+	}
+
+done:
+	uci_close_stream(file);
+	if (ctx->errno)
+		UCI_THROW(ctx, ctx->errno);
+	return package;
+}
+
+static struct uci_backend uci_file_backend = {
+	.name = "file",
+	.load = uci_file_load,
+	.commit = uci_file_commit,
+};

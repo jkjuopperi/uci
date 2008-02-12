@@ -162,7 +162,6 @@ static int uci_parse_history(struct uci_context *ctx, FILE *stream, struct uci_p
 	int changes = 0;
 
 	/* make sure no memory from previous parse attempts is leaked */
-	ctx->internal = true;
 	uci_cleanup(ctx);
 
 	pctx = (struct uci_parse_context *) uci_malloc(ctx, sizeof(struct uci_parse_context));
@@ -187,7 +186,6 @@ error:
 	}
 
 	/* no error happened, we can get rid of the parser context now */
-	ctx->internal = true;
 	uci_cleanup(ctx);
 	return changes;
 }
@@ -311,7 +309,6 @@ done:
 	uci_foreach_element_safe(&list, tmp, e) {
 		uci_free_element(e);
 	}
-	ctx->internal = true;
 	uci_cleanup(ctx);
 }
 

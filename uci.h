@@ -63,6 +63,7 @@ struct uci_section;
 struct uci_option;
 struct uci_history;
 struct uci_context;
+struct uci_backend;
 struct uci_parse_context;
 
 
@@ -134,13 +135,6 @@ extern int uci_load(struct uci_context *ctx, const char *name, struct uci_packag
  * @package: pointer to the uci_package struct
  */
 extern int uci_unload(struct uci_context *ctx, struct uci_package *p);
-
-/**
- * uci_cleanup: Clean up after an error
- *
- * @ctx: uci context
- */
-extern int uci_cleanup(struct uci_context *ctx);
 
 /**
  * uci_lookup: Look up an uci element
@@ -302,6 +296,14 @@ struct uci_element
 	char *name;
 };
 
+struct uci_backend
+{
+	const char *name;
+	struct uci_package *(*load)(struct uci_context *ctx, const char *name);
+	void (*commit)(struct uci_context *ctx, struct uci_package **p, bool overwrite);
+};
+
+
 struct uci_context
 {
 	/* list of config packages */
@@ -309,6 +311,9 @@ struct uci_context
 
 	/* parser context, use for error handling only */
 	struct uci_parse_context *pctx;
+
+	/* backend for import and export */
+	struct uci_backend *backend;
 
 	/* uci runtime flags */
 	enum uci_flags flags;
@@ -337,6 +342,7 @@ struct uci_package
 	char *path;
 
 	/* private: */
+	struct uci_backend *backend;
 	int n_section;
 	struct uci_list history;
 	struct uci_list saved_history;
