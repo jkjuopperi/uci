@@ -402,9 +402,6 @@ struct uci_history
  * @_type: config, section or option
  * @_ptr: pointer to the uci_list struct
  */
-#define element_to(type, ptr) \
-	container_of(ptr, struct uci_ ## type, e)
-
 #define list_to_element(ptr) \
 	container_of(ptr, struct uci_element, list)
 
