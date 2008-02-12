@@ -527,9 +527,8 @@ done:
 	return package;
 }
 
-static struct uci_backend uci_file_backend = {
-	.name = "file",
+static UCI_BACKEND(uci_file_backend, "file",
 	.load = uci_file_load,
 	.commit = uci_file_commit,
 	.list_configs = uci_list_config_files,
-};
+);

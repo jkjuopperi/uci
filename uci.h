@@ -281,7 +281,8 @@ enum uci_type {
 	UCI_TYPE_PACKAGE = 1,
 	UCI_TYPE_SECTION = 2,
 	UCI_TYPE_OPTION = 3,
-	UCI_TYPE_PATH = 4
+	UCI_TYPE_PATH = 4,
+	UCI_TYPE_BACKEND = 5,
 };
 
 enum uci_flags {
@@ -300,12 +301,11 @@ struct uci_element
 
 struct uci_backend
 {
-	const char *name;
+	struct uci_element e;
 	char **(*list_configs)(struct uci_context *ctx);
 	struct uci_package *(*load)(struct uci_context *ctx, const char *name);
 	void (*commit)(struct uci_context *ctx, struct uci_package **p, bool overwrite);
 };
-
 
 struct uci_context
 {
@@ -317,6 +317,7 @@ struct uci_context
 
 	/* backend for import and export */
 	struct uci_backend *backend;
+	struct uci_list backends;
 
 	/* uci runtime flags */
 	enum uci_flags flags;
@@ -346,6 +347,7 @@ struct uci_package
 
 	/* private: */
 	struct uci_backend *backend;
+	void *priv;
 	int n_section;
 	struct uci_list history;
 	struct uci_list saved_history;
@@ -381,6 +383,18 @@ struct uci_history
 	char *section;
 	char *value;
 };
+
+#define UCI_BACKEND(_var, _name, ...)	\
+struct uci_backend _var = {		\
+	.e.list = {			\
+		.next = &_var.e.list,	\
+		.prev = &_var.e.list,	\
+	},				\
+	.e.name = _name,		\
+	.e.type = UCI_TYPE_BACKEND,	\
+	__VA_ARGS__			\
+}
+
 
 /* linked list handling */
 #ifndef offsetof
@@ -444,6 +458,7 @@ struct uci_history
 #define uci_list_empty(list) ((list)->next == (list))
 
 /* wrappers for dynamic type handling */
+#define uci_type_backend UCI_TYPE_BACKEND
 #define uci_type_history UCI_TYPE_HISTORY
 #define uci_type_package UCI_TYPE_PACKAGE
 #define uci_type_section UCI_TYPE_SECTION
@@ -452,6 +467,7 @@ struct uci_history
 /* element typecasting */
 #ifdef UCI_DEBUG_TYPECAST
 static const char *uci_typestr[] = {
+	[uci_type_backend] = "backend",
 	[uci_type_history] = "history",
 	[uci_type_package] = "package",
 	[uci_type_section] = "section",
@@ -472,12 +488,14 @@ static void uci_typecast_error(int from, int to)
 		return (struct uci_ ## _type *) e; \
 	}
 
+BUILD_CAST(backend)
 BUILD_CAST(history)
 BUILD_CAST(package)
 BUILD_CAST(section)
 BUILD_CAST(option)
 
 #else
+#define uci_to_backend(ptr) container_of(ptr, struct uci_backend, e)
 #define uci_to_history(ptr) container_of(ptr, struct uci_history, e)
 #define uci_to_package(ptr) container_of(ptr, struct uci_package, e)
 #define uci_to_section(ptr) container_of(ptr, struct uci_section, e)

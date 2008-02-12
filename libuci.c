@@ -56,10 +56,13 @@ struct uci_context *uci_alloc_context(void)
 	memset(ctx, 0, sizeof(struct uci_context));
 	uci_list_init(&ctx->root);
 	uci_list_init(&ctx->history_path);
+	uci_list_init(&ctx->backends);
 	ctx->flags = UCI_FLAG_STRICT;
 
 	ctx->confdir = (char *) uci_confdir;
 	ctx->savedir = (char *) uci_savedir;
+
+	uci_list_add(&ctx->backends, &uci_file_backend.e.list);
 	ctx->backend = &uci_file_backend;
 
 	return ctx;
