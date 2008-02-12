@@ -50,6 +50,7 @@
 		__val = setjmp(ctx->trap); \
 	ctx->internal = false;		\
 	if (__val) {			\
+		DPRINTF("LEAVE: %s, ret=%d\n", __func__, __val); \
 		ctx->errno = __val;	\
 		return __val;		\
 	}				\
