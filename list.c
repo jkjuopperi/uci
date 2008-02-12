@@ -401,6 +401,7 @@ int uci_rename(struct uci_context *ctx, struct uci_package *p, char *section, ch
 
 int uci_add_section(struct uci_context *ctx, struct uci_package *p, char *type, struct uci_section **res)
 {
+	bool internal = ctx->internal;
 	struct uci_section *s;
 
 	UCI_HANDLE_ERR(ctx);
@@ -408,7 +409,8 @@ int uci_add_section(struct uci_context *ctx, struct uci_package *p, char *type, 
 	s = uci_alloc_section(p, type, NULL);
 	uci_fixup_section(ctx, s);
 	*res = s;
-	uci_add_history(ctx, &p->history, UCI_CMD_ADD, s->e.name, NULL, type);
+	if (!internal && p->has_history)
+		uci_add_history(ctx, &p->history, UCI_CMD_ADD, s->e.name, NULL, type);
 
 	return 0;
 }
