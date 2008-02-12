@@ -275,6 +275,15 @@ extern int uci_revert(struct uci_context *ctx, struct uci_package **p, char *sec
  */
 extern int uci_parse_argument(struct uci_context *ctx, FILE *stream, char **str, char **result);
 
+/**
+ * uci_set_backend: change the default backend
+ * @ctx: uci context
+ * @name: name of the backend
+ *
+ * The default backend is "file", which uses /etc/config for config storage
+ */
+extern int uci_set_backend(struct uci_context *ctx, const char *name);
+
 /* UCI data structures */
 enum uci_type {
 	UCI_TYPE_HISTORY = 0,

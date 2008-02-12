@@ -217,7 +217,7 @@ uci_free_package(struct uci_package **package)
 	*package = NULL;
 }
 
-static struct uci_element *uci_lookup_list(struct uci_context *ctx, struct uci_list *list, const char *name)
+static struct uci_element *uci_lookup_list(struct uci_list *list, const char *name)
 {
 	struct uci_element *e;
 
@@ -240,13 +240,13 @@ int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_pac
 	if (option)
 		UCI_ASSERT(ctx, uci_validate_name(option));
 
-	e = uci_lookup_list(ctx, &p->sections, section);
+	e = uci_lookup_list(&p->sections, section);
 	if (!e)
 		goto notfound;
 
 	if (option) {
 		s = uci_to_section(e);
-		e = uci_lookup_list(ctx, &s->options, option);
+		e = uci_lookup_list(&s->options, option);
 		if (!e)
 			goto notfound;
 	}
@@ -451,7 +451,7 @@ int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char 
 	 * if the section/option is to be modified and it is not found
 	 * create a new element in the appropriate list
 	 */
-	e = uci_lookup_list(ctx, &p->sections, section);
+	e = uci_lookup_list(&p->sections, section);
 	if (!e)
 		goto notfound;
 
@@ -460,7 +460,7 @@ int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char 
 		ctx->pctx->section = s;
 
 	if (option) {
-		e = uci_lookup_list(ctx, &s->options, option);
+		e = uci_lookup_list(&s->options, option);
 		if (!e)
 			goto notfound;
 		o = uci_to_option(e);

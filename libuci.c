@@ -194,4 +194,15 @@ int uci_load(struct uci_context *ctx, const char *name, struct uci_package **pac
 	return 0;
 }
 
+int uci_set_backend(struct uci_context *ctx, const char *name)
+{
+	struct uci_element *e;
 
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, name != NULL);
+	e = uci_lookup_list(&ctx->backends, name);
+	if (!e)
+		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
+	ctx->backend = uci_to_backend(e);
+	return 0;
+}

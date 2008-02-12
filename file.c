@@ -69,7 +69,7 @@ static void uci_switch_config(struct uci_context *ctx)
 	 * if an older config under the same name exists, unload it
 	 * ignore errors here, e.g. if the config was not found
 	 */
-	e = uci_lookup_list(ctx, &ctx->root, name);
+	e = uci_lookup_list(&ctx->root, name);
 	if (e)
 		UCI_THROW(ctx, UCI_ERR_DUPLICATE);
 	pctx->package = uci_alloc_package(ctx, name);
