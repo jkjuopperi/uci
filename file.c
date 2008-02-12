@@ -330,6 +330,8 @@ error:
 	}
 
 	uci_fixup_section(ctx, ctx->pctx->section);
+	if (!pctx->package && name)
+		uci_switch_config(ctx);
 	if (package)
 		*package = pctx->package;
 	if (pctx->merge)
