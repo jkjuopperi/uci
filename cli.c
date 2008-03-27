@@ -59,6 +59,7 @@ static void uci_usage(void)
 		"\texport     [<config>]\n"
 		"\timport     [<config>]\n"
 		"\tchanges    [<config>]\n"
+		"\tcommit     [<config>]\n"
 		"\tadd        <config> <section-type>\n"
 		"\tshow       [<config>[.<section>[.<option>]]]\n"
 		"\tget        <config>.<section>[.<option>]\n"
