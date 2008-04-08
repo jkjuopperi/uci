@@ -35,6 +35,7 @@ static void assert_eol(struct uci_context *ctx, char **str)
 {
 	char *tmp;
 
+	skip_whitespace(ctx, str);
 	tmp = next_arg(ctx, str, false, false);
 	if (*tmp && (ctx->flags & UCI_FLAG_STRICT))
 		uci_parse_error(ctx, *str, "too many arguments");
@@ -169,19 +170,17 @@ error:
 static void uci_parse_line(struct uci_context *ctx, bool single)
 {
 	struct uci_parse_context *pctx = ctx->pctx;
-	char *word, *brk = NULL;
+	char *word, *brk;
 
-	for (word = strtok_r(pctx->buf, ";", &brk);
-		 word;
-		 word = strtok_r(NULL, ";", &brk)) {
-
-		char *pbrk = NULL;
-		word = strtok_r(word, " \t", &pbrk);
-
+	word = pctx->buf;
+	do {
+		brk = NULL;
+		word = strtok_r(word, " \t", &brk);
 		if (!word)
-			continue;
+			return;
 
 		switch(word[0]) {
+			case 0:
 			case '#':
 				return;
 			case 'p':
@@ -200,7 +199,7 @@ static void uci_parse_line(struct uci_context *ctx, bool single)
 				uci_parse_error(ctx, word, "unterminated command");
 				break;
 		}
-	}
+	} while (1);
 }
 
 /* max number of characters that escaping adds to the string */

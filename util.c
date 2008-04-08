@@ -303,6 +303,7 @@ static void parse_single_quote(struct uci_context *ctx, char **str, char **targe
  */
 static void parse_str(struct uci_context *ctx, char **str, char **target)
 {
+	bool next = true;
 	do {
 		switch(**str) {
 		case '\'':
@@ -315,6 +316,9 @@ static void parse_str(struct uci_context *ctx, char **str, char **target)
 			**str = 0;
 			/* fall through */
 		case 0:
+			goto done;
+		case ';':
+			next = false;
 			goto done;
 		case '\\':
 			if (!parse_backslash(ctx, str))
@@ -332,7 +336,7 @@ done:
 	 * character, skip to the next one, because the whitespace will
 	 * be overwritten by a null byte here
 	 */
-	if (**str)
+	if (**str && next)
 		*str += 1;
 
 	/* terminate the parsed string */
@@ -349,7 +353,12 @@ static char *next_arg(struct uci_context *ctx, char **str, bool required, bool n
 
 	val = ptr = *str;
 	skip_whitespace(ctx, str);
-	parse_str(ctx, str, &ptr);
+	if(*str[0] == ';') {
+		*str[0] = 0;
+		*str += 1;
+	} else {
+		parse_str(ctx, str, &ptr);
+	}
 	if (!*val) {
 		if (required)
 			uci_parse_error(ctx, *str, "insufficient arguments");
