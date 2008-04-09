@@ -340,7 +340,7 @@ struct uci_context
 	struct uci_list history_path;
 
 	/* private: */
-	int errno;
+	int err;
 	const char *func;
 	jmp_buf trap;
 	bool internal;

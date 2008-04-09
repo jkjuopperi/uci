@@ -111,7 +111,7 @@ struct uci_backend _var = {		\
 #define UCI_HANDLE_ERR(ctx) do {	\
 	DPRINTF("ENTER: %s\n", __func__); \
 	int __val = 0;			\
-	ctx->errno = 0;			\
+	ctx->err = 0;			\
 	if (!ctx)			\
 		return UCI_ERR_INVAL;	\
 	if (!ctx->internal)		\
@@ -119,7 +119,7 @@ struct uci_backend _var = {		\
 	ctx->internal = false;		\
 	if (__val) {			\
 		DPRINTF("LEAVE: %s, ret=%d\n", __func__, __val); \
-		ctx->errno = __val;	\
+		ctx->err = __val;	\
 		return __val;		\
 	}				\
 } while (0)
@@ -136,7 +136,7 @@ struct uci_backend _var = {		\
 	memcpy(__old_trap, ctx->trap, sizeof(ctx->trap)); \
 	__val = setjmp(ctx->trap);	\
 	if (__val) {			\
-		ctx->errno = __val;	\
+		ctx->err = __val;	\
 		memcpy(ctx->trap, __old_trap, sizeof(ctx->trap)); \
 		goto handler;		\
 	}

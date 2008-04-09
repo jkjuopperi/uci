@@ -239,7 +239,7 @@ static int uci_load_history(struct uci_context *ctx, struct uci_package *p, bool
 	if (filename)
 		free(filename);
 	uci_close_stream(f);
-	ctx->errno = 0;
+	ctx->err = 0;
 	return changes;
 }
 
@@ -340,13 +340,13 @@ int uci_revert(struct uci_context *ctx, struct uci_package **pkg, char *section,
 
 	UCI_INTERNAL(uci_load, ctx, name, &p);
 	UCI_TRAP_RESTORE(ctx);
-	ctx->errno = 0;
+	ctx->err = 0;
 
 error:
 	if (name)
 		free(name);
-	if (ctx->errno)
-		UCI_THROW(ctx, ctx->errno);
+	if (ctx->err)
+		UCI_THROW(ctx, ctx->err);
 	return 0;
 }
 
@@ -380,7 +380,7 @@ int uci_save(struct uci_context *ctx, struct uci_package *p)
 	if ((asprintf(&filename, "%s/%s", ctx->savedir, p->e.name) < 0) || !filename)
 		UCI_THROW(ctx, UCI_ERR_MEM);
 
-	ctx->errno = 0;
+	ctx->err = 0;
 	UCI_TRAP_SAVE(ctx, done);
 	f = uci_open_stream(ctx, filename, SEEK_END, true, true);
 	UCI_TRAP_RESTORE(ctx);
@@ -417,8 +417,8 @@ done:
 	uci_close_stream(f);
 	if (filename)
 		free(filename);
-	if (ctx->errno)
-		UCI_THROW(ctx, ctx->errno);
+	if (ctx->err)
+		UCI_THROW(ctx, ctx->err);
 
 	return 0;
 }

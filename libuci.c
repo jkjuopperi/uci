@@ -137,7 +137,7 @@ void uci_perror(struct uci_context *ctx, const char *prefix)
 	if (!ctx)
 		err = UCI_ERR_INVAL;
 	else
-		err = ctx->errno;
+		err = ctx->err;
 
 	if ((err < 0) || (err >= UCI_ERR_LAST))
 		err = UCI_ERR_UNKNOWN;

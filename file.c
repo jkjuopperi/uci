@@ -128,7 +128,7 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 		UCI_TRAP_RESTORE(ctx);
 		return;
 error:
-		UCI_THROW(ctx, ctx->errno);
+		UCI_THROW(ctx, ctx->err);
 	} else
 		pctx->section = uci_alloc_section(pctx->package, type, name);
 }
@@ -158,7 +158,7 @@ static void uci_parse_option(struct uci_context *ctx, char **str)
 		UCI_TRAP_RESTORE(ctx);
 		return;
 error:
-		UCI_THROW(ctx, ctx->errno);
+		UCI_THROW(ctx, ctx->err);
 	} else
 		uci_alloc_option(pctx->section, name, value);
 }
@@ -323,9 +323,9 @@ int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct u
 error:
 		if (ctx->flags & UCI_FLAG_PERROR)
 			uci_perror(ctx, NULL);
-		if ((ctx->errno != UCI_ERR_PARSE) ||
+		if ((ctx->err != UCI_ERR_PARSE) ||
 			(ctx->flags & UCI_FLAG_STRICT))
-			UCI_THROW(ctx, ctx->errno);
+			UCI_THROW(ctx, ctx->err);
 	}
 
 	uci_fixup_section(ctx, ctx->pctx->section);
@@ -421,8 +421,8 @@ done:
 	if (path)
 		free(path);
 	uci_close_stream(f);
-	if (ctx->errno)
-		UCI_THROW(ctx, ctx->errno);
+	if (ctx->err)
+		UCI_THROW(ctx, ctx->err);
 }
 
 
@@ -511,7 +511,7 @@ static struct uci_package *uci_file_load(struct uci_context *ctx, const char *na
 	}
 
 	file = uci_open_stream(ctx, filename, SEEK_SET, false, false);
-	ctx->errno = 0;
+	ctx->err = 0;
 	UCI_TRAP_SAVE(ctx, done);
 	UCI_INTERNAL(uci_import, ctx, file, name, &package, true);
 	UCI_TRAP_RESTORE(ctx);
@@ -524,8 +524,8 @@ static struct uci_package *uci_file_load(struct uci_context *ctx, const char *na
 
 done:
 	uci_close_stream(file);
-	if (ctx->errno)
-		UCI_THROW(ctx, ctx->errno);
+	if (ctx->err)
+		UCI_THROW(ctx, ctx->err);
 	return package;
 }
 

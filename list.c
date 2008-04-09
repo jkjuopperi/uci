@@ -74,7 +74,7 @@ uci_alloc_generic(struct uci_context *ctx, int type, const char *name, int size)
 
 error:
 	free(ptr);
-	UCI_THROW(ctx, ctx->errno);
+	UCI_THROW(ctx, ctx->err);
 
 done:
 	return e;
