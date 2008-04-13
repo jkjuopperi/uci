@@ -200,27 +200,72 @@ error:
 	return 1;
 }
 
+enum pkg_cmd {
+	CMD_SAVE,
+	CMD_COMMIT,
+	CMD_REVERT
+};
+
 static int
-uci_lua_commit(lua_State *L)
+uci_lua_package_cmd(lua_State *L, enum pkg_cmd cmd)
 {
 	struct uci_element *e, *tmp;
 	const char *s = NULL;
+	const char *section = NULL;
+	const char *option = NULL;
 	int failed = 0;
+	int nargs;
 
-	if (!lua_isnoneornil(L, -1)) {
+	nargs = lua_gettop(L);
+	switch(nargs) {
+	case 3:
+		if (cmd != CMD_REVERT)
+			goto err;
+		luaL_checkstring(L, 1);
+		option = lua_tostring(L, -1);
+		lua_pop(L, 1);
+		/* fall through */
+	case 2:
+		if (cmd != CMD_REVERT)
+			goto err;
+		luaL_checkstring(L, 1);
+		section = lua_tostring(L, -1);
+		lua_pop(L, 1);
+		/* fall through */
+	case 1:
 		luaL_checkstring(L, 1);
 		s = lua_tostring(L, -1);
+		lua_pop(L, 1);
+		break;
+	default:
+		err:
+		luaL_error(L, "Invalid argument count");
+		break;
 	}
 
 	uci_foreach_element_safe(&ctx->root, tmp, e) {
 		struct uci_package *p = uci_to_package(e);
+		int ret = UCI_ERR_INVAL;
 
 		if (s && (strcmp(s, e->name) != 0))
 			continue;
 
-		if (uci_commit(ctx, &p, false) != 0)
+		switch(cmd) {
+		case CMD_COMMIT:
+			ret = uci_commit(ctx, &p, false);
+			break;
+		case CMD_SAVE:
+			ret = uci_save(ctx, p);
+			break;
+		case CMD_REVERT:
+			ret = uci_revert(ctx, &p, section, option);
+			break;
+		}
+
+		if (ret != 0)
 			failed = 1;
 	}
+
 	lua_pushboolean(L, !failed);
 	return 1;
 }
@@ -228,24 +273,19 @@ uci_lua_commit(lua_State *L)
 static int
 uci_lua_save(lua_State *L)
 {
-	struct uci_element *e;
-	const char *s = NULL;
-	int failed = 0;
+	return uci_lua_package_cmd(L, CMD_SAVE);
+}
 
-	if (!lua_isnoneornil(L, -1)) {
-		luaL_checkstring(L, 1);
-		s = lua_tostring(L, -1);
-	}
+static int
+uci_lua_commit(lua_State *L)
+{
+	return uci_lua_package_cmd(L, CMD_COMMIT);
+}
 
-	uci_foreach_element(&ctx->root, e) {
-		if (s && (strcmp(s, e->name) != 0))
-			continue;
-
-		if (uci_save(ctx, uci_to_package(e)) != 0)
-			failed = 1;
-	}
-	lua_pushboolean(L, !failed);
-	return 1;
+static int
+uci_lua_revert(lua_State *L)
+{
+	return uci_lua_package_cmd(L, CMD_REVERT);
 }
 
 static int
@@ -278,6 +318,7 @@ static const luaL_Reg uci[] = {
 	{ "set", uci_lua_set },
 	{ "save", uci_lua_save },
 	{ "commit", uci_lua_commit },
+	{ "revert", uci_lua_revert },
 	{ "set_confdir", uci_lua_set_confdir },
 	{ "set_savedir", uci_lua_set_savedir },
 	{ NULL, NULL },
