@@ -103,7 +103,6 @@ uci_lua_load(lua_State *L)
 static int
 uci_lua_get(lua_State *L)
 {
-	struct uci_lua_context *f;
 	struct uci_element *e = NULL;
 	struct uci_package *p = NULL;
 	char *package = NULL;
