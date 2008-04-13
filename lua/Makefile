@@ -1,6 +1,6 @@
 include ../Makefile.inc
 
-CPPFLAGS=-I..
+CPPFLAGS=-I.. $(shell pkg-config --silence-errors --cflags lua5.1)
 LIBS=-L.. -luci
 
 PLUGIN_LD=$(CC)
@@ -16,7 +16,7 @@ uci.so: uci.o
 	$(PLUGIN_LD) $(PLUGIN_LDFLAGS) -o $@ $^ $(LIBS)
 
 %.o: %.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(FPIC) -c -o $@ $<
 
 install:
 	mkdir -p $(DESTDIR)$(prefix)/lib/lua/5.1
