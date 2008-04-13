@@ -68,7 +68,7 @@ uci_lua_unload(lua_State *L)
 	struct uci_package *p;
 	const char *s;
 
-	luaL_checkany(L, 1);
+	luaL_checkstring(L, 1);
 	s = lua_tostring(L, -1);
 	p = find_package(s);
 	if (p) {
@@ -112,7 +112,7 @@ uci_lua_get(lua_State *L)
 	char *s;
 	int err = UCI_ERR_MEM;
 
-	luaL_checkany(L, 1);
+	luaL_checkstring(L, 1);
 	s = strdup(lua_tostring(L, -1));
 	if (!s)
 		goto error;
@@ -163,10 +163,35 @@ error:
 }
 
 
+static int
+uci_lua_set_confdir(lua_State *L)
+{
+	int ret;
+
+	luaL_checkstring(L, 1);
+	ret = uci_set_confdir(ctx, lua_tostring(L, -1));
+	lua_pushboolean(L, (ret == 0));
+	return 1;
+}
+
+static int
+uci_lua_set_savedir(lua_State *L)
+{
+	int ret;
+
+	luaL_checkstring(L, 1);
+	ret = uci_set_savedir(ctx, lua_tostring(L, -1));
+	lua_pushboolean(L, (ret == 0));
+
+	return 1;
+}
+
 static const luaL_Reg uci[] = {
 	{ "load", uci_lua_load },
 	{ "unload", uci_lua_unload },
 	{ "get", uci_lua_get },
+	{ "set_confdir", uci_lua_set_confdir },
+	{ "set_savedir", uci_lua_set_savedir },
 	{ NULL, NULL },
 };
 
