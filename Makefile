@@ -5,35 +5,9 @@ PLUGIN_SUPPORT=1
 DEBUG=0
 DEBUG_TYPECAST=0
 
-prefix=/usr
-DESTDIR=
+include Makefile.inc
 
-COPTS=-O2
-WOPTS=-pedantic -Wno-unused -Werror
-FPIC=-fPIC
-CFLAGS=$(COPTS) $(WOPTS) -Wall -std=gnu99
-
-AR=ar
-LD=ld
-CC=gcc
 LIBS=-lc
-RANLIB=ranlib
-INSTALL=install
-
-ifeq ($(DEBUG),1)
-  COPTS = -O0
-  CFLAGS += -g3
-endif
-OS=$(shell uname)
-ifeq ($(OS),Darwin)
-  LINK=$(LD)
-  SHLIB_EXT=dylib
-  SHLIB_FLAGS=-dylib
-else
-  LINK=$(CC)
-  SHLIB_EXT=so
-  SHLIB_FLAGS=-shared -Wl,-soname,$(SHLIB_FILE)
-endif
 SHLIB_FILE=libuci.$(SHLIB_EXT).$(VERSION)
 
 define add_feature

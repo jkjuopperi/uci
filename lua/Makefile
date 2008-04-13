@@ -1,27 +1,26 @@
-CC=gcc
-LD=ld
-CFLAGS=-O2 -Wall -Werror -pedantic --std=gnu99 -Wno-unused
+include ../Makefile.inc
+
 CPPFLAGS=-I..
 LIBS=-L.. -luci
-OS=$(shell uname)
-LINK=$(CC)
+
+PLUGIN_LD=$(CC)
 ifeq ($(OS),Darwin)
-  SHLIB_FLAGS=-bundle -undefined dynamic_lookup
+  PLUGIN_LDFLAGS=-bundle -undefined dynamic_lookup
 else
-  SHLIB_FLAGS=-shared -Wl,-soname,$(SHLIB_FILE)
+  PLUGIN_LDFLAGS=-shared -Wl,-soname,$(SHLIB_FILE)
 endif
 
 all: uci.so
 
 uci.so: uci.o
-	$(LINK) $(SHLIB_FLAGS) -o $@ $^ $(LIBS)
+	$(PLUGIN_LD) $(PLUGIN_LDFLAGS) -o $@ $^ $(LIBS)
 
 %.o: %.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 install:
-	mkdir -p $(DESTDIR)/usr/lib/lua
-	install -m0644 uci.so $(DESTDIR)/usr/lib/lua/
+	mkdir -p $(DESTDIR)$(prefix)/lib/lua/5.1
+	$(INSTALL) -m0644 uci.so $(DESTDIR)$(prefix)/lib/lua/5.1/
 
 clean:
 	rm -f *.so *.o uci.so
