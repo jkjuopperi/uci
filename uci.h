@@ -262,7 +262,7 @@ extern int uci_add_history_path(struct uci_context *ctx, const char *dir);
  * @section: section name (optional)
  * @option option name (optional)
  */
-extern int uci_revert(struct uci_context *ctx, struct uci_package **p, char *section, char *option);
+extern int uci_revert(struct uci_context *ctx, struct uci_package **p, const char *section, const char *option);
 
 /**
  * uci_parse_argument: parse a shell-style argument, with an arbitrary quoting style

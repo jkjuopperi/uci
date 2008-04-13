@@ -243,7 +243,7 @@ static int uci_load_history(struct uci_context *ctx, struct uci_package *p, bool
 	return changes;
 }
 
-static void uci_filter_history(struct uci_context *ctx, const char *name, char *section, char *option)
+static void uci_filter_history(struct uci_context *ctx, const char *name, const char *section, const char *option)
 {
 	struct uci_parse_context *pctx;
 	struct uci_element *e, *tmp;
@@ -312,7 +312,7 @@ done:
 	uci_cleanup(ctx);
 }
 
-int uci_revert(struct uci_context *ctx, struct uci_package **pkg, char *section, char *option)
+int uci_revert(struct uci_context *ctx, struct uci_package **pkg, const char *section, const char *option)
 {
 	struct uci_package *p;
 	char *name = NULL;
