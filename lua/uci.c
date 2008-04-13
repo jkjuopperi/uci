@@ -63,7 +63,7 @@ done:
 }
 
 static int
-uci_lua_load(lua_State *L)
+uci_lua_unload(lua_State *L)
 {
 	struct uci_package *p;
 	const char *s;
@@ -73,8 +73,23 @@ uci_lua_load(lua_State *L)
 	p = find_package(s);
 	if (p) {
 		uci_unload(ctx, p);
-		p = NULL;
+		lua_pushboolean(L, 1);
+	} else {
+		lua_pushboolean(L, 0);
 	}
+	return 1;
+}
+
+static int
+uci_lua_load(lua_State *L)
+{
+	struct uci_package *p = NULL;
+	const char *s;
+
+	uci_lua_unload(L);
+	lua_pop(L, 1); /* bool ret value of unload */
+	s = lua_tostring(L, -1);
+
 	if (uci_load(ctx, s, &p)) {
 		uci_lua_perror(L, "uci.load");
 		lua_pushboolean(L, 0);
@@ -150,6 +165,7 @@ error:
 
 static const luaL_Reg uci[] = {
 	{ "load", uci_lua_load },
+	{ "unload", uci_lua_unload },
 	{ "get", uci_lua_get },
 	{ NULL, NULL },
 };
