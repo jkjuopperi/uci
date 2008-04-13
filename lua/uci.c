@@ -164,6 +164,92 @@ error:
 
 
 static int
+uci_lua_set(lua_State *L)
+{
+	struct uci_package *p;
+	char *package = NULL;
+	char *section = NULL;
+	char *option = NULL;
+	char *value = NULL;
+	char *s;
+	int err = UCI_ERR_MEM;
+
+	luaL_checkstring(L, 1);
+	s = strdup(lua_tostring(L, -1));
+	if (!s)
+		goto error;
+
+	if ((err = uci_parse_tuple(ctx, s, &package, &section, &option, &value)))
+		goto error;
+
+	if ((section == NULL) || (value == NULL)) {
+		err = UCI_ERR_INVAL;
+		goto error;
+	}
+
+	p = find_package(package);
+	if (!p) {
+		err = UCI_ERR_NOTFOUND;
+		goto error;
+	}
+	err = uci_set(ctx, p, section, option, value, NULL);
+
+error:
+	if (err)
+		uci_lua_perror(L, "uci.set");
+	lua_pushboolean(L, (err == 0));
+	return 1;
+}
+
+static int
+uci_lua_commit(lua_State *L)
+{
+	struct uci_element *e, *tmp;
+	const char *s = NULL;
+	int failed = 0;
+
+	if (!lua_isnoneornil(L, -1)) {
+		luaL_checkstring(L, 1);
+		s = lua_tostring(L, -1);
+	}
+
+	uci_foreach_element_safe(&ctx->root, tmp, e) {
+		struct uci_package *p = uci_to_package(e);
+
+		if (s && (strcmp(s, e->name) != 0))
+			continue;
+
+		if (uci_commit(ctx, &p, false) != 0)
+			failed = 1;
+	}
+	lua_pushboolean(L, !failed);
+	return 1;
+}
+
+static int
+uci_lua_save(lua_State *L)
+{
+	struct uci_element *e;
+	const char *s = NULL;
+	int failed = 0;
+
+	if (!lua_isnoneornil(L, -1)) {
+		luaL_checkstring(L, 1);
+		s = lua_tostring(L, -1);
+	}
+
+	uci_foreach_element(&ctx->root, e) {
+		if (s && (strcmp(s, e->name) != 0))
+			continue;
+
+		if (uci_save(ctx, uci_to_package(e)) != 0)
+			failed = 1;
+	}
+	lua_pushboolean(L, !failed);
+	return 1;
+}
+
+static int
 uci_lua_set_confdir(lua_State *L)
 {
 	int ret;
@@ -190,6 +276,9 @@ static const luaL_Reg uci[] = {
 	{ "load", uci_lua_load },
 	{ "unload", uci_lua_unload },
 	{ "get", uci_lua_get },
+	{ "set", uci_lua_set },
+	{ "save", uci_lua_save },
+	{ "commit", uci_lua_commit },
 	{ "set_confdir", uci_lua_set_confdir },
 	{ "set_savedir", uci_lua_set_savedir },
 	{ NULL, NULL },
