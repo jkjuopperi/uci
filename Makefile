@@ -5,6 +5,9 @@ PLUGIN_SUPPORT=1
 DEBUG=0
 DEBUG_TYPECAST=0
 
+prefix=/usr
+DESTDIR=
+
 COPTS=-O2
 WOPTS=-pedantic -Wno-unused -Werror
 FPIC=-fPIC
@@ -15,6 +18,7 @@ LD=ld
 CC=gcc
 LIBS=-lc
 RANLIB=ranlib
+INSTALL=install
 
 ifeq ($(DEBUG),1)
   COPTS = -O0
@@ -76,6 +80,12 @@ libuci.$(SHLIB_EXT): libuci-shared.o
 
 clean:
 	rm -f uci uci-static *.[oa] *.so* *.dylib* uci_config.h
+
+install: all
+	$(INSTALL) -m0644 libuci.a $(DESTDIR)$(prefix)/lib/
+	$(INSTALL) -m0755 $(SHLIB_FILE) $(DESTDIR)$(prefix)/lib/
+	ln -sf $(SHLIB_FILE) $(DESTDIR)$(prefix)/lib/libuci.$(SHLIB_EXT)
+	$(INSTALL) -m0755 uci $(DESTDIR)/usr/bin/
 
 FORCE: ;
 .PHONY: FORCE
