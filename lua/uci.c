@@ -137,6 +137,46 @@ uci_lua_load(lua_State *L)
 	return 1;
 }
 
+
+static int
+uci_lua_foreach(lua_State *L)
+{
+	struct uci_package *p;
+	struct uci_element *e;
+	const char *package, *type;
+	bool ret = false;
+
+	package = luaL_checkstring(L, 1);
+
+	if (lua_isnil(L, 2))
+		type = NULL;
+	else
+		type = luaL_checkstring(L, 2);
+
+	if (!lua_isfunction(L, 3) || !package)
+		luaL_error(L, "Invalid argument");
+
+	p = find_package(package);
+	if (!p)
+		goto done;
+
+	uci_foreach_element(&p->sections, e) {
+		struct uci_section *s = uci_to_section(e);
+
+		if (type && (strcmp(s->type, type) != 0))
+			continue;
+
+		lua_pushvalue(L, 3); /* iterator function */
+		uci_push_section(L, s);
+		if (lua_pcall(L, 1, 0, 0) == 0)
+			ret = true;
+	}
+
+done:
+	lua_pushboolean(L, ret);
+	return 1;
+}
+
 static int
 uci_lua_get_any(lua_State *L, bool all)
 {
@@ -378,6 +418,7 @@ static const luaL_Reg uci[] = {
 	{ "save", uci_lua_save },
 	{ "commit", uci_lua_commit },
 	{ "revert", uci_lua_revert },
+	{ "foreach", uci_lua_foreach },
 	{ "set_confdir", uci_lua_set_confdir },
 	{ "set_savedir", uci_lua_set_savedir },
 	{ NULL, NULL },
