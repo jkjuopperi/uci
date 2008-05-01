@@ -14,6 +14,7 @@
 
 #include <sys/types.h>
 #include <sys/time.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -62,6 +63,42 @@ done:
 	lua_pop(L, 2);
 }
 
+static void uci_push_section(lua_State *L, struct uci_section *s)
+{
+	struct uci_element *e;
+
+	lua_newtable(L);
+	lua_pushstring(L, s->type);
+	lua_setfield(L, -2, "type");
+	lua_pushstring(L, s->e.name);
+	lua_setfield(L, -2, "name");
+
+	lua_newtable(L);
+	lua_pushvalue(L, -1);
+	lua_setfield(L, -3, "options");
+
+	uci_foreach_element(&s->options, e) {
+		struct uci_option *o = uci_to_option(e);
+		lua_pushstring(L, o->value);
+		lua_setfield(L, -2, o->e.name);
+	}
+	lua_pop(L, 1);
+}
+
+static void uci_push_package(lua_State *L, struct uci_package *p)
+{
+	struct uci_element *e;
+	int i = 0;
+
+	lua_newtable(L);
+	uci_foreach_element(&p->sections, e) {
+		i++;
+		luaL_setn(L, -1, i);
+		uci_push_section(L, uci_to_section(e));
+		lua_rawseti(L, -2, i);
+	}
+}
+
 static int
 uci_lua_unload(lua_State *L)
 {
@@ -101,7 +138,7 @@ uci_lua_load(lua_State *L)
 }
 
 static int
-uci_lua_get(lua_State *L)
+uci_lua_get_any(lua_State *L, bool all)
 {
 	struct uci_element *e = NULL;
 	struct uci_package *p = NULL;
@@ -119,7 +156,7 @@ uci_lua_get(lua_State *L)
 	if ((err = uci_parse_tuple(ctx, s, &package, &section, &option, NULL)))
 		goto error;
 
-	if (section == NULL) {
+	if (!all && (section == NULL)) {
 		err = UCI_ERR_INVAL;
 		goto error;
 	}
@@ -130,12 +167,22 @@ uci_lua_get(lua_State *L)
 		goto error;
 	}
 
-	if ((err = uci_lookup(ctx, &e, p, section, option)))
-		goto error;
+	if (section) {
+		if ((err = uci_lookup(ctx, &e, p, section, option)))
+			goto error;
+	} else {
+		e = &p->e;
+	}
 
 	switch(e->type) {
+		case UCI_TYPE_PACKAGE:
+			uci_push_package(L, p);
+			break;
 		case UCI_TYPE_SECTION:
-			lua_pushstring(L, uci_to_section(e)->type);
+			if (all)
+				uci_push_section(L, uci_to_section(e));
+			else
+				lua_pushstring(L, uci_to_section(e)->type);
 			break;
 		case UCI_TYPE_OPTION:
 			lua_pushstring(L, uci_to_option(e)->value);
@@ -161,6 +208,17 @@ error:
 	}
 }
 
+static int
+uci_lua_get(lua_State *L)
+{
+	return uci_lua_get_any(L, false);
+}
+
+static int
+uci_lua_get_all(lua_State *L)
+{
+	return uci_lua_get_any(L, true);
+}
 
 static int
 uci_lua_set(lua_State *L)
@@ -315,6 +373,7 @@ static const luaL_Reg uci[] = {
 	{ "load", uci_lua_load },
 	{ "unload", uci_lua_unload },
 	{ "get", uci_lua_get },
+	{ "get_all", uci_lua_get_all },
 	{ "set", uci_lua_set },
 	{ "save", uci_lua_save },
 	{ "commit", uci_lua_commit },
