@@ -228,7 +228,7 @@ static struct uci_element *uci_lookup_list(struct uci_list *list, const char *na
 	return NULL;
 }
 
-int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_package *p, char *section, char *option)
+int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_package *p, const char *section, const char *option)
 {
 	struct uci_element *e;
 	struct uci_section *s;

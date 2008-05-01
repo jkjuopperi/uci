@@ -146,7 +146,7 @@ extern int uci_unload(struct uci_context *ctx, struct uci_package *p);
  * If section is omitted, then a pointer to the config package is returned
  * If option is omitted, then a pointer to the config section is returned
  */
-extern int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_package *package, char *section, char *option);
+extern int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_package *package, const char *section, const char *option);
 
 /**
  * uci_add_section: Add an unnamed section
