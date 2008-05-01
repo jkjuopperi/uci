@@ -182,19 +182,29 @@ uci_lua_get_any(lua_State *L, bool all)
 {
 	struct uci_element *e = NULL;
 	struct uci_package *p = NULL;
-	char *package = NULL;
-	char *section = NULL;
-	char *option = NULL;
+	const char *package = NULL;
+	const char *section = NULL;
+	const char *option = NULL;
 	char *s;
 	int err = UCI_ERR_MEM;
+	int n;
+
+	n = lua_gettop(L);
 
 	luaL_checkstring(L, 1);
-	s = strdup(lua_tostring(L, -1));
+	s = strdup(lua_tostring(L, 1));
 	if (!s)
 		goto error;
 
-	if ((err = uci_parse_tuple(ctx, s, &package, &section, &option, NULL)))
-		goto error;
+	if (n > 1) {
+		package = luaL_checkstring(L, 1);
+		section = luaL_checkstring(L, 2);
+		if (n > 2)
+			option = luaL_checkstring(L, 3);
+	} else {
+		if ((err = uci_parse_tuple(ctx, s, (char **) &package, (char **) &section, (char **) &option, NULL)))
+			goto error;
+	}
 
 	if (!all && (section == NULL)) {
 		err = UCI_ERR_INVAL;
