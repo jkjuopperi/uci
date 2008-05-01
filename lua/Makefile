@@ -1,7 +1,7 @@
 include ../Makefile.inc
 
 CPPFLAGS=-I.. $(shell pkg-config --silence-errors --cflags lua5.1)
-LIBS=-L.. -luci
+LIBS=-L.. -luci $(shell pkg-config --silence-errors --libs lua5.1)
 
 PLUGIN_LD=$(CC)
 ifeq ($(OS),Darwin)
