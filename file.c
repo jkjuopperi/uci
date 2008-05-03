@@ -309,7 +309,7 @@ int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct u
 	 * NB: the config file can still override the package name
 	 */
 	if (name) {
-		UCI_ASSERT(ctx, uci_validate_name(name));
+		UCI_ASSERT(ctx, uci_validate_str(name, false));
 		pctx->name = name;
 	}
 
@@ -350,7 +350,7 @@ static char *uci_config_path(struct uci_context *ctx, const char *name)
 {
 	char *filename;
 
-	UCI_ASSERT(ctx, uci_validate_name(name));
+	UCI_ASSERT(ctx, uci_validate_str(name, false));
 	filename = uci_malloc(ctx, strlen(name) + strlen(ctx->confdir) + 2);
 	sprintf(filename, "%s/%s", ctx->confdir, name);
 

@@ -120,7 +120,7 @@ int uci_parse_tuple(struct uci_context *ctx, char *str, char **package, char **s
 	}
 
 	*package = strsep(&str, ".");
-	if (!*package || !uci_validate_name(*package))
+	if (!*package || !uci_validate_str(*package, false))
 		goto error;
 
 	*section = strsep(&str, ".");
