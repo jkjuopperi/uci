@@ -271,23 +271,70 @@ uci_lua_get_all(lua_State *L)
 }
 
 static int
+uci_lua_add(lua_State *L)
+{
+	struct uci_section *s = NULL;
+	struct uci_package *p;
+	const char *package;
+	const char *type;
+	const char *name = NULL;
+
+	do {
+		package = luaL_checkstring(L, 1);
+		type = luaL_checkstring(L, 2);
+		p = find_package(package);
+		if (!p)
+			break;
+
+		if (uci_add_section(ctx, p, type, &s) || !s)
+			break;
+
+		name = s->e.name;
+	} while (0);
+
+	lua_pushstring(L, name);
+	return 1;
+}
+
+static int
 uci_lua_set(lua_State *L)
 {
 	struct uci_package *p;
-	char *package = NULL;
-	char *section = NULL;
-	char *option = NULL;
-	char *value = NULL;
-	char *s;
+	const char *package = NULL;
+	const char *section = NULL;
+	const char *option = NULL;
+	const char *value = NULL;
+	const char *s;
 	int err = UCI_ERR_MEM;
+	int nargs;
 
-	luaL_checkstring(L, 1);
-	s = strdup(lua_tostring(L, -1));
-	if (!s)
-		goto error;
+	nargs = lua_gettop(L);
 
-	if ((err = uci_parse_tuple(ctx, s, &package, &section, &option, &value)))
+	s = luaL_checkstring(L, 1);
+	switch(nargs) {
+	case 1:
+		/* Format: uci.set("p.s.o=v") or uci.set("p.s=v") */
+		s = strdup(s);
+		if (!s)
+			goto error;
+
+		if ((err = uci_parse_tuple(ctx, (char *) s, (char **) &package, (char **) &section, (char **) &option, (char **) &value)))
+			goto error;
+		break;
+	case 4:
+		/* Format: uci.set("p", "s", "o", "v") */
+		option = luaL_checkstring(L, 3);
+		/* fall through */
+	case 3:
+		/* Format: uci.set("p", "s", "v") */
+		package = s;
+		section = luaL_checkstring(L, 2);
+		value = luaL_checkstring(L, nargs);
+		break;
+	default:
+		err = UCI_ERR_INVAL;
 		goto error;
+	}
 
 	if ((section == NULL) || (value == NULL)) {
 		err = UCI_ERR_INVAL;
@@ -424,6 +471,7 @@ static const luaL_Reg uci[] = {
 	{ "unload", uci_lua_unload },
 	{ "get", uci_lua_get },
 	{ "get_all", uci_lua_get_all },
+	{ "add", uci_lua_add },
 	{ "set", uci_lua_set },
 	{ "save", uci_lua_save },
 	{ "commit", uci_lua_commit },
