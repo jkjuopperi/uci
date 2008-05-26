@@ -36,17 +36,35 @@
 static struct uci_context *ctx = NULL;
 
 static struct uci_package *
-find_package(const char *name)
+find_package(lua_State *L, const char *name, bool autoload)
 {
 	struct uci_package *p = NULL;
 	struct uci_element *e;
+
 	uci_foreach_element(&ctx->root, e) {
 		if (strcmp(e->name, name) != 0)
 			continue;
 
 		p = uci_to_package(e);
-		break;
+		goto done;
 	}
+
+	if (autoload) {
+		do {
+			lua_getfield(L, LUA_GLOBALSINDEX, "uci");
+			lua_getfield(L, -1, "autoload");
+			if (!lua_isboolean(L, -1))
+				break;
+
+			if (!lua_toboolean(L, -1))
+				break;
+
+			uci_load(ctx, name, &p);
+		} while (0);
+		lua_pop(L, 2);
+	}
+
+done:
 	return p;
 }
 
@@ -107,7 +125,7 @@ uci_lua_unload(lua_State *L)
 
 	luaL_checkstring(L, 1);
 	s = lua_tostring(L, -1);
-	p = find_package(s);
+	p = find_package(L, s, false);
 	if (p) {
 		uci_unload(ctx, p);
 		lua_pushboolean(L, 1);
@@ -156,7 +174,7 @@ uci_lua_foreach(lua_State *L)
 	if (!lua_isfunction(L, 3) || !package)
 		luaL_error(L, "Invalid argument");
 
-	p = find_package(package);
+	p = find_package(L, package, true);
 	if (!p)
 		goto done;
 
@@ -211,7 +229,7 @@ uci_lua_get_any(lua_State *L, bool all)
 		goto error;
 	}
 
-	p = find_package(package);
+	p = find_package(L, package, true);
 	if (!p) {
 		err = UCI_ERR_NOTFOUND;
 		goto error;
@@ -282,7 +300,7 @@ uci_lua_add(lua_State *L)
 	do {
 		package = luaL_checkstring(L, 1);
 		type = luaL_checkstring(L, 2);
-		p = find_package(package);
+		p = find_package(L, package, true);
 		if (!p)
 			break;
 
@@ -341,7 +359,7 @@ uci_lua_set(lua_State *L)
 		goto error;
 	}
 
-	p = find_package(package);
+	p = find_package(L, package, true);
 	if (!p) {
 		err = UCI_ERR_NOTFOUND;
 		goto error;
@@ -492,5 +510,12 @@ luaopen_uci(lua_State *L)
 	if (!ctx)
 		luaL_error(L, "Cannot allocate UCI context\n");
 	luaL_register(L, MODNAME, uci);
+
+	/* enable autoload by default */
+	lua_getfield(L, LUA_GLOBALSINDEX, "uci");
+	lua_pushboolean(L, 1);
+	lua_setfield(L, -2, "autoload");
+	lua_pop(L, 1);
+
 	return 0;
 }
