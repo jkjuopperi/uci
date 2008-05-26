@@ -155,7 +155,7 @@ extern int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct 
  * @type: section type
  * @res: pointer to store a reference to the new section in
  */
-extern int uci_add_section(struct uci_context *ctx, struct uci_package *p, char *type, struct uci_section **res);
+extern int uci_add_section(struct uci_context *ctx, struct uci_package *p, const char *type, struct uci_section **res);
 
 /**
  * uci_set_element_value: Replace an element's value with a new one
@@ -166,7 +166,7 @@ extern int uci_add_section(struct uci_context *ctx, struct uci_package *p, char 
  * Only valid for uci_option and uci_section. Will replace the type string
  * when used with an uci_section
  */
-extern int uci_set_element_value(struct uci_context *ctx, struct uci_element **element, char *value);
+extern int uci_set_element_value(struct uci_context *ctx, struct uci_element **element, const char *value);
 
 /**
  * uci_set: Set an element's value; create the element if necessary
@@ -177,7 +177,7 @@ extern int uci_set_element_value(struct uci_context *ctx, struct uci_element **e
  * @value: value (option) or type (section)
  * @result: store the updated element in this variable (optional)
  */
-extern int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char *option, char *value, struct uci_element **result);
+extern int uci_set(struct uci_context *ctx, struct uci_package *p, const char *section, const char *option, const char *value, struct uci_element **result);
 
 /**
  * uci_rename: Rename an element

@@ -28,7 +28,7 @@
 
 /* record a change that was done to a package */
 void
-uci_add_history(struct uci_context *ctx, struct uci_list *list, int cmd, char *section, char *option, char *value)
+uci_add_history(struct uci_context *ctx, struct uci_list *list, int cmd, const char *section, const char *option, const char *value)
 {
 	struct uci_history *h;
 	int size = strlen(section) + 1;

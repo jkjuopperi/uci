@@ -307,7 +307,7 @@ int uci_del_element(struct uci_context *ctx, struct uci_element *e)
 	return 0;
 }
 
-int uci_set_element_value(struct uci_context *ctx, struct uci_element **element, char *value)
+int uci_set_element_value(struct uci_context *ctx, struct uci_element **element, const char *value)
 {
 	/* NB: UCI_INTERNAL use means without history tracking */
 	bool internal = ctx->internal;
@@ -399,7 +399,7 @@ int uci_rename(struct uci_context *ctx, struct uci_package *p, char *section, ch
 	return 0;
 }
 
-int uci_add_section(struct uci_context *ctx, struct uci_package *p, char *type, struct uci_section **res)
+int uci_add_section(struct uci_context *ctx, struct uci_package *p, const char *type, struct uci_section **res)
 {
 	bool internal = ctx->internal;
 	struct uci_section *s;
@@ -430,7 +430,7 @@ int uci_delete(struct uci_context *ctx, struct uci_package *p, char *section, ch
 	return uci_del_element(ctx, e);
 }
 
-int uci_set(struct uci_context *ctx, struct uci_package *p, char *section, char *option, char *value, struct uci_element **result)
+int uci_set(struct uci_context *ctx, struct uci_package *p, const char *section, const char *option, const char *value, struct uci_element **result)
 {
 	/* NB: UCI_INTERNAL use means without history tracking */
 	bool internal = ctx->internal;

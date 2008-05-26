@@ -43,7 +43,7 @@ __plugin void *uci_malloc(struct uci_context *ctx, size_t size);
 __plugin void *uci_realloc(struct uci_context *ctx, void *ptr, size_t size);
 __plugin char *uci_strdup(struct uci_context *ctx, const char *str);
 __plugin bool uci_validate_str(const char *str, bool name);
-__plugin void uci_add_history(struct uci_context *ctx, struct uci_list *list, int cmd, char *section, char *option, char *value);
+__plugin void uci_add_history(struct uci_context *ctx, struct uci_list *list, int cmd, const char *section, const char *option, const char *value);
 __plugin void uci_free_history(struct uci_history *h);
 __plugin struct uci_package *uci_alloc_package(struct uci_context *ctx, const char *name);
 
