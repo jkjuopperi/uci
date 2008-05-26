@@ -392,6 +392,8 @@ uci_lua_package_cmd(lua_State *L, enum pkg_cmd cmd)
 		s = lua_tostring(L, -1);
 		lua_pop(L, 1);
 		break;
+	case 0:
+		break;
 	default:
 		err:
 		luaL_error(L, "Invalid argument count");
