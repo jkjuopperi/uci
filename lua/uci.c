@@ -94,20 +94,13 @@ static void uci_push_section(lua_State *L, struct uci_section *s)
 
 	lua_newtable(L);
 	lua_pushstring(L, s->type);
-	lua_setfield(L, -2, "type");
-	lua_pushstring(L, s->e.name);
-	lua_setfield(L, -2, "name");
-
-	lua_newtable(L);
-	lua_pushvalue(L, -1);
-	lua_setfield(L, -3, "options");
+	lua_setfield(L, -2, ".TYPE");
 
 	uci_foreach_element(&s->options, e) {
 		struct uci_option *o = uci_to_option(e);
 		lua_pushstring(L, o->value);
 		lua_setfield(L, -2, o->e.name);
 	}
-	lua_pop(L, 1);
 }
 
 static void uci_push_package(lua_State *L, struct uci_package *p)
@@ -118,9 +111,8 @@ static void uci_push_package(lua_State *L, struct uci_package *p)
 	lua_newtable(L);
 	uci_foreach_element(&p->sections, e) {
 		i++;
-		luaL_setn(L, -1, i);
 		uci_push_section(L, uci_to_section(e));
-		lua_rawseti(L, -2, i);
+		lua_setfield(L, -2, e->name);
 	}
 }
 
