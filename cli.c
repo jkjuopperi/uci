@@ -135,11 +135,7 @@ static int package_cmd(int cmd, char *package)
 	struct uci_package *p = NULL;
 	int ret;
 
-	if (cmd == CMD_CHANGES)
-		ctx->flags |= UCI_FLAG_SAVED_HISTORY;
 	ret = uci_load(ctx, package, &p);
-	if (cmd == CMD_CHANGES)
-		ctx->flags &= ~UCI_FLAG_SAVED_HISTORY;
 
 	if (ret != UCI_OK) {
 		cli_perror();
