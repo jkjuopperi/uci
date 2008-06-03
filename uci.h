@@ -203,7 +203,7 @@ extern int uci_delete_element(struct uci_context *ctx, struct uci_element *e);
  * @section: section name
  * @option: option name (optional)
  */
-extern int uci_delete(struct uci_context *ctx, struct uci_package *p, char *section, char *option);
+extern int uci_delete(struct uci_context *ctx, struct uci_package *p, const char *section, const char *option);
 
 /**
  * uci_save: save change history for a package

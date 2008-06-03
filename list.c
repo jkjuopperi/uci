@@ -415,7 +415,7 @@ int uci_add_section(struct uci_context *ctx, struct uci_package *p, const char *
 	return 0;
 }
 
-int uci_delete(struct uci_context *ctx, struct uci_package *p, char *section, char *option)
+int uci_delete(struct uci_context *ctx, struct uci_package *p, const char *section, const char *option)
 {
 	/* NB: pass on internal flag to uci_del_element */
 	bool internal = ctx->internal;
