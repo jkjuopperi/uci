@@ -94,7 +94,7 @@ static void uci_push_section(lua_State *L, struct uci_section *s)
 
 	lua_newtable(L);
 	lua_pushstring(L, s->type);
-	lua_setfield(L, -2, ".TYPE");
+	lua_setfield(L, -2, ".type");
 
 	uci_foreach_element(&s->options, e) {
 		struct uci_option *o = uci_to_option(e);
@@ -531,7 +531,7 @@ uci_lua_add_change(lua_State *L, struct uci_element *e)
 		lua_setfield(L, -3, h->section);
 	}
 
-	name = (h->e.name ? h->e.name : ".TYPE");
+	name = (h->e.name ? h->e.name : ".type");
 	if (h->value)
 		lua_pushstring(L, h->value);
 	else
