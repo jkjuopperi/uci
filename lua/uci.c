@@ -315,6 +315,57 @@ uci_lua_add(lua_State *L)
 }
 
 static int
+uci_lua_delete(lua_State *L)
+{
+	const char *package = NULL;
+	const char *section = NULL;
+	const char *option = NULL;
+	struct uci_package *p;
+	const char *s;
+	int err = UCI_ERR_MEM;
+	int nargs;
+
+	nargs = lua_gettop(L);
+	s = luaL_checkstring(L, 1);
+	switch(nargs) {
+	case 1:
+		/* Format: uci.delete("p.s[.o]") */
+		s = strdup(s);
+		if (!s)
+			goto error;
+
+		if ((err = uci_parse_tuple(ctx, (char *) s, (char **) &package, (char **) &section, (char **) &option, NULL)))
+			goto error;
+		break;
+	case 3:
+		/* Format: uci.delete("p", "s", "o") */
+		option = luaL_checkstring(L, 3);
+		/* fall through */
+	case 2:
+		/* Format: uci.delete("p", "s") */
+		section = luaL_checkstring(L, 2);
+		package = s;
+		break;
+	default:
+		err = UCI_ERR_INVAL;
+		goto error;
+	}
+
+	p = find_package(L, package, true);
+	if (!p) {
+		err = UCI_ERR_NOTFOUND;
+		goto error;
+	}
+	err = uci_delete(ctx, p, section, option);
+
+error:
+	if (err)
+		uci_lua_perror(L, "uci.set");
+	lua_pushboolean(L, (err == 0));
+	return 1;
+}
+
+static int
 uci_lua_set(lua_State *L)
 {
 	struct uci_package *p;
@@ -494,6 +545,7 @@ static const luaL_Reg uci[] = {
 	{ "add", uci_lua_add },
 	{ "set", uci_lua_set },
 	{ "save", uci_lua_save },
+	{ "delete", uci_lua_delete },
 	{ "commit", uci_lua_commit },
 	{ "revert", uci_lua_revert },
 	{ "foreach", uci_lua_foreach },
