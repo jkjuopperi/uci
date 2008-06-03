@@ -526,7 +526,7 @@ uci_lua_add_change(lua_State *L, struct uci_element *e)
 	lua_getfield(L, -1, h->section);
 	if (lua_isnil(L, -1)) {
 		lua_pop(L, 1);
-		lua_createtable(L, 0, 0);
+		lua_newtable(L);
 		lua_pushvalue(L, -1); /* copy for setfield */
 		lua_setfield(L, -3, h->section);
 	}
@@ -558,7 +558,7 @@ uci_lua_changes_pkg(lua_State *L, const char *package)
 	if (uci_list_empty(&p->history) && uci_list_empty(&p->saved_history))
 		goto done;
 
-	lua_createtable(L, 0, 0);
+	lua_newtable(L);
 	uci_foreach_element(&p->saved_history, e) {
 		uci_lua_add_change(L, e);
 	}
@@ -590,7 +590,7 @@ uci_lua_changes(lua_State *L)
 		luaL_error(L, "invalid argument count");
 	}
 
-	lua_createtable(L, 0, 0);
+	lua_newtable(L);
 	if (package) {
 		uci_lua_changes_pkg(L, package);
 	} else {
