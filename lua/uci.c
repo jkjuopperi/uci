@@ -34,9 +34,14 @@
 #endif
 
 static struct uci_context *ctx = NULL;
+enum autoload {
+	AUTOLOAD_OFF = 0,
+	AUTOLOAD_ON = 1,
+	AUTOLOAD_FORCE = 2
+};
 
 static struct uci_package *
-find_package(lua_State *L, const char *name, bool autoload)
+find_package(lua_State *L, const char *name, enum autoload al)
 {
 	struct uci_package *p = NULL;
 	struct uci_element *e;
@@ -49,7 +54,9 @@ find_package(lua_State *L, const char *name, bool autoload)
 		goto done;
 	}
 
-	if (autoload) {
+	if (al == AUTOLOAD_FORCE)
+		uci_load(ctx, name, &p);
+	else if (al) {
 		do {
 			lua_getfield(L, LUA_GLOBALSINDEX, "uci");
 			lua_getfield(L, -1, "autoload");
@@ -125,7 +132,7 @@ uci_lua_unload(lua_State *L)
 
 	luaL_checkstring(L, 1);
 	s = lua_tostring(L, -1);
-	p = find_package(L, s, false);
+	p = find_package(L, s, AUTOLOAD_OFF);
 	if (p) {
 		uci_unload(ctx, p);
 		lua_pushboolean(L, 1);
@@ -174,7 +181,7 @@ uci_lua_foreach(lua_State *L)
 	if (!lua_isfunction(L, 3) || !package)
 		luaL_error(L, "Invalid argument");
 
-	p = find_package(L, package, true);
+	p = find_package(L, package, AUTOLOAD_ON);
 	if (!p)
 		goto done;
 
@@ -229,7 +236,7 @@ uci_lua_get_any(lua_State *L, bool all)
 		goto error;
 	}
 
-	p = find_package(L, package, true);
+	p = find_package(L, package, AUTOLOAD_ON);
 	if (!p) {
 		err = UCI_ERR_NOTFOUND;
 		goto error;
@@ -300,7 +307,7 @@ uci_lua_add(lua_State *L)
 	do {
 		package = luaL_checkstring(L, 1);
 		type = luaL_checkstring(L, 2);
-		p = find_package(L, package, true);
+		p = find_package(L, package, AUTOLOAD_ON);
 		if (!p)
 			break;
 
@@ -351,7 +358,7 @@ uci_lua_delete(lua_State *L)
 		goto error;
 	}
 
-	p = find_package(L, package, true);
+	p = find_package(L, package, AUTOLOAD_ON);
 	if (!p) {
 		err = UCI_ERR_NOTFOUND;
 		goto error;
@@ -410,7 +417,7 @@ uci_lua_set(lua_State *L)
 		goto error;
 	}
 
-	p = find_package(L, package, true);
+	p = find_package(L, package, AUTOLOAD_ON);
 	if (!p) {
 		err = UCI_ERR_NOTFOUND;
 		goto error;
@@ -514,6 +521,99 @@ uci_lua_revert(lua_State *L)
 	return uci_lua_package_cmd(L, CMD_REVERT);
 }
 
+static void
+uci_lua_add_change(lua_State *L, struct uci_element *e)
+{
+	struct uci_history *h;
+	const char *name;
+
+	h = uci_to_history(e);
+	if (!h->section)
+		return;
+
+	lua_getfield(L, -1, h->section);
+	if (lua_isnil(L, -1)) {
+		lua_pop(L, 1);
+		lua_createtable(L, 0, 0);
+		lua_pushvalue(L, -1); /* copy for setfield */
+		lua_setfield(L, -3, h->section);
+	}
+
+	name = (h->e.name ? h->e.name : ".TYPE");
+	if (h->value)
+		lua_pushstring(L, h->value);
+	else
+		lua_pushstring(L, "");
+	lua_setfield(L, -2, name);
+	lua_pop(L, 1);
+}
+
+static void
+uci_lua_changes_pkg(lua_State *L, const char *package)
+{
+	struct uci_package *p = NULL;
+	struct uci_element *e;
+	bool autoload = false;
+
+	p = find_package(L, package, AUTOLOAD_OFF);
+	if (!p) {
+		autoload = true;
+		p = find_package(L, package, AUTOLOAD_FORCE);
+		if (!p)
+			return;
+	}
+
+	if (uci_list_empty(&p->history) && uci_list_empty(&p->saved_history))
+		goto done;
+
+	lua_createtable(L, 0, 0);
+	uci_foreach_element(&p->saved_history, e) {
+		uci_lua_add_change(L, e);
+	}
+	uci_foreach_element(&p->history, e) {
+		uci_lua_add_change(L, e);
+	}
+	lua_setfield(L, -2, p->e.name);
+
+done:
+	if (autoload)
+		uci_unload(ctx, p);
+}
+
+static int
+uci_lua_changes(lua_State *L)
+{
+	const char *package = NULL;
+	char **config = NULL;
+	int nargs;
+	int i;
+
+	nargs = lua_gettop(L);
+	switch(nargs) {
+	case 1:
+		package = luaL_checkstring(L, 1);
+	case 0:
+		break;
+	default:
+		luaL_error(L, "invalid argument count");
+	}
+
+	lua_createtable(L, 0, 0);
+	if (package) {
+		uci_lua_changes_pkg(L, package);
+	} else {
+		if (uci_list_configs(ctx, &config) != 0)
+			goto done;
+
+		for(i = 0; config[i] != NULL; i++) {
+			uci_lua_changes_pkg(L, config[i]);
+		}
+	}
+
+done:
+	return 1;
+}
+
 static int
 uci_lua_set_confdir(lua_State *L)
 {
@@ -548,6 +648,7 @@ static const luaL_Reg uci[] = {
 	{ "delete", uci_lua_delete },
 	{ "commit", uci_lua_commit },
 	{ "revert", uci_lua_revert },
+	{ "changes", uci_lua_changes },
 	{ "foreach", uci_lua_foreach },
 	{ "set_confdir", uci_lua_set_confdir },
 	{ "set_savedir", uci_lua_set_savedir },
