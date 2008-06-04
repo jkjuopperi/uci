@@ -341,6 +341,9 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 		s = uci_to_section(e);
 		section = e->name;
 		option = NULL;
+		/* matches the currently set value */
+		if (!strcmp(value, s->type))
+			return 0;
 		break;
 	case UCI_TYPE_OPTION:
 		UCI_ASSERT(ctx, value != NULL);
@@ -348,6 +351,9 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 		s = uci_to_option(e)->section;
 		section = s->e.name;
 		option = e->name;
+		/* matches the currently set value */
+		if (!strcmp(value, e->name))
+			return 0;
 		break;
 	default:
 		UCI_THROW(ctx, UCI_ERR_INVAL);
