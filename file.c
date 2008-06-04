@@ -208,41 +208,46 @@ static void uci_parse_line(struct uci_context *ctx, bool single)
 /*
  * escape an uci string for export
  */
-static char *uci_escape(struct uci_context *ctx, char *str)
+static char *uci_escape(struct uci_context *ctx, const char *str)
 {
-	char *s, *p;
-	int pos = 0;
+	const char *end;
+	int ofs = 0;
 
 	if (!ctx->buf) {
 		ctx->bufsz = LINEBUF;
 		ctx->buf = malloc(LINEBUF);
 	}
 
-	s = str;
-	p = strchr(str, '\'');
-	if (!p)
-		return str;
+	while (1) {
+		int len;
 
-	do {
-		int len = p - s;
-		if (len > 0) {
-			if (p + sizeof(UCI_QUOTE_ESCAPE) - str >= ctx->bufsz) {
-				ctx->bufsz *= 2;
-				ctx->buf = realloc(ctx->buf, ctx->bufsz);
-				if (!ctx->buf)
-					UCI_THROW(ctx, UCI_ERR_MEM);
-			}
-			memcpy(&ctx->buf[pos], s, len);
-			pos += len;
+		end = strchr(str, '\'');
+		if (!end)
+			end = str + strlen(str);
+		len = end - str;
+
+		/* make sure that we have enough room in the buffer */
+		while (ofs + len + sizeof(UCI_QUOTE_ESCAPE) + 1 > ctx->bufsz) {
+			ctx->bufsz *= 2;
+			ctx->buf = uci_realloc(ctx, ctx->buf, ctx->bufsz);
 		}
-		strcpy(&ctx->buf[pos], UCI_QUOTE_ESCAPE);
-		pos += sizeof(UCI_QUOTE_ESCAPE);
-		s = p + 1;
-	} while ((p = strchr(s, '\'')));
 
+		/* copy the string until the character before the quote */
+		memcpy(&ctx->buf[ofs], str, len);
+		ofs += len;
+
+		/* end of string? return the buffer */
+		if (*end == 0)
+			break;
+
+		memcpy(&ctx->buf[ofs], UCI_QUOTE_ESCAPE, sizeof(UCI_QUOTE_ESCAPE));
+		ofs += strlen(&ctx->buf[ofs]);
+		str = end + 1;
+	}
+
+	ctx->buf[ofs] = 0;
 	return ctx->buf;
 }
-
 
 /*
  * export a single config package to a file stream
