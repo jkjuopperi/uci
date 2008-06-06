@@ -68,6 +68,7 @@ static void uci_usage(void)
 		"\trevert     <config>[.<section>[.<option>]]\n"
 		"\n"
 		"Options:\n"
+		"\t-c <path>  set the search path for config files (default: /etc/config)\n"
 		"\t-f <file>  use <file> as input instead of stdin\n"
 		"\t-m         when importing, merge data into an existing package\n"
 		"\t-n         name unnamed sections on export (default)\n"
@@ -478,8 +479,11 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	while((c = getopt(argc, argv, "f:mnNp:P:sSq")) != -1) {
+	while((c = getopt(argc, argv, "c:f:mnNp:P:sSq")) != -1) {
 		switch(c) {
+			case 'c':
+				uci_set_confdir(ctx, optarg);
+				break;
 			case 'f':
 				input = fopen(optarg, "r");
 				if (!input) {
