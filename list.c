@@ -315,6 +315,7 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 	struct uci_element *e;
 	struct uci_package *p;
 	struct uci_section *s;
+	struct uci_option *o;
 	char *section;
 	char *option;
 	char *str;
@@ -348,11 +349,12 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 	case UCI_TYPE_OPTION:
 		UCI_ASSERT(ctx, value != NULL);
 		size = sizeof(struct uci_option);
-		s = uci_to_option(e)->section;
+		o = uci_to_option(e);
+		s = o->section;
 		section = s->e.name;
-		option = e->name;
+		option = o->e.name;
 		/* matches the currently set value */
-		if (!strcmp(value, e->name))
+		if (!strcmp(value, o->value))
 			return 0;
 		break;
 	default:
