@@ -481,6 +481,9 @@ static char **uci_list_config_files(struct uci_context *ctx)
 		if (!p)
 			continue;
 
+		if (!uci_validate_name(p))
+			continue;
+
 		configs[i] = buf;
 		strcpy(buf, p);
 		buf += strlen(buf) + 1;

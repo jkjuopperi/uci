@@ -101,6 +101,16 @@ static inline bool uci_validate_name(const char *str)
 	return uci_validate_str(str, true);
 }
 
+static inline bool uci_validate_text(const char *str)
+{
+	while (*str) {
+		if ((*str == '\r') || (*str == '\n') ||
+			((*str < 32) && (*str != '\t')))
+			return false;
+	}
+	return true;
+}
+
 static void uci_alloc_parse_context(struct uci_context *ctx)
 {
 	ctx->pctx = (struct uci_parse_context *) uci_malloc(ctx, sizeof(struct uci_parse_context));
@@ -124,6 +134,8 @@ int uci_parse_tuple(struct uci_context *ctx, char *str, char **package, char **s
 		goto error;
 
 	*section = strsep(&str, ".");
+	*option = NULL;
+	*value = NULL;
 	if (!*section)
 		goto lastval;
 
@@ -144,6 +156,8 @@ lastval:
 	if (*section && *section[0] && !uci_validate_name(*section))
 		goto error;
 	if (*option && !uci_validate_name(*option))
+		goto error;
+	if (*value && !uci_validate_text(*value))
 		goto error;
 
 	goto done;
