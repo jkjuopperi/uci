@@ -186,19 +186,27 @@ static void uci_parse_line(struct uci_context *ctx, bool single)
 			case 'p':
 				if ((word[1] == 0) || !strcmp(word + 1, "ackage"))
 					uci_parse_package(ctx, &word, single);
+				else
+					goto invalid;
 				break;
 			case 'c':
 				if ((word[1] == 0) || !strcmp(word + 1, "onfig"))
 					uci_parse_config(ctx, &word);
+				else
+					goto invalid;
 				break;
 			case 'o':
 				if ((word[1] == 0) || !strcmp(word + 1, "ption"))
 					uci_parse_option(ctx, &word);
+				else
+					goto invalid;
 				break;
 			default:
-				uci_parse_error(ctx, word, "unterminated command");
-				break;
+				goto invalid;
 		}
+		continue;
+invalid:
+		uci_parse_error(ctx, word, "invalid command");
 	} while (1);
 }
 
