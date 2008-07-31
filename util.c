@@ -107,6 +107,7 @@ static inline bool uci_validate_text(const char *str)
 		if ((*str == '\r') || (*str == '\n') ||
 			((*str < 32) && (*str != '\t')))
 			return false;
+		str++;
 	}
 	return true;
 }
