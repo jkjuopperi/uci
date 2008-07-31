@@ -136,7 +136,8 @@ int uci_parse_tuple(struct uci_context *ctx, char *str, char **package, char **s
 
 	*section = strsep(&str, ".");
 	*option = NULL;
-	*value = NULL;
+	if (value)
+		*value = NULL;
 	if (!*section)
 		goto lastval;
 
@@ -158,7 +159,7 @@ lastval:
 		goto error;
 	if (*option && !uci_validate_name(*option))
 		goto error;
-	if (*value && !uci_validate_text(*value))
+	if (value && *value && !uci_validate_text(*value))
 		goto error;
 
 	goto done;
