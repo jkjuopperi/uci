@@ -228,6 +228,115 @@ static struct uci_element *uci_lookup_list(struct uci_list *list, const char *na
 	return NULL;
 }
 
+int uci_lookup_ext(struct uci_context *ctx, struct uci_element **res, char *ptr)
+{
+	struct uci_package *p = NULL;
+	struct uci_element *e;
+	struct uci_section *s;
+	char *package = NULL;
+	char *section = NULL;
+	char *option = NULL;
+	char *idxstr, *t;
+	int idx, c;
+
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, res != NULL);
+	UCI_ASSERT(ctx, ptr != NULL);
+
+	UCI_INTERNAL(uci_parse_tuple, ctx, ptr, &package, &section, &option, NULL);
+
+	/* look up the package first */
+	e = uci_lookup_list(&ctx->root, package);
+	if (!e) {
+		UCI_INTERNAL(uci_load, ctx, package, &p);
+		if (!p)
+			goto notfound;
+		e = &p->e;
+	} else {
+		p = uci_to_package(e);
+	}
+
+	if (!section)
+		goto done;
+
+	/* if the section name validates as a regular name, pass through
+	 * to the regular uci_lookup function call */
+	if (!*section || uci_validate_name(section)) {
+		UCI_INTERNAL(uci_lookup, ctx, &e, p, section, option);
+		goto done;
+	}
+
+	/* name did not validate, that means we have an extended lookup call
+	 * parse it here. for now only the section index syntax is supported */
+	if (section[0] != '@')
+		goto error;
+
+	section++;
+
+	/* parse the section index part */
+	idxstr = strchr(section, '[');
+	if (!idxstr)
+		goto error;
+	*idxstr = 0;
+	idxstr++;
+
+	t = strchr(idxstr, ']');
+	if (!t)
+		goto error;
+	if (t[1] != 0)
+		goto error;
+	*t = 0;
+
+	t = NULL;
+	idx = strtol(idxstr, &t, 10);
+	if (t && *t)
+		goto error;
+
+	if (!*section)
+		section = NULL;
+	if (section && !uci_validate_str(section, false))
+		goto error;
+
+	/* if the given index is negative, it specifies the section number from 
+	 * the end of the list */
+	if (idx < 0) {
+		c = 0;
+		uci_foreach_element(&p->sections, e) {
+			s = uci_to_section(e);
+			if (section && (strcmp(s->type, section) != 0))
+				continue;
+
+			c++;
+		}
+		idx += c;
+	}
+
+	c = 0;
+	uci_foreach_element(&p->sections, e) {
+		s = uci_to_section(e);
+		if (section && (strcmp(s->type, section) != 0))
+			continue;
+
+		if (idx == c)
+			goto found;
+		c++;
+	}
+	goto notfound;
+
+found:
+	if (option)
+		e = uci_lookup_list(&s->options, option);
+done:
+	*res = e;
+	return 0;
+
+notfound:
+	UCI_THROW(ctx, UCI_ERR_NOTFOUND);
+error:
+	UCI_THROW(ctx, UCI_ERR_INVAL);
+	return 0;
+}
+
 int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_package *p, const char *section, const char *option)
 {
 	struct uci_element *e;

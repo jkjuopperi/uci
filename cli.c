@@ -142,27 +142,30 @@ static void uci_show_changes(struct uci_package *p)
 
 static int package_cmd(int cmd, char *tuple)
 {
-	struct uci_package *p = NULL;
+	struct uci_package *p;
+	struct uci_section *s;
 	struct uci_element *e = NULL;
-	char *package = NULL;
-	char *section = NULL;
-	char *option = NULL;
-	char **ptr = NULL;
-	int ret;
 
-	if (uci_parse_tuple(ctx, tuple, &package, &section, &option, ptr) != UCI_OK)
-		return 1;
-	if (section && !section[0])
-		return 1;
-
-	ret = uci_load(ctx, package, &p);
-
-	if (ret != UCI_OK) {
+	if (uci_lookup_ext(ctx, &e, tuple) != UCI_OK) {
 		cli_perror();
 		return 1;
 	}
-	if (!p)
+	switch(e->type) {
+	case UCI_TYPE_PACKAGE:
+		p = uci_to_package(e);
+		break;
+	case UCI_TYPE_SECTION:
+		s = uci_to_section(e);
+		p = s->package;
+		break;
+	case UCI_TYPE_OPTION:
+		s = uci_to_option(e)->section;
+		p = s->package;
+		break;
+	default:
 		return 0;
+	}
+
 	switch(cmd) {
 	case CMD_CHANGES:
 		uci_show_changes(p);
@@ -177,14 +180,10 @@ static int package_cmd(int cmd, char *tuple)
 		uci_export(ctx, stdout, p, true);
 		break;
 	case CMD_SHOW:
-		if (!section) {
-			uci_show_package(p);
-			return 0;
-		}
-		if (uci_lookup(ctx, &e, p, section, option) != UCI_OK)
-			return 1;
-
 		switch(e->type) {
+			case UCI_TYPE_PACKAGE:
+				uci_show_package(p);
+				break;
 			case UCI_TYPE_SECTION:
 				uci_show_section(uci_to_section(e));
 				break;
@@ -300,52 +299,57 @@ done:
 static int uci_do_section_cmd(int cmd, int argc, char **argv)
 {
 	struct uci_package *p = NULL;
+	struct uci_section *s = NULL;
 	struct uci_element *e = NULL;
-	char *package = NULL;
 	char *section = NULL;
 	char *option = NULL;
 	char *value = NULL;
-	char **ptr = NULL;
 	int ret = UCI_OK;
 
 	if (argc != 2)
 		return 255;
 
-	switch(cmd) {
-	case CMD_SET:
-	case CMD_RENAME:
-		ptr = &value;
-		break;
-	default:
-		break;
+	value = strchr(argv[1], '=');
+	if (value) {
+		*value = 0;
+		value++;
+		if (!uci_validate_text(value))
+			return 1;
 	}
-	if (uci_parse_tuple(ctx, argv[1], &package, &section, &option, ptr) != UCI_OK)
-		return 1;
-	if (section && !section[0])
+
+	if (value && (cmd != CMD_SET) && (cmd != CMD_RENAME))
 		return 1;
 
-	if (uci_load(ctx, package, &p) != UCI_OK) {
+	if (uci_lookup_ext(ctx, &e, argv[1]) != UCI_OK) {
 		cli_perror();
 		return 1;
 	}
-	if (!p)
-		return 0;
+
+	switch(e->type) {
+	case UCI_TYPE_SECTION:
+		s = uci_to_section(e);
+		break;
+	case UCI_TYPE_OPTION:
+		option = e->name;
+		s = uci_to_option(e)->section;
+		break;
+	default:
+		return 1;
+	}
+	section = s->e.name;
+	p = s->package;
 
 	switch(cmd) {
 	case CMD_GET:
-		if (uci_lookup(ctx, &e, p, section, option) != UCI_OK)
-			return 1;
-
 		switch(e->type) {
 		case UCI_TYPE_SECTION:
-			value = uci_to_section(e)->type;
+			value = s->type;
 			break;
 		case UCI_TYPE_OPTION:
 			value = uci_to_option(e)->value;
 			break;
 		default:
-			/* should not happen */
-			return 1;
+			break;
 		}
 		/* throw the value to stdout */
 		printf("%s\n", value);

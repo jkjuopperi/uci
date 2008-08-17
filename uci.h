@@ -149,6 +149,24 @@ extern int uci_unload(struct uci_context *ctx, struct uci_package *p);
 extern int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_package *package, const char *section, const char *option);
 
 /**
+ * uci_lookup_ext: Extended lookup for an uci element
+ *
+ * @ctx: uci context
+ * @res: where to store the result
+ * @ptr: uci pointer tuple
+ *
+ * Looks up an element using the extended syntax, which is a superset of what
+ * uci_parse_tuple accepts. It can look up sections by an index with an optional
+ * type.
+ *
+ * Examples:
+ *   network.@interface[0].ifname ('ifname' option of the first interface section)
+ *   network.@interface[-1]       (last interface section)
+ * Note: uci_lookup_ext will automatically load a config package if necessary
+ */
+extern int uci_lookup_ext(struct uci_context *ctx, struct uci_element **res, char *ptr);
+
+/**
  * uci_add_section: Add an unnamed section
  * @ctx: uci context
  * @p: package to add the section to
@@ -281,6 +299,15 @@ extern int uci_parse_argument(struct uci_context *ctx, FILE *stream, char **str,
  * The default backend is "file", which uses /etc/config for config storage
  */
 extern int uci_set_backend(struct uci_context *ctx, const char *name);
+
+/**
+ * uci_validate_text: validate a value string for uci options
+ * @str: value
+ *
+ * this function checks whether a given string is acceptable as value
+ * for uci options
+ */
+extern bool uci_validate_text(const char *str);
 
 /* UCI data structures */
 enum uci_type {
