@@ -91,6 +91,15 @@ static void cli_perror(void)
 	uci_perror(ctx, appname);
 }
 
+static void uci_show_option(struct uci_option *o)
+{
+      printf("%s.%s.%s=%s\n",
+                      o->section->package->e.name,
+                      o->section->e.name,
+                      o->e.name,
+			o->value);
+}
+
 static void uci_show_section(struct uci_section *p)
 {
 	struct uci_element *e;
@@ -100,7 +109,7 @@ static void uci_show_section(struct uci_section *p)
 	sname = p->e.name;
 	printf("%s.%s=%s\n", cname, sname, p->type);
 	uci_foreach_element(&p->options, e) {
-		printf("%s.%s.%s=%s\n", cname, sname, e->name, uci_to_option(e)->value);
+		uci_show_option(uci_to_option(e));
 	}
 }
 
@@ -131,10 +140,20 @@ static void uci_show_changes(struct uci_package *p)
 	}
 }
 
-static int package_cmd(int cmd, char *package)
+static int package_cmd(int cmd, char *tuple)
 {
 	struct uci_package *p = NULL;
+	struct uci_element *e = NULL;
+	char *package = NULL;
+	char *section = NULL;
+	char *option = NULL;
+	char **ptr = NULL;
 	int ret;
+
+	if (uci_parse_tuple(ctx, tuple, &package, &section, &option, ptr) != UCI_OK)
+		return 1;
+	if (section && !section[0])
+		return 1;
 
 	ret = uci_load(ctx, package, &p);
 
@@ -158,7 +177,24 @@ static int package_cmd(int cmd, char *package)
 		uci_export(ctx, stdout, p, true);
 		break;
 	case CMD_SHOW:
-		uci_show_package(p);
+		if (!section) {
+			uci_show_package(p);
+			return 0;
+		}
+		if (uci_lookup(ctx, &e, p, section, option) != UCI_OK)
+			return 1;
+
+		switch(e->type) {
+			case UCI_TYPE_SECTION:
+				uci_show_section(uci_to_section(e));
+				break;
+			case UCI_TYPE_OPTION:
+				uci_show_option(uci_to_option(e));
+				break;
+			default:
+				/* should not happen */
+				return 1;
+		}
 		break;
 	}
 
