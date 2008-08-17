@@ -93,11 +93,19 @@ static void cli_perror(void)
 
 static void uci_show_option(struct uci_option *o)
 {
-      printf("%s.%s.%s=%s\n",
-                      o->section->package->e.name,
-                      o->section->e.name,
-                      o->e.name,
-			o->value);
+	printf("%s.%s.%s=",
+		o->section->package->e.name,
+		o->section->e.name,
+		o->e.name);
+
+	switch(o->type) {
+	case UCI_TYPE_STRING:
+		printf("%s\n", o->v.string);
+		break;
+	default:
+		printf("<unknown>\n");
+		break;
+	}
 }
 
 static void uci_show_section(struct uci_section *p)
@@ -301,6 +309,7 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 	struct uci_package *p = NULL;
 	struct uci_section *s = NULL;
 	struct uci_element *e = NULL;
+	struct uci_option *o = NULL;
 	char *section = NULL;
 	char *option = NULL;
 	char *value = NULL;
@@ -343,16 +352,23 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 	case CMD_GET:
 		switch(e->type) {
 		case UCI_TYPE_SECTION:
-			value = s->type;
+			printf("%s\n", s->type);
 			break;
 		case UCI_TYPE_OPTION:
-			value = uci_to_option(e)->value;
+			o = uci_to_option(e);
+			switch(o->type) {
+			case UCI_TYPE_STRING:
+				printf("%s\n", o->v.string);
+				break;
+			default:
+				printf("<unknown>\n");
+				break;
+			}
 			break;
 		default:
 			break;
 		}
 		/* throw the value to stdout */
-		printf("%s\n", value);
 		break;
 	case CMD_RENAME:
 		ret = uci_rename(ctx, p, section, option, value);

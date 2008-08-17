@@ -275,8 +275,15 @@ static void uci_export_package(struct uci_package *p, FILE *stream, bool header)
 		fprintf(stream, "\n");
 		uci_foreach_element(&sec->options, o) {
 			struct uci_option *opt = uci_to_option(o);
-			fprintf(stream, "\toption '%s'", uci_escape(ctx, opt->e.name));
-			fprintf(stream, " '%s'\n", uci_escape(ctx, opt->value));
+			switch(o->type) {
+			case UCI_TYPE_STRING:
+				fprintf(stream, "\toption '%s'", uci_escape(ctx, opt->e.name));
+				fprintf(stream, " '%s'\n", uci_escape(ctx, opt->v.string));
+				break;
+			default:
+				fprintf(stream, "\t# unknown type for option '%s'\n", uci_escape(ctx, opt->e.name));
+				break;
+			}
 		}
 	}
 	fprintf(stream, "\n");

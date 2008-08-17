@@ -100,8 +100,15 @@ static void uci_push_section(lua_State *L, struct uci_section *s)
 
 	uci_foreach_element(&s->options, e) {
 		struct uci_option *o = uci_to_option(e);
-		lua_pushstring(L, o->value);
-		lua_setfield(L, -2, o->e.name);
+		switch(o->type) {
+		case UCI_TYPE_STRING:
+			lua_pushstring(L, o->v.string);
+			lua_setfield(L, -2, o->e.name);
+			break;
+		default:
+			/* nothing to do yet */
+			break;
+		}
 	}
 }
 
@@ -201,6 +208,7 @@ uci_lua_get_any(lua_State *L, bool all)
 {
 	struct uci_element *e = NULL;
 	struct uci_package *p = NULL;
+	struct uci_option *o = NULL;
 	const char *package = NULL;
 	const char *section = NULL;
 	const char *option = NULL;
@@ -254,7 +262,15 @@ uci_lua_get_any(lua_State *L, bool all)
 				lua_pushstring(L, uci_to_section(e)->type);
 			break;
 		case UCI_TYPE_OPTION:
-			lua_pushstring(L, uci_to_option(e)->value);
+			o = uci_to_option(e);
+			switch(o->type) {
+			case UCI_TYPE_STRING:
+				lua_pushstring(L, o->v.string);
+				break;
+			default:
+				/* nothing to do yet */
+				break;
+			}
 			break;
 		default:
 			err = UCI_ERR_INVAL;

@@ -319,6 +319,10 @@ enum uci_type {
 	UCI_TYPE_BACKEND = 5,
 };
 
+enum uci_option_type {
+	UCI_TYPE_STRING = 0,
+};
+
 enum uci_flags {
 	UCI_FLAG_STRICT =        (1 << 0), /* strict mode for the parser */
 	UCI_FLAG_PERROR =        (1 << 1), /* print parser error messages */
@@ -404,7 +408,11 @@ struct uci_option
 {
 	struct uci_element e;
 	struct uci_section *section;
-	char *value;
+	enum uci_option_type type;
+	union {
+		struct uci_element *list;
+		char *string;
+	} v;
 };
 
 enum uci_command {

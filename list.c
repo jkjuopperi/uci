@@ -98,9 +98,10 @@ uci_alloc_option(struct uci_section *s, const char *name, const char *value)
 	struct uci_option *o;
 
 	o = uci_alloc_element(ctx, option, name, strlen(value) + 1);
-	o->value = uci_dataptr(o);
+	o->type = UCI_TYPE_STRING;
+	o->v.string = uci_dataptr(o);
 	o->section = s;
-	strcpy(o->value, value);
+	strcpy(o->v.string, value);
 	uci_list_add(&s->options, &o->e.list);
 
 	return o;
@@ -109,9 +110,15 @@ uci_alloc_option(struct uci_section *s, const char *name, const char *value)
 static inline void
 uci_free_option(struct uci_option *o)
 {
-	if ((o->value != uci_dataptr(o)) &&
-		(o->value != NULL))
-		free(o->value);
+	switch(o->type) {
+	case UCI_TYPE_STRING:
+		if ((o->v.string != uci_dataptr(o)) &&
+			(o->v.string != NULL))
+			free(o->v.string);
+		break;
+	default:
+		break;
+	}
 	uci_free_element(&o->e);
 }
 
@@ -136,8 +143,16 @@ static void uci_fixup_section(struct uci_context *ctx, struct uci_section *s)
 	 */
 	hash = djbhash(hash, s->type);
 	uci_foreach_element(&s->options, e) {
+		struct uci_option *o;
 		hash = djbhash(hash, e->name);
-		hash = djbhash(hash, uci_to_option(e)->value);
+		o = uci_to_option(e);
+		switch(o->type) {
+		case UCI_TYPE_STRING:
+			hash = djbhash(hash, o->v.string);
+			break;
+		default:
+			break;
+		}
 	}
 	sprintf(buf, "cfg%02x%04x", ++s->package->n_section, hash % (1 << 16));
 	s->e.name = uci_strdup(ctx, buf);
@@ -462,8 +477,10 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 		s = o->section;
 		section = s->e.name;
 		option = o->e.name;
+		if (o->type != UCI_TYPE_STRING)
+			UCI_THROW(ctx, UCI_ERR_INVAL);
 		/* matches the currently set value */
-		if (!strcmp(value, o->value))
+		if (!strcmp(value, o->v.string))
 			return 0;
 		break;
 	default:
@@ -485,7 +502,7 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 		uci_to_section(e)->type = str;
 		break;
 	case UCI_TYPE_OPTION:
-		uci_to_option(e)->value = str;
+		uci_to_option(e)->v.string = str;
 		break;
 	default:
 		break;
