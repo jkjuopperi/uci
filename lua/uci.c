@@ -88,6 +88,29 @@ done:
 	lua_pop(L, 2);
 }
 
+static void uci_push_option(lua_State *L, struct uci_option *o)
+{
+	struct uci_element *e;
+	int i = 0;
+
+	switch(o->type) {
+	case UCI_TYPE_STRING:
+		lua_pushstring(L, o->v.string);
+		break;
+	case UCI_TYPE_LIST:
+		lua_newtable(L);
+		uci_foreach_element(&o->v.list, e) {
+			i++;
+			lua_pushstring(L, e->name);
+			lua_rawseti(L, -2, i);
+		}
+		break;
+	default:
+		lua_pushnil(L);
+		break;
+	}
+}
+
 static void uci_push_section(lua_State *L, struct uci_section *s)
 {
 	struct uci_element *e;
@@ -100,15 +123,8 @@ static void uci_push_section(lua_State *L, struct uci_section *s)
 
 	uci_foreach_element(&s->options, e) {
 		struct uci_option *o = uci_to_option(e);
-		switch(o->type) {
-		case UCI_TYPE_STRING:
-			lua_pushstring(L, o->v.string);
-			lua_setfield(L, -2, o->e.name);
-			break;
-		default:
-			/* nothing to do yet */
-			break;
-		}
+		uci_push_option(L, o);
+		lua_setfield(L, -2, o->e.name);
 	}
 }
 
@@ -263,14 +279,7 @@ uci_lua_get_any(lua_State *L, bool all)
 			break;
 		case UCI_TYPE_OPTION:
 			o = uci_to_option(e);
-			switch(o->type) {
-			case UCI_TYPE_STRING:
-				lua_pushstring(L, o->v.string);
-				break;
-			default:
-				/* nothing to do yet */
-				break;
-			}
+			uci_push_option(L, o);
 			break;
 		default:
 			err = UCI_ERR_INVAL;
