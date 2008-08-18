@@ -19,6 +19,7 @@
 
 #define MAX_ARGS	4 /* max command line arguments for batch mode */
 
+static const char *delimiter = " ";
 static const char *appname;
 static enum {
 	CLI_FLAG_MERGE =    (1 << 0),
@@ -34,6 +35,7 @@ enum {
 	/* section cmds */
 	CMD_GET,
 	CMD_SET,
+	CMD_ADD_LIST,
 	CMD_DEL,
 	CMD_RENAME,
 	CMD_REVERT,
@@ -61,14 +63,17 @@ static void uci_usage(void)
 		"\tchanges    [<config>]\n"
 		"\tcommit     [<config>]\n"
 		"\tadd        <config> <section-type>\n"
+		"\tadd_list   <config>.<section>.<option>=<string>\n"
 		"\tshow       [<config>[.<section>[.<option>]]]\n"
 		"\tget        <config>.<section>[.<option>]\n"
 		"\tset        <config>.<section>[.<option>]=<value>\n"
+		"\tdelete     <config>[.<section[.<option>]]\n"
 		"\trename     <config>.<section>[.<option>]=<name>\n"
 		"\trevert     <config>[.<section>[.<option>]]\n"
 		"\n"
 		"Options:\n"
 		"\t-c <path>  set the search path for config files (default: /etc/config)\n"
+		"\t-d <str>   set the delimiter for list values in uci show\n"
 		"\t-f <file>  use <file> as input instead of stdin\n"
 		"\t-m         when importing, merge data into an existing package\n"
 		"\t-n         name unnamed sections on export (default)\n"
@@ -91,21 +96,35 @@ static void cli_perror(void)
 	uci_perror(ctx, appname);
 }
 
+static void uci_show_value(struct uci_option *o)
+{
+	struct uci_element *e;
+	bool sep = false;
+
+	switch(o->type) {
+	case UCI_TYPE_STRING:
+		printf("%s\n", o->v.string);
+		break;
+	case UCI_TYPE_LIST:
+		uci_foreach_element(&o->v.list, e) {
+			printf("%s%s", (sep ? delimiter : ""), e->name);
+			sep = true;
+		}
+		printf("\n");
+		break;
+	default:
+		printf("<unknown>\n");
+		break;
+	}
+}
+
 static void uci_show_option(struct uci_option *o)
 {
 	printf("%s.%s.%s=",
 		o->section->package->e.name,
 		o->section->e.name,
 		o->e.name);
-
-	switch(o->type) {
-	case UCI_TYPE_STRING:
-		printf("%s\n", o->v.string);
-		break;
-	default:
-		printf("<unknown>\n");
-		break;
-	}
+	uci_show_value(o);
 }
 
 static void uci_show_section(struct uci_section *p)
@@ -326,7 +345,7 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 			return 1;
 	}
 
-	if (value && (cmd != CMD_SET) && (cmd != CMD_RENAME))
+	if (value && (cmd != CMD_SET) && (cmd != CMD_ADD_LIST) && (cmd != CMD_RENAME))
 		return 1;
 
 	if (uci_lookup_ext(ctx, &e, argv[1]) != UCI_OK) {
@@ -335,6 +354,9 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 	}
 
 	switch(e->type) {
+	case UCI_TYPE_PACKAGE:
+		p = uci_to_package(e);
+		break;
 	case UCI_TYPE_SECTION:
 		s = uci_to_section(e);
 		break;
@@ -345,8 +367,10 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 	default:
 		return 1;
 	}
-	section = s->e.name;
-	p = s->package;
+	if (s) {
+		section = s->e.name;
+		p = s->package;
+	}
 
 	switch(cmd) {
 	case CMD_GET:
@@ -356,14 +380,7 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 			break;
 		case UCI_TYPE_OPTION:
 			o = uci_to_option(e);
-			switch(o->type) {
-			case UCI_TYPE_STRING:
-				printf("%s\n", o->v.string);
-				break;
-			default:
-				printf("<unknown>\n");
-				break;
-			}
+			uci_show_value(o);
 			break;
 		default:
 			break;
@@ -378,6 +395,9 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 		break;
 	case CMD_SET:
 		ret = uci_set(ctx, p, section, option, value, NULL);
+		break;
+	case CMD_ADD_LIST:
+		ret = uci_add_list(ctx, p, section, option, value, NULL);
 		break;
 	case CMD_DEL:
 		ret = uci_delete(ctx, p, section, option);
@@ -495,10 +515,13 @@ static int uci_cmd(int argc, char **argv)
 		cmd = CMD_HELP;
 	else if (!strcasecmp(argv[0], "add"))
 		cmd = CMD_ADD;
+	else if (!strcasecmp(argv[0], "add_list"))
+		cmd = CMD_ADD_LIST;
 	else
 		cmd = -1;
 
 	switch(cmd) {
+		case CMD_ADD_LIST:
 		case CMD_GET:
 		case CMD_SET:
 		case CMD_DEL:
@@ -535,10 +558,13 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	while((c = getopt(argc, argv, "c:f:mnNp:P:sSq")) != -1) {
+	while((c = getopt(argc, argv, "c:d:f:mnNp:P:sSq")) != -1) {
 		switch(c) {
 			case 'c':
 				uci_set_confdir(ctx, optarg);
+				break;
+			case 'd':
+				delimiter = optarg;
 				break;
 			case 'f':
 				input = fopen(optarg, "r");

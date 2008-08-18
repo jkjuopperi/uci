@@ -12,8 +12,6 @@
  * GNU General Public License for more details.
  */
 
-#include <glob.h>
-
 /* initialize a list head/item */
 static inline void uci_list_init(struct uci_list *ptr)
 {
@@ -110,16 +108,39 @@ uci_alloc_option(struct uci_section *s, const char *name, const char *value)
 static inline void
 uci_free_option(struct uci_option *o)
 {
+	struct uci_element *e, *tmp;
+
 	switch(o->type) {
 	case UCI_TYPE_STRING:
 		if ((o->v.string != uci_dataptr(o)) &&
 			(o->v.string != NULL))
 			free(o->v.string);
 		break;
+	case UCI_TYPE_LIST:
+		uci_foreach_element_safe(&o->v.list, tmp, e) {
+			uci_free_element(e);
+		}
+		break;
 	default:
 		break;
 	}
 	uci_free_element(&o->e);
+}
+
+static struct uci_option *
+uci_alloc_list(struct uci_section *s, const char *name)
+{
+	struct uci_package *p = s->package;
+	struct uci_context *ctx = p->ctx;
+	struct uci_option *o;
+
+	o = uci_alloc_element(ctx, option, name, 0);
+	o->type = UCI_TYPE_LIST;
+	o->section = s;
+	uci_list_init(&o->v.list);
+	uci_list_add(&s->options, &o->e.list);
+
+	return o;
 }
 
 /* fix up an unnamed section, e.g. after adding options to it */
@@ -428,6 +449,29 @@ int uci_del_element(struct uci_context *ctx, struct uci_element *e)
 	default:
 		break;
 	}
+
+	return 0;
+}
+
+int uci_add_element_list(struct uci_context *ctx, struct uci_option *o, const char *value)
+{
+	struct uci_element *e;
+	struct uci_package *p;
+	struct uci_section *s;
+	bool internal = ctx->internal;
+
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, (o != NULL) && (o->type == UCI_TYPE_LIST) && uci_validate_text(value));
+
+	s = o->section;
+	p = s->package;
+
+	if (!internal && p->has_history)
+		uci_add_history(ctx, &p->history, UCI_CMD_LIST_ADD, s->e.name, o->e.name, value);
+
+	e = uci_alloc_generic(ctx, UCI_TYPE_ITEM, value, 0);
+	uci_list_add(&o->v.list, &e->list);
+
 	return 0;
 }
 
@@ -443,7 +487,7 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 	char *section;
 	char *option;
 	char *str;
-	int size;
+	int size = 0;
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, (element != NULL) && (*element != NULL));
@@ -459,6 +503,7 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 	 */
 	e = *element;
 	list = e->list.prev;
+
 	switch(e->type) {
 	case UCI_TYPE_SECTION:
 		UCI_ASSERT(ctx, uci_validate_str(value, false));
@@ -470,19 +515,27 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 		if (!strcmp(value, s->type))
 			return 0;
 		break;
+
 	case UCI_TYPE_OPTION:
 		UCI_ASSERT(ctx, value != NULL);
-		size = sizeof(struct uci_option);
 		o = uci_to_option(e);
 		s = o->section;
 		section = s->e.name;
 		option = o->e.name;
-		if (o->type != UCI_TYPE_STRING)
-			UCI_THROW(ctx, UCI_ERR_INVAL);
-		/* matches the currently set value */
-		if (!strcmp(value, o->v.string))
-			return 0;
+		switch(o->type) {
+		case UCI_TYPE_STRING:
+			size = sizeof(struct uci_option);
+			/* matches the currently set value */
+			if (!strcmp(value, o->v.string))
+				return 0;
+			break;
+		default:
+			/* default action for non-string datatypes is to delete
+			 * the existing entry, then re-create it as a string */
+			break;
+		}
 		break;
+
 	default:
 		UCI_THROW(ctx, UCI_ERR_INVAL);
 		return 0;
@@ -490,6 +543,13 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 	p = s->package;
 	if (!internal && p->has_history)
 		uci_add_history(ctx, &p->history, UCI_CMD_CHANGE, section, option, value);
+
+	if ((e->type == UCI_TYPE_OPTION) && (size == 0)) {
+		o = uci_alloc_option(s, option, value);
+		UCI_INTERNAL(uci_del_element, ctx, e);
+		*element = &o->e;
+		goto done;
+	}
 
 	uci_list_del(&e->list);
 	e = uci_realloc(ctx, e, size);
@@ -508,6 +568,7 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 		break;
 	}
 
+done:
 	return 0;
 }
 
@@ -562,6 +623,58 @@ int uci_delete(struct uci_context *ctx, struct uci_package *p, const char *secti
 
 	ctx->internal = internal;
 	return uci_del_element(ctx, e);
+}
+
+int uci_add_list(struct uci_context *ctx, struct uci_package *p, const char *section, const char *option, const char *value, struct uci_option **result)
+{
+	/* NB: UCI_INTERNAL use means without history tracking */
+	bool internal = ctx->internal;
+	struct uci_element *e;
+	struct uci_section *s;
+	struct uci_option *o;
+	struct uci_option *prev = NULL;
+	const char *value2 = NULL;
+
+	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, p && section && option && value && uci_validate_text(value));
+
+	/* look up the section first */
+	UCI_INTERNAL(uci_lookup, ctx, &e, p, section, NULL);
+	s = uci_to_section(e);
+
+	e = uci_lookup_list(&s->options, option);
+	if (e) {
+		o = uci_to_option(e);
+		switch (o->type) {
+		case UCI_TYPE_STRING:
+			/* we already have a string value, let's convert that to a list */
+			prev = o;
+			value2 = value;
+			value = o->v.string;
+			break;
+		case UCI_TYPE_LIST:
+			if (result)
+				*result = o;
+
+			ctx->internal = internal;
+			return uci_add_element_list(ctx, o, value);
+		default:
+			UCI_THROW(ctx, UCI_ERR_INVAL);
+			break;
+		}
+	}
+
+	o = uci_alloc_list(s, option);
+	if (result)
+		*result = o;
+	if (prev) {
+		UCI_INTERNAL(uci_add_element_list, ctx, o, value);
+		uci_free_option(prev);
+		value = value2;
+	}
+
+	ctx->internal = internal;
+	return uci_add_element_list(ctx, o, value);
 }
 
 int uci_set(struct uci_context *ctx, struct uci_package *p, const char *section, const char *option, const char *value, struct uci_element **result)

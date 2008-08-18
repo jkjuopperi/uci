@@ -92,17 +92,25 @@ static inline void uci_parse_history_tuple(struct uci_context *ctx, char **buf, 
 {
 	int c = UCI_CMD_CHANGE;
 
-	if (**buf == '-') {
+	switch(**buf) {
+	case '-':
 		c = UCI_CMD_REMOVE;
-		*buf += 1;
-	} else if (**buf == '@') {
+		break;
+	case '@':
 		c = UCI_CMD_RENAME;
-		*buf += 1;
-	} else if (**buf == '+') {
-		/* UCI_CMD_ADD is used for anonymous sections */
+		break;
+	case '+':
+		/* UCI_CMD_ADD is used for anonymous sections or list values */
 		c = UCI_CMD_ADD;
-		*buf += 1;
+		break;
+	case '|':
+		c = UCI_CMD_LIST_ADD;
+		break;
 	}
+
+	if (c != UCI_CMD_CHANGE)
+		*buf += 1;
+
 	if (cmd)
 		*cmd = c;
 
@@ -142,6 +150,9 @@ static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *
 		break;
 	case UCI_CMD_REMOVE:
 		UCI_INTERNAL(uci_delete, ctx, p, section, option);
+		break;
+	case UCI_CMD_LIST_ADD:
+		UCI_INTERNAL(uci_add_list, ctx, p, section, option, value, NULL);
 		break;
 	case UCI_CMD_ADD:
 	case UCI_CMD_CHANGE:
@@ -387,22 +398,26 @@ int uci_save(struct uci_context *ctx, struct uci_package *p)
 
 	uci_foreach_element_safe(&p->history, tmp, e) {
 		struct uci_history *h = uci_to_history(e);
+		char *prefix = "";
 
 		switch(h->cmd) {
 		case UCI_CMD_REMOVE:
-			fprintf(f, "-");
+			prefix = "-";
 			break;
 		case UCI_CMD_RENAME:
-			fprintf(f, "@");
+			prefix = "@";
 			break;
 		case UCI_CMD_ADD:
-			fprintf(f, "+");
+			prefix = "+";
+			break;
+		case UCI_CMD_LIST_ADD:
+			prefix = "|";
 			break;
 		default:
 			break;
 		}
 
-		fprintf(f, "%s.%s", p->e.name, h->section);
+		fprintf(f, "%s%s.%s", prefix, p->e.name, h->section);
 		if (e->name)
 			fprintf(f, ".%s", e->name);
 

@@ -187,6 +187,14 @@ extern int uci_add_section(struct uci_context *ctx, struct uci_package *p, const
 extern int uci_set_element_value(struct uci_context *ctx, struct uci_element **element, const char *value);
 
 /**
+ * uci_add_element_list: Append a string to a list option
+ * @ctx: uci context
+ * @option: pointer to the uci option element
+ * @value: string to append
+ */
+extern int uci_add_element_list(struct uci_context *ctx, struct uci_option *o, const char *value);
+
+/**
  * uci_set: Set an element's value; create the element if necessary
  * @ctx: uci context
  * @package: package name
@@ -196,6 +204,20 @@ extern int uci_set_element_value(struct uci_context *ctx, struct uci_element **e
  * @result: store the updated element in this variable (optional)
  */
 extern int uci_set(struct uci_context *ctx, struct uci_package *p, const char *section, const char *option, const char *value, struct uci_element **result);
+
+/**
+ * uci_add_list: Append a string to an element list
+ * @ctx: uci context
+ * @package: package name
+ * @section: section name
+ * @option: option name
+ * @value: string value
+ * @result: store the updated element in this variable (optional)
+ *
+ * Note: if the given option already contains a string, convert it to an 1-element-list
+ * before appending the next element
+ */
+extern int uci_add_list(struct uci_context *ctx, struct uci_package *p, const char *section, const char *option, const char *value, struct uci_option **result);
 
 /**
  * uci_rename: Rename an element
@@ -317,10 +339,12 @@ enum uci_type {
 	UCI_TYPE_OPTION = 3,
 	UCI_TYPE_PATH = 4,
 	UCI_TYPE_BACKEND = 5,
+	UCI_TYPE_ITEM = 6,
 };
 
 enum uci_option_type {
 	UCI_TYPE_STRING = 0,
+	UCI_TYPE_LIST = 1,
 };
 
 enum uci_flags {
@@ -410,7 +434,7 @@ struct uci_option
 	struct uci_section *section;
 	enum uci_option_type type;
 	union {
-		struct uci_element *list;
+		struct uci_list list;
 		char *string;
 	} v;
 };
@@ -419,7 +443,8 @@ enum uci_command {
 	UCI_CMD_ADD,
 	UCI_CMD_REMOVE,
 	UCI_CMD_CHANGE,
-	UCI_CMD_RENAME
+	UCI_CMD_RENAME,
+	UCI_CMD_LIST_ADD,
 };
 
 struct uci_history

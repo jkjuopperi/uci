@@ -24,6 +24,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <glob.h>
 
 static struct uci_backend uci_file_backend;
 
@@ -163,6 +164,33 @@ error:
 		uci_alloc_option(pctx->section, name, value);
 }
 
+static void uci_parse_list(struct uci_context *ctx, char **str)
+{
+	struct uci_parse_context *pctx = ctx->pctx;
+	char *name = NULL;
+	char *value = NULL;
+
+	if (!pctx->section)
+		uci_parse_error(ctx, *str, "list command found before the first section");
+
+	/* command string null-terminated by strtok */
+	*str += strlen(*str) + 1;
+
+	name = next_arg(ctx, str, true, true);
+	value = next_arg(ctx, str, false, false);
+	assert_eol(ctx, str);
+
+	if (pctx->merge) {
+		UCI_TRAP_SAVE(ctx, error);
+		uci_add_list(ctx, pctx->package, pctx->section->e.name, name, value, NULL);
+		UCI_TRAP_RESTORE(ctx);
+		return;
+error:
+		UCI_THROW(ctx, ctx->err);
+	} else
+		UCI_INTERNAL(uci_add_list, ctx, pctx->package, pctx->section->e.name, name, value, NULL);
+}
+
 
 /*
  * parse a complete input line, split up combined commands by ';'
@@ -198,6 +226,12 @@ static void uci_parse_line(struct uci_context *ctx, bool single)
 			case 'o':
 				if ((word[1] == 0) || !strcmp(word + 1, "ption"))
 					uci_parse_option(ctx, &word);
+				else
+					goto invalid;
+				break;
+			case 'l':
+				if ((word[1] == 0) || !strcmp(word + 1, "ist"))
+					uci_parse_list(ctx, &word);
 				else
 					goto invalid;
 				break;
@@ -263,7 +297,7 @@ static char *uci_escape(struct uci_context *ctx, const char *str)
 static void uci_export_package(struct uci_package *p, FILE *stream, bool header)
 {
 	struct uci_context *ctx = p->ctx;
-	struct uci_element *s, *o;
+	struct uci_element *s, *o, *i;
 
 	if (header)
 		fprintf(stream, "package '%s'\n", uci_escape(ctx, p->e.name));
@@ -275,10 +309,16 @@ static void uci_export_package(struct uci_package *p, FILE *stream, bool header)
 		fprintf(stream, "\n");
 		uci_foreach_element(&sec->options, o) {
 			struct uci_option *opt = uci_to_option(o);
-			switch(o->type) {
+			switch(opt->type) {
 			case UCI_TYPE_STRING:
 				fprintf(stream, "\toption '%s'", uci_escape(ctx, opt->e.name));
 				fprintf(stream, " '%s'\n", uci_escape(ctx, opt->v.string));
+				break;
+			case UCI_TYPE_LIST:
+				uci_foreach_element(&opt->v.list, i) {
+					fprintf(stream, "\tlist '%s'", uci_escape(ctx, opt->e.name));
+					fprintf(stream, " '%s'\n", uci_escape(ctx, i->name));
+				}
 				break;
 			default:
 				fprintf(stream, "\t# unknown type for option '%s'\n", uci_escape(ctx, opt->e.name));
