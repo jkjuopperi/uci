@@ -85,8 +85,8 @@ void uci_free_context(struct uci_context *ctx)
 	uci_foreach_element_safe(&ctx->history_path, tmp, e) {
 		uci_free_element(e);
 	}
-	free(ctx);
 	UCI_TRAP_RESTORE(ctx);
+	free(ctx);
 
 ignore:
 	return;
