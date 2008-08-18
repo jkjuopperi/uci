@@ -187,8 +187,20 @@ static void uci_parse_list(struct uci_context *ctx, char **str)
 		return;
 error:
 		UCI_THROW(ctx, ctx->err);
-	} else
-		UCI_INTERNAL(uci_add_list, ctx, pctx->package, pctx->section->e.name, name, value, NULL);
+	} else {
+		struct uci_option *o;
+		struct uci_element *e;
+
+		e = uci_lookup_list(&pctx->section->options, name);
+		o = uci_to_option(e);
+		if (!o) {
+			o = uci_alloc_list(pctx->section, name);
+		} else {
+			if (o->type != UCI_TYPE_LIST)
+				uci_parse_error(ctx, *str, "conflicting list/option keywords");
+		}
+		UCI_INTERNAL(uci_add_element_list, ctx, o, value);
+	}
 }
 
 
