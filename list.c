@@ -469,7 +469,7 @@ int uci_add_element_list(struct uci_context *ctx, struct uci_option *o, const ch
 	if (!internal && p->has_history)
 		uci_add_history(ctx, &p->history, UCI_CMD_LIST_ADD, s->e.name, o->e.name, value);
 
-	e = uci_alloc_generic(ctx, UCI_TYPE_ITEM, value, 0);
+	e = uci_alloc_generic(ctx, UCI_TYPE_ITEM, value, sizeof(struct uci_option));
 	uci_list_add(&o->v.list, &e->list);
 
 	return 0;
