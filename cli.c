@@ -155,14 +155,24 @@ static void uci_show_changes(struct uci_package *p)
 
 	uci_foreach_element(&p->saved_history, e) {
 		struct uci_history *h = uci_to_history(e);
+		char *prefix = "";
+		char *op = "=";
 
-		if (h->cmd == UCI_CMD_REMOVE)
-			printf("-");
-		printf("%s.%s", p->e.name, h->section);
+		switch(h->cmd) {
+		case UCI_CMD_REMOVE:
+			prefix = "-";
+			break;
+		case UCI_CMD_LIST_ADD:
+			op = "+=";
+			break;
+		default:
+			break;
+		}
+		printf("%s%s.%s", prefix, p->e.name, h->section);
 		if (e->name)
 			printf(".%s", e->name);
 		if (h->cmd != UCI_CMD_REMOVE)
-			printf("=%s", h->value);
+			printf("%s%s", op, h->value);
 		printf("\n");
 	}
 }
