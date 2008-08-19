@@ -401,7 +401,8 @@ uci_lua_set(lua_State *L)
 	const char *value = NULL;
 	const char *s;
 	int err = UCI_ERR_MEM;
-	int nargs;
+	int i, nargs;
+	bool istable = false;
 
 	nargs = lua_gettop(L);
 
@@ -424,7 +425,16 @@ uci_lua_set(lua_State *L)
 		/* Format: uci.set("p", "s", "v") */
 		package = s;
 		section = luaL_checkstring(L, 2);
-		value = luaL_checkstring(L, nargs);
+		if (lua_istable(L, nargs)) {
+			if (lua_objlen(L, nargs) < 1)
+				luaL_error(L, "Cannot set an uci option to an empty table value");
+			lua_rawgeti(L, nargs, 1);
+			value = luaL_checkstring(L, -1);
+			lua_pop(L, 1);
+			istable = true;
+		} else {
+			value = luaL_checkstring(L, nargs);
+		}
 		break;
 	default:
 		err = UCI_ERR_INVAL;
@@ -442,6 +452,16 @@ uci_lua_set(lua_State *L)
 		goto error;
 	}
 	err = uci_set(ctx, p, section, option, value, NULL);
+	if (istable) {
+		for (i = 2; i <= lua_objlen(L, nargs); i++) {
+			lua_rawgeti(L, nargs, i);
+			value = luaL_checkstring(L, -1);
+			err = uci_add_list(ctx, p, section, option, value, NULL);
+			lua_pop(L, 1);
+			if (err)
+				goto error;
+		}
+	}
 
 error:
 	if (err)
