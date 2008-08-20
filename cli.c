@@ -339,7 +339,6 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 	struct uci_section *s = NULL;
 	struct uci_element *e = NULL;
 	struct uci_option *o = NULL;
-	char *package = NULL;
 	char *section = NULL;
 	char *option = NULL;
 	char *value = NULL;
@@ -357,19 +356,23 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 			return 1;
 	}
 
-	str = strdup(argv[1]);
-	if (!str)
-		return 1;
-
 	if (value && (cmd != CMD_SET) && (cmd != CMD_ADD_LIST) && (cmd != CMD_RENAME))
 		return 1;
 
-	if (uci_parse_tuple(ctx, str, &package, &section, &option, NULL) != UCI_OK) {
-		cli_perror();
-		return 1;
-	}
-	sprintf(argv[1], "%s.%s", package, section);
-	free(str);
+	do {
+		str = strchr(argv[1], '.'); /* look up section part */
+		if (!str)
+			break;
+
+		str++;
+		str = strchr(str, '.'); /* look up option part */
+		if (!str)
+			break;
+
+		/* separate option from the rest of the pointer */
+		*str = 0;
+		option = str + 1;
+	} while (0);
 
 	if (uci_lookup_ext(ctx, &e, argv[1]) != UCI_OK) {
 		cli_perror();
@@ -382,10 +385,6 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 		break;
 	case UCI_TYPE_SECTION:
 		s = uci_to_section(e);
-		break;
-	case UCI_TYPE_OPTION:
-		option = e->name;
-		s = uci_to_option(e)->section;
 		break;
 	default:
 		return 1;
