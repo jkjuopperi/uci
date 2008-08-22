@@ -179,53 +179,44 @@ static void uci_show_changes(struct uci_package *p)
 
 static int package_cmd(int cmd, char *tuple)
 {
-	struct uci_package *p;
-	struct uci_section *s;
 	struct uci_element *e = NULL;
+	struct uci_ptr ptr;
 
-	if (uci_lookup_ext(ctx, &e, tuple) != UCI_OK) {
+	if (uci_lookup_ptr(ctx, &ptr, tuple, true) != UCI_OK) {
 		cli_perror();
 		return 1;
 	}
-	switch(e->type) {
-	case UCI_TYPE_PACKAGE:
-		p = uci_to_package(e);
-		break;
-	case UCI_TYPE_SECTION:
-		s = uci_to_section(e);
-		p = s->package;
-		break;
-	case UCI_TYPE_OPTION:
-		s = uci_to_option(e)->section;
-		p = s->package;
-		break;
-	default:
-		return 0;
-	}
+
+	if (ptr.o)
+		e = &ptr.o->e;
+	else if (ptr.s)
+		e = &ptr.s->e;
+	else
+		e = &ptr.p->e;
 
 	switch(cmd) {
 	case CMD_CHANGES:
-		uci_show_changes(p);
+		uci_show_changes(ptr.p);
 		break;
 	case CMD_COMMIT:
 		if (flags & CLI_FLAG_NOCOMMIT)
 			return 0;
-		if (uci_commit(ctx, &p, false) != UCI_OK)
+		if (uci_commit(ctx, &ptr.p, false) != UCI_OK)
 			cli_perror();
 		break;
 	case CMD_EXPORT:
-		uci_export(ctx, stdout, p, true);
+		uci_export(ctx, stdout, ptr.p, true);
 		break;
 	case CMD_SHOW:
 		switch(e->type) {
 			case UCI_TYPE_PACKAGE:
-				uci_show_package(p);
+				uci_show_package(ptr.p);
 				break;
 			case UCI_TYPE_SECTION:
-				uci_show_section(uci_to_section(e));
+				uci_show_section(ptr.s);
 				break;
 			case UCI_TYPE_OPTION:
-				uci_show_option(uci_to_option(e));
+				uci_show_option(ptr.o);
 				break;
 			default:
 				/* should not happen */
@@ -234,7 +225,7 @@ static int package_cmd(int cmd, char *tuple)
 		break;
 	}
 
-	uci_unload(ctx, p);
+	uci_unload(ctx, ptr.p);
 	return 0;
 }
 
@@ -335,74 +326,36 @@ done:
 
 static int uci_do_section_cmd(int cmd, int argc, char **argv)
 {
-	struct uci_package *p = NULL;
-	struct uci_section *s = NULL;
-	struct uci_element *e = NULL;
-	struct uci_option *o = NULL;
-	char *section = NULL;
-	char *option = NULL;
-	char *value = NULL;
+	struct uci_element *e;
+	struct uci_ptr ptr;
 	int ret = UCI_OK;
-	char *str;
 
 	if (argc != 2)
 		return 255;
 
-	value = strchr(argv[1], '=');
-	if (value) {
-		*value = 0;
-		value++;
-		if (!uci_validate_text(value))
-			return 1;
-	}
-
-	if (value && (cmd != CMD_SET) && (cmd != CMD_ADD_LIST) && (cmd != CMD_RENAME))
-		return 1;
-
-	do {
-		str = strchr(argv[1], '.'); /* look up section part */
-		if (!str)
-			break;
-
-		str++;
-		str = strchr(str, '.'); /* look up option part */
-		if (!str)
-			break;
-
-		/* separate option from the rest of the pointer */
-		*str = 0;
-		option = str + 1;
-	} while (0);
-
-	if (uci_lookup_ext(ctx, &e, argv[1]) != UCI_OK) {
+	if (uci_lookup_ptr(ctx, &ptr, argv[1], true) != UCI_OK) {
 		cli_perror();
 		return 1;
 	}
 
-	switch(e->type) {
-	case UCI_TYPE_PACKAGE:
-		p = uci_to_package(e);
-		break;
-	case UCI_TYPE_SECTION:
-		s = uci_to_section(e);
-		break;
-	default:
+	if (ptr.value && (cmd != CMD_SET) && (cmd != CMD_ADD_LIST) && (cmd != CMD_RENAME))
 		return 1;
-	}
-	if (s) {
-		section = s->e.name;
-		p = s->package;
-	}
+
+	if (ptr.o)
+		e = &ptr.o->e;
+	else if (ptr.s)
+		e = &ptr.s->e;
+	else
+		e = &ptr.p->e;
 
 	switch(cmd) {
 	case CMD_GET:
 		switch(e->type) {
 		case UCI_TYPE_SECTION:
-			printf("%s\n", s->type);
+			printf("%s\n", ptr.s->type);
 			break;
 		case UCI_TYPE_OPTION:
-			o = uci_to_option(e);
-			uci_show_value(o);
+			uci_show_value(ptr.o);
 			break;
 		default:
 			break;
@@ -410,19 +363,19 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 		/* throw the value to stdout */
 		break;
 	case CMD_RENAME:
-		ret = uci_rename(ctx, p, section, option, value);
+		ret = uci_rename(ctx, &ptr);
 		break;
 	case CMD_REVERT:
-		ret = uci_revert(ctx, &p, section, option);
+		ret = uci_revert(ctx, &ptr.p, ptr.section, ptr.option);
 		break;
 	case CMD_SET:
-		ret = uci_set(ctx, p, section, option, value, NULL);
+		ret = uci_set(ctx, ptr.p, ptr.section, ptr.option, ptr.value, NULL);
 		break;
 	case CMD_ADD_LIST:
-		ret = uci_add_list(ctx, p, section, option, value, NULL);
+		ret = uci_add_list(ctx, &ptr);
 		break;
 	case CMD_DEL:
-		ret = uci_delete(ctx, p, section, option);
+		ret = uci_delete(ctx, &ptr);
 		break;
 	}
 
@@ -432,7 +385,7 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 
 	/* save changes, but don't commit them yet */
 	if (ret == UCI_OK)
-		ret = uci_save(ctx, p);
+		ret = uci_save(ctx, ptr.p);
 
 	if (ret != UCI_OK) {
 		cli_perror();

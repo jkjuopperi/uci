@@ -253,6 +253,22 @@ uci_free_package(struct uci_package **package)
 	*package = NULL;
 }
 
+static void
+uci_free_any(struct uci_element **e)
+{
+	switch((*e)->type) {
+	case UCI_TYPE_SECTION:
+		uci_free_section(uci_to_section(*e));
+		break;
+	case UCI_TYPE_OPTION:
+		uci_free_option(uci_to_option(*e));
+		break;
+	default:
+		break;
+	}
+	*e = NULL;
+}
+
 static struct uci_element *uci_lookup_list(struct uci_list *list, const char *name)
 {
 	struct uci_element *e;
@@ -264,51 +280,21 @@ static struct uci_element *uci_lookup_list(struct uci_list *list, const char *na
 	return NULL;
 }
 
-int uci_lookup_ext(struct uci_context *ctx, struct uci_element **res, char *str)
+static struct uci_element *uci_lookup_ext_section(struct uci_context *ctx, struct uci_ptr *ptr)
 {
-	struct uci_package *p = NULL;
-	struct uci_element *e;
+	char *idxstr, *t, *section, *name;
+	struct uci_element *e = NULL;
 	struct uci_section *s;
-	struct uci_ptr ptr;
-	char *idxstr, *t;
 	int idx, c;
 
-	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, res != NULL);
-	UCI_ASSERT(ctx, str != NULL);
+	section = uci_strdup(ctx, ptr->section);
+	name = idxstr = section + 1;
 
-	UCI_INTERNAL(uci_parse_ptr, ctx, &ptr, str);
-
-	/* look up the package first */
-	e = uci_lookup_list(&ctx->root, ptr.package);
-	if (!e) {
-		UCI_INTERNAL(uci_load, ctx, ptr.package, &p);
-		if (!p)
-			goto notfound;
-		e = &p->e;
-	} else {
-		p = uci_to_package(e);
-	}
-
-	if (!ptr.section)
-		goto done;
-
-	/* if the section name validates as a regular name, pass through
-	 * to the regular uci_lookup function call */
-	if (!(ptr.flags & UCI_LOOKUP_EXTENDED)) {
-		UCI_INTERNAL(uci_lookup, ctx, &e, p, ptr.section, ptr.option);
-		goto done;
-	}
-
-	/* name did not validate, that means we have an extended lookup call
-	 * parse it here. for now only the section index syntax is supported */
-	if (ptr.section[0] != '@')
+	if (section[0] != '@')
 		goto error;
 
-	ptr.section++;
-
 	/* parse the section index part */
-	idxstr = strchr(ptr.section, '[');
+	idxstr = strchr(idxstr, '[');
 	if (!idxstr)
 		goto error;
 	*idxstr = 0;
@@ -326,18 +312,18 @@ int uci_lookup_ext(struct uci_context *ctx, struct uci_element **res, char *str)
 	if (t && *t)
 		goto error;
 
-	if (!*ptr.section)
-		ptr.section = NULL;
-	if (ptr.section && !uci_validate_str(ptr.section, false))
+	if (!*name)
+		name = NULL;
+	else if (!uci_validate_str(name, false))
 		goto error;
 
 	/* if the given index is negative, it specifies the section number from 
 	 * the end of the list */
 	if (idx < 0) {
 		c = 0;
-		uci_foreach_element(&p->sections, e) {
+		uci_foreach_element(&ptr->p->sections, e) {
 			s = uci_to_section(e);
-			if (ptr.section && (strcmp(s->type, ptr.section) != 0))
+			if (name && (strcmp(s->type, name) != 0))
 				continue;
 
 			c++;
@@ -346,55 +332,75 @@ int uci_lookup_ext(struct uci_context *ctx, struct uci_element **res, char *str)
 	}
 
 	c = 0;
-	uci_foreach_element(&p->sections, e) {
+	uci_foreach_element(&ptr->p->sections, e) {
 		s = uci_to_section(e);
-		if (ptr.section && (strcmp(s->type, ptr.section) != 0))
+		if (name && (strcmp(s->type, name) != 0))
 			continue;
 
 		if (idx == c)
-			goto found;
+			goto done;
 		c++;
 	}
-	goto notfound;
+	e = NULL;
+	goto done;
 
-found:
-	if (ptr.option)
-		e = uci_lookup_list(&s->options, ptr.option);
-done:
-	*res = e;
-	return 0;
-
-notfound:
-	UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 error:
+	e = NULL;
+	memset(ptr, 0, sizeof(struct uci_ptr));
 	UCI_THROW(ctx, UCI_ERR_INVAL);
-	return 0;
+done:
+	free(section);
+	return e;
 }
 
-int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_package *p, const char *section, const char *option)
+int uci_lookup_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str, bool extended)
 {
 	struct uci_element *e;
-	struct uci_section *s;
 
 	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, res != NULL);
-	UCI_ASSERT(ctx, p != NULL);
-	UCI_ASSERT(ctx, section && uci_validate_name(section));
-	if (option)
-		UCI_ASSERT(ctx, uci_validate_name(option));
+	UCI_ASSERT(ctx, ptr != NULL);
 
-	e = uci_lookup_list(&p->sections, section);
-	if (!e)
-		goto notfound;
+	if (str)
+		UCI_INTERNAL(uci_parse_ptr, ctx, ptr, str);
 
-	if (option) {
-		s = uci_to_section(e);
-		e = uci_lookup_list(&s->options, option);
-		if (!e)
+	ptr->flags |= UCI_LOOKUP_DONE;
+
+	/* look up the package first */
+	e = uci_lookup_list(&ctx->root, ptr->package);
+	if (!e) {
+		UCI_INTERNAL(uci_load, ctx, ptr->package, &ptr->p);
+		if (!ptr->p)
 			goto notfound;
+	} else {
+		ptr->p = uci_to_package(e);
 	}
 
-	*res = e;
+	if (!ptr->section)
+		goto complete;
+
+	/* if the section name validates as a regular name, pass through
+	 * to the regular uci_lookup function call */
+	if (ptr->flags & UCI_LOOKUP_EXTENDED)
+		e = uci_lookup_ext_section(ctx, ptr);
+	else
+		e = uci_lookup_list(&ptr->p->sections, ptr->section);
+
+	if (!e)
+		goto abort;
+
+	ptr->s = uci_to_section(e);
+
+	if (ptr->option) {
+		e = uci_lookup_list(&ptr->s->options, ptr->option);
+		if (!e)
+			goto abort;
+
+		ptr->o = uci_to_option(e);
+	}
+
+complete:
+	ptr->flags |= UCI_LOOKUP_COMPLETE;
+abort:
 	return 0;
 
 notfound:
@@ -402,75 +408,84 @@ notfound:
 	return 0;
 }
 
-int uci_del_element(struct uci_context *ctx, struct uci_element *e)
+int
+uci_fill_ptr(struct uci_context *ctx, struct uci_ptr *ptr, struct uci_element *e, bool complete)
 {
-	/* NB: UCI_INTERNAL use means without history tracking */
-	bool internal = ctx->internal;
-	struct uci_package *p = NULL;
-	struct uci_section *s = NULL;
-	struct uci_option *o = NULL;
-	struct uci_element *i, *tmp;
-	char *option = NULL;
-
 	UCI_HANDLE_ERR(ctx);
+	UCI_ASSERT(ctx, ptr != NULL);
 	UCI_ASSERT(ctx, e != NULL);
 
+	memset(ptr, 0, sizeof(struct uci_ptr));
 	switch(e->type) {
-	case UCI_TYPE_SECTION:
-		s = uci_to_section(e);
-		uci_foreach_element_safe(&s->options, tmp, i) {
-			uci_del_element(ctx, i);
-		}
-		break;
 	case UCI_TYPE_OPTION:
-		o = uci_to_option(e);
-		s = o->section;
-		p = s->package;
-		option = e->name;
-		break;
+		ptr->o = uci_to_option(e);
+		goto fill_option;
+	case UCI_TYPE_SECTION:
+		ptr->s = uci_to_section(e);
+		goto fill_section;
+	case UCI_TYPE_PACKAGE:
+		ptr->p = uci_to_package(e);
+		goto fill_package;
 	default:
 		UCI_THROW(ctx, UCI_ERR_INVAL);
-		break;
 	}
 
-	p = s->package;
-	if (!internal && p->has_history)
-		uci_add_history(ctx, &p->history, UCI_CMD_REMOVE, s->e.name, option, NULL);
+fill_option:
+	ptr->option = ptr->o->e.name;
+	ptr->s = ptr->o->section;
+fill_section:
+	ptr->section = ptr->s->e.name;
+	ptr->p = ptr->s->package;
+fill_package:
+	ptr->package = ptr->p->e.name;
 
-	switch(e->type) {
-	case UCI_TYPE_SECTION:
-		uci_free_section(s);
-		break;
-	case UCI_TYPE_OPTION:
-		uci_free_option(o);
-		break;
-	default:
-		break;
-	}
+	ptr->flags |= UCI_LOOKUP_DONE;
+	if (complete)
+		ptr->flags |= UCI_LOOKUP_COMPLETE;
 
 	return 0;
 }
 
-int uci_add_element_list(struct uci_context *ctx, struct uci_option *o, const char *value)
+static struct uci_element *
+expand_ptr(struct uci_context *ctx, struct uci_ptr *ptr, bool complete)
+{
+	UCI_ASSERT(ctx, ptr != NULL);
+
+	if (!(ptr->flags & UCI_LOOKUP_DONE))
+		uci_lookup_ptr(ctx, ptr, NULL, 1);
+	if (complete && !(ptr->flags & UCI_LOOKUP_COMPLETE))
+		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
+	UCI_ASSERT(ctx, ptr->p != NULL);
+
+	/* fill in missing string info */
+	if (ptr->p && !ptr->package)
+		ptr->package = ptr->p->e.name;
+	if (ptr->s && !ptr->section)
+		ptr->section = ptr->s->e.name;
+	if (ptr->o && !ptr->option)
+		ptr->option = ptr->o->e.name;
+
+	if (ptr->o)
+		return &ptr->o->e;
+	if (ptr->s)
+		return &ptr->s->e;
+	if (ptr->p)
+		return &ptr->p->e;
+	else
+		return NULL;
+}
+
+static void uci_add_element_list(struct uci_context *ctx, struct uci_ptr *ptr, bool internal)
 {
 	struct uci_element *e;
 	struct uci_package *p;
-	struct uci_section *s;
-	bool internal = ctx->internal;
 
-	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, (o != NULL) && (o->type == UCI_TYPE_LIST) && uci_validate_text(value));
-
-	s = o->section;
-	p = s->package;
-
+	p = ptr->p;
 	if (!internal && p->has_history)
-		uci_add_history(ctx, &p->history, UCI_CMD_LIST_ADD, s->e.name, o->e.name, value);
+		uci_add_history(ctx, &p->history, UCI_CMD_LIST_ADD, ptr->section, ptr->option, ptr->value);
 
-	e = uci_alloc_generic(ctx, UCI_TYPE_ITEM, value, sizeof(struct uci_option));
-	uci_list_add(&o->v.list, &e->list);
-
-	return 0;
+	e = uci_alloc_generic(ctx, UCI_TYPE_ITEM, ptr->value, sizeof(struct uci_option));
+	uci_list_add(&ptr->o->v.list, &e->list);
 }
 
 int uci_set_element_value(struct uci_context *ctx, struct uci_element **element, const char *value)
@@ -544,7 +559,7 @@ int uci_set_element_value(struct uci_context *ctx, struct uci_element **element,
 
 	if ((e->type == UCI_TYPE_OPTION) && (size == 0)) {
 		o = uci_alloc_option(s, option, value);
-		UCI_INTERNAL(uci_del_element, ctx, e);
+		uci_free_any(&e);
 		*element = &o->e;
 		goto done;
 	}
@@ -570,24 +585,29 @@ done:
 	return 0;
 }
 
-int uci_rename(struct uci_context *ctx, struct uci_package *p, char *section, char *option, char *name)
+int uci_rename(struct uci_context *ctx, struct uci_ptr *ptr)
 {
 	/* NB: UCI_INTERNAL use means without history tracking */
 	bool internal = ctx->internal;
 	struct uci_element *e;
+	struct uci_package *p;
+	char *n;
 
 	UCI_HANDLE_ERR(ctx);
 
-	/* NB: p, section, option validated by uci_lookup */
-	UCI_INTERNAL(uci_lookup, ctx, &e, p, section, option);
+	e = expand_ptr(ctx, ptr, true);
+	p = ptr->p;
+
+	UCI_ASSERT(ctx, ptr->s);
+	UCI_ASSERT(ctx, ptr->value);
 
 	if (!internal && p->has_history)
-		uci_add_history(ctx, &p->history, UCI_CMD_RENAME, section, option, name);
+		uci_add_history(ctx, &p->history, UCI_CMD_RENAME, ptr->section, ptr->option, ptr->value);
 
-	name = uci_strdup(ctx, name);
+	n = uci_strdup(ctx, ptr->value);
 	if (e->name)
 		free(e->name);
-	e->name = name;
+	e->name = n;
 
 	return 0;
 }
@@ -608,71 +628,66 @@ int uci_add_section(struct uci_context *ctx, struct uci_package *p, const char *
 	return 0;
 }
 
-int uci_delete(struct uci_context *ctx, struct uci_package *p, const char *section, const char *option)
+int uci_delete(struct uci_context *ctx, struct uci_ptr *ptr)
 {
 	/* NB: pass on internal flag to uci_del_element */
 	bool internal = ctx->internal;
+	struct uci_package *p;
 	struct uci_element *e;
 
 	UCI_HANDLE_ERR(ctx);
 
-	/* NB: p, section, option validated by uci_lookup */
-	UCI_INTERNAL(uci_lookup, ctx, &e, p, section, option);
+	e = expand_ptr(ctx, ptr, true);
+	p = ptr->p;
 
-	ctx->internal = internal;
-	return uci_del_element(ctx, e);
+	UCI_ASSERT(ctx, ptr->s);
+
+	if (!internal && p->has_history)
+		uci_add_history(ctx, &p->history, UCI_CMD_REMOVE, ptr->section, ptr->option, NULL);
+
+	uci_free_any(&e);
+	return 0;
 }
 
-int uci_add_list(struct uci_context *ctx, struct uci_package *p, const char *section, const char *option, const char *value, struct uci_option **result)
+int uci_add_list(struct uci_context *ctx, struct uci_ptr *ptr)
 {
 	/* NB: UCI_INTERNAL use means without history tracking */
 	bool internal = ctx->internal;
-	struct uci_element *e;
-	struct uci_section *s;
-	struct uci_option *o;
 	struct uci_option *prev = NULL;
 	const char *value2 = NULL;
 
 	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, p && section && option && value && uci_validate_text(value));
 
-	/* look up the section first */
-	UCI_INTERNAL(uci_lookup, ctx, &e, p, section, NULL);
-	s = uci_to_section(e);
+	expand_ptr(ctx, ptr, false);
+	UCI_ASSERT(ctx, ptr->s);
+	UCI_ASSERT(ctx, ptr->value);
 
-	e = uci_lookup_list(&s->options, option);
-	if (e) {
-		o = uci_to_option(e);
-		switch (o->type) {
+	if (ptr->o) {
+		switch (ptr->o->type) {
 		case UCI_TYPE_STRING:
-			/* we already have a string value, let's convert that to a list */
-			prev = o;
-			value2 = value;
-			value = o->v.string;
+			/* we already have a string value, convert that to a list */
+			prev = ptr->o;
+			value2 = ptr->value;
+			ptr->value = ptr->o->v.string;
 			break;
 		case UCI_TYPE_LIST:
-			if (result)
-				*result = o;
-
-			ctx->internal = internal;
-			return uci_add_element_list(ctx, o, value);
+			uci_add_element_list(ctx, ptr, internal);
+			return 0;
 		default:
 			UCI_THROW(ctx, UCI_ERR_INVAL);
 			break;
 		}
 	}
 
-	o = uci_alloc_list(s, option);
-	if (result)
-		*result = o;
+	ptr->o = uci_alloc_list(ptr->s, ptr->option);
 	if (prev) {
-		UCI_INTERNAL(uci_add_element_list, ctx, o, value);
+		uci_add_element_list(ctx, ptr, true);
 		uci_free_option(prev);
-		value = value2;
+		ptr->value = value2;
 	}
+	uci_add_element_list(ctx, ptr, internal);
 
-	ctx->internal = internal;
-	return uci_add_element_list(ctx, o, value);
+	return 0;
 }
 
 int uci_set(struct uci_context *ctx, struct uci_package *p, const char *section, const char *option, const char *value, struct uci_element **result)

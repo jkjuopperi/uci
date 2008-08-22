@@ -150,13 +150,13 @@ static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *
 
 	switch(cmd) {
 	case UCI_CMD_RENAME:
-		UCI_INTERNAL(uci_rename, ctx, p, ptr.section, ptr.option, ptr.value);
+		UCI_INTERNAL(uci_rename, ctx, &ptr);
 		break;
 	case UCI_CMD_REMOVE:
-		UCI_INTERNAL(uci_delete, ctx, p, ptr.section, ptr.option);
+		UCI_INTERNAL(uci_delete, ctx, &ptr);
 		break;
 	case UCI_CMD_LIST_ADD:
-		UCI_INTERNAL(uci_add_list, ctx, p, ptr.section, ptr.option, ptr.value, NULL);
+		UCI_INTERNAL(uci_add_list, ctx, &ptr);
 		break;
 	case UCI_CMD_ADD:
 	case UCI_CMD_CHANGE:

@@ -114,9 +114,10 @@ struct uci_backend _var = {		\
 	ctx->err = 0;			\
 	if (!ctx)			\
 		return UCI_ERR_INVAL;	\
-	if (!ctx->internal)		\
+	if (!ctx->internal && !ctx->nested) \
 		__val = setjmp(ctx->trap); \
 	ctx->internal = false;		\
+	ctx->nested = false;		\
 	if (__val) {			\
 		DPRINTF("LEAVE: %s, ret=%d\n", __func__, __val); \
 		ctx->err = __val;	\
@@ -154,6 +155,18 @@ struct uci_backend _var = {		\
 	ctx->internal = true;		\
 	func(ctx, __VA_ARGS__);		\
 } while (0)
+
+/**
+ * UCI_NESTED: Do an normal nested call of a public API function
+ * 
+ * Sets Exception handling to passthrough mode.
+ * Allows API functions to change behavior compared to public use
+ */
+#define UCI_NESTED(func, ctx, ...) do { \
+	ctx->nested = true;		\
+	func(ctx, __VA_ARGS__);		\
+} while (0)
+
 
 /*
  * check the specified condition.

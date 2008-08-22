@@ -123,44 +123,21 @@ extern int uci_load(struct uci_context *ctx, const char *name, struct uci_packag
 extern int uci_unload(struct uci_context *ctx, struct uci_package *p);
 
 /**
- * uci_lookup: Look up an uci element
- *
- * @ctx: uci context
- * @res: where to store the result
- * @package: uci_package struct 
- * @section: config section (optional)
- * @option: option to search for (optional)
- *
- * If section is omitted, then a pointer to the config package is returned
- * If option is omitted, then a pointer to the config section is returned
- */
-extern int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_package *package, const char *section, const char *option);
-
-/**
- * uci_lookup_ptr: Split an uci tuple string and look up elements
+ * uci_lookup_ptr: Split an uci tuple string and look up an element tree
  * @ctx: uci context
  * @ptr: lookup result struct
  * @str: uci tuple string to look up
  * @extended: allow extended syntax lookup
- */
-extern int uci_lookup_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str, bool extended);
-
-/**
- * uci_lookup_ext: Extended lookup for an uci element
  *
- * @ctx: uci context
- * @res: where to store the result
- * @ptr: uci pointer tuple
- *
- * Looks up an element using the extended syntax.
- * It can look up sections by an index with an optional type.
+ * if extended is set to true, uci_lookup_ptr supports the following 
+ * extended syntax:
  *
  * Examples:
  *   network.@interface[0].ifname ('ifname' option of the first interface section)
  *   network.@interface[-1]       (last interface section)
  * Note: uci_lookup_ext will automatically load a config package if necessary
  */
-extern int uci_lookup_ext(struct uci_context *ctx, struct uci_element **res, char *ptr);
+extern int uci_lookup_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str, bool extended);
 
 /**
  * uci_add_section: Add an unnamed section
@@ -183,14 +160,6 @@ extern int uci_add_section(struct uci_context *ctx, struct uci_package *p, const
 extern int uci_set_element_value(struct uci_context *ctx, struct uci_element **element, const char *value);
 
 /**
- * uci_add_element_list: Append a string to a list option
- * @ctx: uci context
- * @option: pointer to the uci option element
- * @value: string to append
- */
-extern int uci_add_element_list(struct uci_context *ctx, struct uci_option *o, const char *value);
-
-/**
  * uci_set: Set an element's value; create the element if necessary
  * @ctx: uci context
  * @package: package name
@@ -204,42 +173,26 @@ extern int uci_set(struct uci_context *ctx, struct uci_package *p, const char *s
 /**
  * uci_add_list: Append a string to an element list
  * @ctx: uci context
- * @package: package name
- * @section: section name
- * @option: option name
- * @value: string value
- * @result: store the updated element in this variable (optional)
+ * @ptr: uci pointer (with value)
  *
- * Note: if the given option already contains a string, convert it to an 1-element-list
- * before appending the next element
+ * Note: if the given option already contains a string value,
+ * it will be converted to an 1-element-list before appending the next element
  */
-extern int uci_add_list(struct uci_context *ctx, struct uci_package *p, const char *section, const char *option, const char *value, struct uci_option **result);
+extern int uci_add_list(struct uci_context *ctx, struct uci_ptr *ptr);
 
 /**
  * uci_rename: Rename an element
  * @ctx: uci context
- * @package: package name
- * @section: section name
- * @option: option name
- * @name: new name
+ * @ptr: uci pointer (with value)
  */
-extern int uci_rename(struct uci_context *ctx, struct uci_package *p, char *section, char *option, char *name);
-
-/**
- * uci_delete_element: Delete a section or option
- * @ctx: uci context
- * @e: element (section or option)
- */
-extern int uci_delete_element(struct uci_context *ctx, struct uci_element *e);
+extern int uci_rename(struct uci_context *ctx, struct uci_ptr *ptr);
 
 /**
  * uci_delete: Delete a section or option
  * @ctx: uci context
- * @p: uci package
- * @section: section name
- * @option: option name (optional)
+ * @ptr: uci pointer 
  */
-extern int uci_delete(struct uci_context *ctx, struct uci_package *p, const char *section, const char *option);
+extern int uci_delete(struct uci_context *ctx, struct uci_ptr *ptr);
 
 /**
  * uci_save: save change history for a package
@@ -395,7 +348,7 @@ struct uci_context
 	int err;
 	const char *func;
 	jmp_buf trap;
-	bool internal;
+	bool internal, nested;
 	char *buf;
 	int bufsz;
 };
@@ -464,11 +417,12 @@ struct uci_ptr
 	struct uci_package *p;
 	struct uci_section *s;
 	struct uci_option *o;
+	struct uci_element *last;
 
-	char *package;
-	char *section;
-	char *option;
-	char *value;
+	const char *package;
+	const char *section;
+	const char *option;
+	const char *value;
 };
 
 

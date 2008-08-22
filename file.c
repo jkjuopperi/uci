@@ -167,6 +167,7 @@ error:
 static void uci_parse_list(struct uci_context *ctx, char **str)
 {
 	struct uci_parse_context *pctx = ctx->pctx;
+	struct uci_ptr ptr;
 	char *name = NULL;
 	char *value = NULL;
 
@@ -180,27 +181,14 @@ static void uci_parse_list(struct uci_context *ctx, char **str)
 	value = next_arg(ctx, str, false, false);
 	assert_eol(ctx, str);
 
-	if (pctx->merge) {
-		UCI_TRAP_SAVE(ctx, error);
-		uci_add_list(ctx, pctx->package, pctx->section->e.name, name, value, NULL);
-		UCI_TRAP_RESTORE(ctx);
-		return;
-error:
-		UCI_THROW(ctx, ctx->err);
-	} else {
-		struct uci_option *o;
-		struct uci_element *e;
+	UCI_NESTED(uci_fill_ptr, ctx, &ptr, &pctx->section->e, false);
+	ptr.option = name;
+	ptr.value = value;
 
-		e = uci_lookup_list(&pctx->section->options, name);
-		o = uci_to_option(e);
-		if (!o) {
-			o = uci_alloc_list(pctx->section, name);
-		} else {
-			if (o->type != UCI_TYPE_LIST)
-				uci_parse_error(ctx, *str, "conflicting list/option keywords");
-		}
-		UCI_INTERNAL(uci_add_element_list, ctx, o, value);
-	}
+	UCI_INTERNAL(uci_lookup_ptr, ctx, &ptr, NULL, false);
+
+	ctx->internal = !pctx->merge;
+	UCI_NESTED(uci_add_list, ctx, &ptr);
 }
 
 
