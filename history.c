@@ -160,7 +160,8 @@ static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *
 		break;
 	case UCI_CMD_ADD:
 	case UCI_CMD_CHANGE:
-		UCI_INTERNAL(uci_set, ctx, p, ptr.section, ptr.option, ptr.value, &e);
+		UCI_INTERNAL(uci_set, ctx, &ptr);
+		e = ptr.last;
 		if (!ptr.option && e && (cmd == UCI_CMD_ADD))
 			uci_to_section(e)->anonymous = true;
 		break;

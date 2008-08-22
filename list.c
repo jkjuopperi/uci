@@ -48,6 +48,12 @@ static inline void uci_list_del(struct uci_list *ptr)
 	uci_list_init(ptr);
 }
 
+static inline void uci_list_fixup(struct uci_list *ptr)
+{
+	ptr->prev->next = ptr;
+	ptr->next->prev = ptr;
+}
+
 /* 
  * uci_alloc_generic allocates a new uci_element with payload
  * payload is appended to the struct to save memory and reduce fragmentation
@@ -496,103 +502,6 @@ static void uci_add_element_list(struct uci_context *ctx, struct uci_ptr *ptr, b
 	uci_list_add(&ptr->o->v.list, &e->list);
 }
 
-int uci_set_element_value(struct uci_context *ctx, struct uci_element **element, const char *value)
-{
-	/* NB: UCI_INTERNAL use means without history tracking */
-	bool internal = ctx->internal;
-	struct uci_list *list;
-	struct uci_element *e;
-	struct uci_package *p;
-	struct uci_section *s;
-	struct uci_option *o;
-	char *section;
-	char *option;
-	char *str;
-	int size = 0;
-
-	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, (element != NULL) && (*element != NULL));
-
-	/* what the 'value' of an element means depends on the type
-	 * for a section, the 'value' means its type
-	 * for an option, the 'value' means its value string
-	 * when changing the value, shrink the element to its actual size
-	 * (it may have been allocated with a bigger size, to include
-	 *  its buffer)
-	 * then duplicate the string passed on the command line and
-	 * insert it into the structure.
-	 */
-	e = *element;
-	list = e->list.prev;
-
-	switch(e->type) {
-	case UCI_TYPE_SECTION:
-		UCI_ASSERT(ctx, uci_validate_str(value, false));
-		size = sizeof(struct uci_section);
-		s = uci_to_section(e);
-		section = e->name;
-		option = NULL;
-		/* matches the currently set value */
-		if (!strcmp(value, s->type))
-			return 0;
-		break;
-
-	case UCI_TYPE_OPTION:
-		UCI_ASSERT(ctx, value != NULL);
-		o = uci_to_option(e);
-		s = o->section;
-		section = s->e.name;
-		option = o->e.name;
-		switch(o->type) {
-		case UCI_TYPE_STRING:
-			size = sizeof(struct uci_option);
-			/* matches the currently set value */
-			if (!strcmp(value, o->v.string))
-				return 0;
-			break;
-		default:
-			/* default action for non-string datatypes is to delete
-			 * the existing entry, then re-create it as a string */
-			break;
-		}
-		break;
-
-	default:
-		UCI_THROW(ctx, UCI_ERR_INVAL);
-		return 0;
-	}
-	p = s->package;
-	if (!internal && p->has_history)
-		uci_add_history(ctx, &p->history, UCI_CMD_CHANGE, section, option, value);
-
-	if ((e->type == UCI_TYPE_OPTION) && (size == 0)) {
-		o = uci_alloc_option(s, option, value);
-		uci_free_any(&e);
-		*element = &o->e;
-		goto done;
-	}
-
-	uci_list_del(&e->list);
-	e = uci_realloc(ctx, e, size);
-	str = uci_strdup(ctx, value);
-	uci_list_insert(list, &e->list);
-	*element = e;
-
-	switch(e->type) {
-	case UCI_TYPE_SECTION:
-		uci_to_section(e)->type = str;
-		break;
-	case UCI_TYPE_OPTION:
-		uci_to_option(e)->v.string = str;
-		break;
-	default:
-		break;
-	}
-
-done:
-	return 0;
-}
-
 int uci_rename(struct uci_context *ctx, struct uci_ptr *ptr)
 {
 	/* NB: UCI_INTERNAL use means without history tracking */
@@ -698,84 +607,47 @@ int uci_add_list(struct uci_context *ctx, struct uci_ptr *ptr)
 	return 0;
 }
 
-int uci_set(struct uci_context *ctx, struct uci_package *p, const char *section, const char *option, const char *value, struct uci_element **result)
+int uci_set(struct uci_context *ctx, struct uci_ptr *ptr)
 {
 	/* NB: UCI_INTERNAL use means without history tracking */
 	bool internal = ctx->internal;
-	struct uci_element *e = NULL;
-	struct uci_section *s = NULL;
-	struct uci_option *o = NULL;
 
 	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, p != NULL);
-	UCI_ASSERT(ctx, uci_validate_name(section));
-	if (option) {
-		UCI_ASSERT(ctx, uci_validate_name(option));
-		UCI_ASSERT(ctx, value != NULL);
+	expand_ptr(ctx, ptr, false);
+	UCI_ASSERT(ctx, ptr->value);
+	UCI_ASSERT(ctx, ptr->s || (!ptr->option && ptr->section));
+	if (!ptr->option) {
+		UCI_ASSERT(ctx, uci_validate_str(ptr->value, false));
+	}
+
+	if (!ptr->o && ptr->option) { /* new option */
+		ptr->o = uci_alloc_option(ptr->s, ptr->option, ptr->value);
+		ptr->last = &ptr->o->e;
+	} else if (!ptr->s && ptr->section) { /* new section */
+		ptr->s = uci_alloc_section(ptr->p, ptr->value, ptr->section);
+		ptr->last = &ptr->s->e;
+	} else if (ptr->o && ptr->option) { /* update option */
+		uci_free_option(ptr->o);
+		ptr->o = uci_alloc_option(ptr->s, ptr->option, ptr->value);
+		ptr->last = &ptr->o->e;
+	} else if (ptr->s && ptr->section) { /* update section */
+		char *s = uci_strdup(ctx, ptr->value);
+
+		if (ptr->s->type == uci_dataptr(ptr->s)) {
+			ptr->last = NULL;
+			ptr->last = uci_realloc(ctx, ptr->s, sizeof(struct uci_section));
+			ptr->s = uci_to_section(ptr->last);
+			uci_list_fixup(&ptr->s->e.list);
+		} else {
+			free(ptr->s->type);
+		}
+		ptr->s->type = s;
 	} else {
-		UCI_ASSERT(ctx, uci_validate_str(value, false));
+		UCI_THROW(ctx, UCI_ERR_INVAL);
 	}
 
-	/*
-	 * look up the package, section and option (if set)
-	 * if the section/option is to be modified and it is not found
-	 * create a new element in the appropriate list
-	 */
-	e = uci_lookup_list(&p->sections, section);
-	if (!e)
-		goto notfound;
-
-	s = uci_to_section(e);
-	if (ctx->pctx && ctx->pctx->merge)
-		ctx->pctx->section = s;
-
-	if (option) {
-		e = uci_lookup_list(&s->options, option);
-		if (!e)
-			goto notfound;
-		o = uci_to_option(e);
-	}
-
-	/* 
-	 * no unknown element was supplied, assume that we can just update 
-	 * an existing entry
-	 */
-	if (o)
-		e = &o->e;
-	else
-		e = &s->e;
-	if (result)
-		*result = e;
-	else
-		result = &e;
-
-	ctx->internal = internal;
-	return uci_set_element_value(ctx, result, value);
-
-notfound:
-	/* 
-	 * the entry that we need to update was not found,
-	 * check if the search failed prematurely.
-	 * this can happen if the package was not found, or if
-	 * an option was supplied, but the section wasn't found
-	 */
-	if (!p || (!s && option))
-		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
-
-	/* now add the missing entry */
-	if (!internal && p->has_history)
-		uci_add_history(ctx, &p->history, UCI_CMD_CHANGE, section, option, value);
-	if (s) {
-		o = uci_alloc_option(s, option, value);
-		if (result)
-			*result = &o->e;
-	} else {
-		s = uci_alloc_section(p, value, section);
-		if (result)
-			*result = &s->e;
-		if (ctx->pctx && ctx->pctx->merge)
-			ctx->pctx->section = s;
-	}
+	if (!internal && ptr->p->has_history)
+		uci_add_history(ctx, &ptr->p->history, UCI_CMD_CHANGE, ptr->section, ptr->option, ptr->value);
 
 	return 0;
 }

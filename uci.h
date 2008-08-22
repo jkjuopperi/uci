@@ -149,26 +149,13 @@ extern int uci_lookup_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *st
 extern int uci_add_section(struct uci_context *ctx, struct uci_package *p, const char *type, struct uci_section **res);
 
 /**
- * uci_set_element_value: Replace an element's value with a new one
- * @ctx: uci context
- * @element: pointer to an uci_element struct pointer
- * @value: new value
- * 
- * Only valid for uci_option and uci_section. Will replace the type string
- * when used with an uci_section
- */
-extern int uci_set_element_value(struct uci_context *ctx, struct uci_element **element, const char *value);
-
-/**
  * uci_set: Set an element's value; create the element if necessary
  * @ctx: uci context
- * @package: package name
- * @section: section name
- * @option: option name
- * @value: value (option) or type (section)
- * @result: store the updated element in this variable (optional)
+ * @ptr: uci pointer 
+ *
+ * The updated/created element is stored in ptr->last
  */
-extern int uci_set(struct uci_context *ctx, struct uci_package *p, const char *section, const char *option, const char *value, struct uci_element **result);
+extern int uci_set(struct uci_context *ctx, struct uci_ptr *ptr);
 
 /**
  * uci_add_list: Append a string to an element list

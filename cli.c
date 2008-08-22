@@ -357,7 +357,7 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 		ret = uci_revert(ctx, &ptr);
 		break;
 	case CMD_SET:
-		ret = uci_set(ctx, ptr.p, ptr.section, ptr.option, ptr.value, NULL);
+		ret = uci_set(ctx, &ptr);
 		break;
 	case CMD_ADD_LIST:
 		ret = uci_add_list(ctx, &ptr);

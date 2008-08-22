@@ -102,6 +102,8 @@ static void uci_parse_package(struct uci_context *ctx, char **str, bool single)
 static void uci_parse_config(struct uci_context *ctx, char **str)
 {
 	struct uci_parse_context *pctx = ctx->pctx;
+	struct uci_element *e;
+	struct uci_ptr ptr;
 	char *name = NULL;
 	char *type = NULL;
 
@@ -122,46 +124,36 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 	name = next_arg(ctx, str, false, true);
 	assert_eol(ctx, str);
 
-	if (pctx->merge) {
-		UCI_NESTED(uci_set, ctx, pctx->package, name, NULL, type, NULL);
-	} else
-		pctx->section = uci_alloc_section(pctx->package, type, name);
+	if (!name) {
+		ctx->internal = !pctx->merge;
+		UCI_NESTED(uci_add_section, ctx, pctx->package, type, &pctx->section);
+	} else {
+		UCI_NESTED(uci_fill_ptr, ctx, &ptr, &pctx->package->e, false);
+		e = uci_lookup_list(&pctx->package->sections, name);
+		if (e)
+			ptr.s = uci_to_section(e);
+		ptr.section = name;
+		ptr.value = type;
+
+		ctx->internal = !pctx->merge;
+		UCI_NESTED(uci_set, ctx, &ptr);
+		pctx->section = uci_to_section(ptr.last);
+	}
 }
 
 /*
  * parse the 'option' uci command (open a value)
  */
-static void uci_parse_option(struct uci_context *ctx, char **str)
+static void uci_parse_option(struct uci_context *ctx, char **str, bool list)
 {
 	struct uci_parse_context *pctx = ctx->pctx;
-	char *name = NULL;
-	char *value = NULL;
-
-	if (!pctx->section)
-		uci_parse_error(ctx, *str, "option command found before the first section");
-
-	/* command string null-terminated by strtok */
-	*str += strlen(*str) + 1;
-
-	name = next_arg(ctx, str, true, true);
-	value = next_arg(ctx, str, false, false);
-	assert_eol(ctx, str);
-
-	if (pctx->merge) {
-		UCI_NESTED(uci_set, ctx, pctx->package, pctx->section->e.name, name, value, NULL);
-	} else
-		uci_alloc_option(pctx->section, name, value);
-}
-
-static void uci_parse_list(struct uci_context *ctx, char **str)
-{
-	struct uci_parse_context *pctx = ctx->pctx;
+	struct uci_element *e;
 	struct uci_ptr ptr;
 	char *name = NULL;
 	char *value = NULL;
 
 	if (!pctx->section)
-		uci_parse_error(ctx, *str, "list command found before the first section");
+		uci_parse_error(ctx, *str, "option/list command found before the first section");
 
 	/* command string null-terminated by strtok */
 	*str += strlen(*str) + 1;
@@ -171,15 +163,18 @@ static void uci_parse_list(struct uci_context *ctx, char **str)
 	assert_eol(ctx, str);
 
 	UCI_NESTED(uci_fill_ptr, ctx, &ptr, &pctx->section->e, false);
+	e = uci_lookup_list(&pctx->section->options, name);
+	if (e)
+		ptr.o = uci_to_option(e);
 	ptr.option = name;
 	ptr.value = value;
 
-	UCI_INTERNAL(uci_lookup_ptr, ctx, &ptr, NULL, false);
-
 	ctx->internal = !pctx->merge;
-	UCI_NESTED(uci_add_list, ctx, &ptr);
+	if (list)
+		UCI_NESTED(uci_add_list, ctx, &ptr);
+	else
+		UCI_NESTED(uci_set, ctx, &ptr);
 }
-
 
 /*
  * parse a complete input line, split up combined commands by ';'
@@ -214,13 +209,13 @@ static void uci_parse_line(struct uci_context *ctx, bool single)
 				break;
 			case 'o':
 				if ((word[1] == 0) || !strcmp(word + 1, "ption"))
-					uci_parse_option(ctx, &word);
+					uci_parse_option(ctx, &word, false);
 				else
 					goto invalid;
 				break;
 			case 'l':
 				if ((word[1] == 0) || !strcmp(word + 1, "ist"))
-					uci_parse_list(ctx, &word);
+					uci_parse_option(ctx, &word, true);
 				else
 					goto invalid;
 				break;
