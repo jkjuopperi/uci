@@ -470,7 +470,8 @@ static int uci_cmd(int argc, char **argv)
 		cmd = CMD_RENAME;
 	else if (!strcasecmp(argv[0], "revert"))
 		cmd = CMD_REVERT;
-	else if (!strcasecmp(argv[0], "del"))
+	else if (!strcasecmp(argv[0], "del") ||
+	         !strcasecmp(argv[0], "delete"))
 		cmd = CMD_DEL;
 	else if (!strcasecmp(argv[0], "import"))
 		cmd = CMD_IMPORT;
