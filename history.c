@@ -332,7 +332,7 @@ int uci_revert(struct uci_context *ctx, struct uci_ptr *ptr)
 	char *option = NULL;
 
 	UCI_HANDLE_ERR(ctx);
-	expand_ptr(ctx, ptr, true);
+	expand_ptr(ctx, ptr, false);
 	UCI_ASSERT(ctx, ptr->p->has_history);
 
 	/* 
@@ -348,8 +348,10 @@ int uci_revert(struct uci_context *ctx, struct uci_ptr *ptr)
 	/* NB: need to clone package, section and option names, 
 	 * as they may get freed on uci_free_package() */
 	package = uci_strdup(ctx, ptr->p->e.name);
-	section = uci_strdup(ctx, ptr->section);
-	option = uci_strdup(ctx, ptr->option);
+	if (ptr->section)
+		section = uci_strdup(ctx, ptr->section);
+	if (ptr->option)
+		option = uci_strdup(ctx, ptr->option);
 
 	uci_free_package(&ptr->p);
 	uci_filter_history(ctx, package, section, option);
