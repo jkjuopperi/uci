@@ -269,7 +269,8 @@ uci_free_any(struct uci_element **e)
 	*e = NULL;
 }
 
-static struct uci_element *uci_lookup_list(struct uci_list *list, const char *name)
+static inline struct uci_element *
+uci_lookup_list(struct uci_list *list, const char *name)
 {
 	struct uci_element *e;
 
@@ -280,7 +281,8 @@ static struct uci_element *uci_lookup_list(struct uci_list *list, const char *na
 	return NULL;
 }
 
-static struct uci_element *uci_lookup_ext_section(struct uci_context *ctx, struct uci_ptr *ptr)
+static struct uci_element *
+uci_lookup_ext_section(struct uci_context *ctx, struct uci_ptr *ptr)
 {
 	char *idxstr, *t, *section, *name;
 	struct uci_element *e = NULL;
@@ -354,7 +356,8 @@ done:
 	return e;
 }
 
-int uci_lookup_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str, bool extended)
+int
+uci_lookup_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str, bool extended)
 {
 	struct uci_element *e;
 

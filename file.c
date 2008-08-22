@@ -123,13 +123,7 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 	assert_eol(ctx, str);
 
 	if (pctx->merge) {
-		UCI_TRAP_SAVE(ctx, error);
-		if (uci_set(ctx, pctx->package, name, NULL, type, NULL) != UCI_OK)
-			goto error;
-		UCI_TRAP_RESTORE(ctx);
-		return;
-error:
-		UCI_THROW(ctx, ctx->err);
+		UCI_NESTED(uci_set, ctx, pctx->package, name, NULL, type, NULL);
 	} else
 		pctx->section = uci_alloc_section(pctx->package, type, name);
 }
@@ -154,12 +148,7 @@ static void uci_parse_option(struct uci_context *ctx, char **str)
 	assert_eol(ctx, str);
 
 	if (pctx->merge) {
-		UCI_TRAP_SAVE(ctx, error);
-		uci_set(ctx, pctx->package, pctx->section->e.name, name, value, NULL);
-		UCI_TRAP_RESTORE(ctx);
-		return;
-error:
-		UCI_THROW(ctx, ctx->err);
+		UCI_NESTED(uci_set, ctx, pctx->package, pctx->section->e.name, name, value, NULL);
 	} else
 		uci_alloc_option(pctx->section, name, value);
 }
