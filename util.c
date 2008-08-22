@@ -117,59 +117,57 @@ static void uci_alloc_parse_context(struct uci_context *ctx)
 	ctx->pctx = (struct uci_parse_context *) uci_malloc(ctx, sizeof(struct uci_parse_context));
 }
 
-int uci_parse_tuple(struct uci_context *ctx, char *str, char **package, char **section, char **option, char **value)
+int uci_parse_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str)
 {
 	char *last = NULL;
-	bool internal = ctx->internal;
 
 	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, str && package && section && option);
+	UCI_ASSERT(ctx, str);
+	UCI_ASSERT(ctx, ptr);
 
+	memset(ptr, 0, sizeof(struct uci_ptr));
+
+	/* value */
 	last = strchr(str, '=');
 	if (last) {
 		*last = 0;
 		last++;
+		ptr->value = last;
 	}
 
-	*package = strsep(&str, ".");
-	if (!*package || !uci_validate_str(*package, false))
+	ptr->package = strsep(&str, ".");
+	if (!ptr->package)
 		goto error;
 
-	*section = strsep(&str, ".");
-	*option = NULL;
-	if (value)
-		*value = NULL;
-	if (!*section)
+	ptr->section = strsep(&str, ".");
+	if (!ptr->section) {
+		ptr->target = UCI_TYPE_PACKAGE;
 		goto lastval;
+	}
 
-	*option = strsep(&str, ".");
-	if (!*option)
+	ptr->option = strsep(&str, ".");
+	if (!ptr->option) {
+		ptr->target = UCI_TYPE_SECTION;
 		goto lastval;
+	} else {
+		ptr->target = UCI_TYPE_OPTION;
+	}
 
 lastval:
-	if (last) {
-		if (!value)
-			goto error;
-
-		if (!*last)
-			goto error;
-		*value = last;
-	}
-
-	if (*section && *section[0] && !internal && !uci_validate_name(*section))
+	if (ptr->package && !uci_validate_str(ptr->package, false))
 		goto error;
-	if (*option && !uci_validate_name(*option))
+	if (ptr->section && !uci_validate_name(ptr->section))
+		ptr->flags |= UCI_LOOKUP_EXTENDED;
+	if (ptr->option && !uci_validate_name(ptr->option))
 		goto error;
-	if (value && *value && !uci_validate_text(*value))
+	if (ptr->value && !uci_validate_text(ptr->value))
 		goto error;
 
-	goto done;
+	return 0;
 
 error:
+	memset(ptr, 0, sizeof(struct uci_ptr));
 	UCI_THROW(ctx, UCI_ERR_PARSE);
-
-done:
-	return 0;
 }
 
 

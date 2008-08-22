@@ -88,7 +88,7 @@ int uci_add_history_path(struct uci_context *ctx, const char *dir)
 	return 0;
 }
 
-static inline void uci_parse_history_tuple(struct uci_context *ctx, char **buf, char **package, char **section, char **option, char **value, int *cmd)
+static inline int uci_parse_history_tuple(struct uci_context *ctx, char **buf, struct uci_ptr *ptr)
 {
 	int c = UCI_CMD_CHANGE;
 
@@ -111,53 +111,57 @@ static inline void uci_parse_history_tuple(struct uci_context *ctx, char **buf, 
 	if (c != UCI_CMD_CHANGE)
 		*buf += 1;
 
-	if (cmd)
-		*cmd = c;
+	UCI_INTERNAL(uci_parse_ptr, ctx, ptr, *buf);
 
-	UCI_INTERNAL(uci_parse_tuple, ctx, *buf, package, section, option, value);
-	if (!*section[0])
-		UCI_THROW(ctx, UCI_ERR_PARSE);
+	if (!ptr->section)
+		goto error;
+	if (ptr->flags & UCI_LOOKUP_EXTENDED)
+		goto error;
 
+	switch(c) {
+	case UCI_CMD_RENAME:
+		if (!ptr->value || !uci_validate_name(ptr->value))
+			goto error;
+		break;
+	case UCI_CMD_LIST_ADD:
+		if (!ptr->option)
+			goto error;
+	}
+
+	return c;
+
+error:
+	UCI_THROW(ctx, UCI_ERR_INVAL);
+	return 0;
 }
 
 static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *p, char *buf)
 {
 	struct uci_element *e = NULL;
-	bool delete = false;
-	bool rename = false;
-	char *package = NULL;
-	char *section = NULL;
-	char *option = NULL;
-	char *value = NULL;
+	struct uci_ptr ptr;
 	int cmd;
 
-	uci_parse_history_tuple(ctx, &buf, &package, &section, &option, &value, &cmd);
-	if (!package || (strcmp(package, p->e.name) != 0))
-		goto error;
-	if (!uci_validate_name(section))
-		goto error;
-	if (option && !uci_validate_name(option))
-		goto error;
-	if (rename && !uci_validate_str(value, (option || delete)))
+	cmd = uci_parse_history_tuple(ctx, &buf, &ptr);
+	if (strcmp(ptr.package, p->e.name) != 0)
 		goto error;
 
 	if (ctx->flags & UCI_FLAG_SAVED_HISTORY)
-		uci_add_history(ctx, &p->saved_history, cmd, section, option, value);
+		uci_add_history(ctx, &p->saved_history, cmd, ptr.section, ptr.option, ptr.value);
 
 	switch(cmd) {
 	case UCI_CMD_RENAME:
-		UCI_INTERNAL(uci_rename, ctx, p, section, option, value);
+		UCI_INTERNAL(uci_rename, ctx, p, ptr.section, ptr.option, ptr.value);
 		break;
 	case UCI_CMD_REMOVE:
-		UCI_INTERNAL(uci_delete, ctx, p, section, option);
+		UCI_INTERNAL(uci_delete, ctx, p, ptr.section, ptr.option);
 		break;
 	case UCI_CMD_LIST_ADD:
-		UCI_INTERNAL(uci_add_list, ctx, p, section, option, value, NULL);
+		UCI_INTERNAL(uci_add_list, ctx, p, ptr.section, ptr.option, ptr.value, NULL);
 		break;
 	case UCI_CMD_ADD:
 	case UCI_CMD_CHANGE:
-		UCI_INTERNAL(uci_set, ctx, p, section, option, value, &e);
-		if (!option && e && (cmd == UCI_CMD_ADD))
+		UCI_INTERNAL(uci_set, ctx, p, ptr.section, ptr.option, ptr.value, &e);
+		if (!ptr.option && e && (cmd == UCI_CMD_ADD))
 			uci_to_section(e)->anonymous = true;
 		break;
 	}
@@ -260,10 +264,7 @@ static void uci_filter_history(struct uci_context *ctx, const char *name, const 
 	struct uci_element *e, *tmp;
 	struct uci_list list;
 	char *filename = NULL;
-	char *p = NULL;
-	char *s = NULL;
-	char *o = NULL;
-	char *v = NULL;
+	struct uci_ptr ptr;
 	FILE *f = NULL;
 
 	uci_list_init(&list);
@@ -291,13 +292,13 @@ static void uci_filter_history(struct uci_context *ctx, const char *name, const 
 		e = uci_alloc_generic(ctx, UCI_TYPE_HISTORY, pctx->buf, sizeof(struct uci_element));
 		uci_list_add(&list, &e->list);
 
-		uci_parse_history_tuple(ctx, &buf, &p, &s, &o, &v, NULL);
+		uci_parse_history_tuple(ctx, &buf, &ptr);
 		if (section) {
-			if (!s || (strcmp(section, s) != 0))
+			if (!ptr.section || (strcmp(section, ptr.section) != 0))
 				continue;
 		}
 		if (option) {
-			if (!o || (strcmp(option, o) != 0))
+			if (!ptr.option || (strcmp(option, ptr.option) != 0))
 				continue;
 		}
 		/* match, drop this element again */

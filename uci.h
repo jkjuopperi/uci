@@ -55,6 +55,7 @@ struct uci_list
 	struct uci_list *prev;
 };
 
+struct uci_ptr;
 struct uci_element;
 struct uci_package;
 struct uci_section;
@@ -64,19 +65,6 @@ struct uci_context;
 struct uci_backend;
 struct uci_parse_context;
 
-
-/**
- * uci_parse_tuple: Parse an uci tuple
- * @ctx: uci context
- * @str: input string
- * @package: output package pointer
- * @section: output section pointer
- * @option: output option pointer
- * @value: output value pointer
- *
- * format: <package>[.<section>[.<option>]][=<value>]
- */
-extern int uci_parse_tuple(struct uci_context *ctx, char *str, char **package, char **section, char **option, char **value);
 
 /**
  * uci_alloc_context: Allocate a new uci context
@@ -149,15 +137,23 @@ extern int uci_unload(struct uci_context *ctx, struct uci_package *p);
 extern int uci_lookup(struct uci_context *ctx, struct uci_element **res, struct uci_package *package, const char *section, const char *option);
 
 /**
+ * uci_lookup_ptr: Split an uci tuple string and look up elements
+ * @ctx: uci context
+ * @ptr: lookup result struct
+ * @str: uci tuple string to look up
+ * @extended: allow extended syntax lookup
+ */
+extern int uci_lookup_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str, bool extended);
+
+/**
  * uci_lookup_ext: Extended lookup for an uci element
  *
  * @ctx: uci context
  * @res: where to store the result
  * @ptr: uci pointer tuple
  *
- * Looks up an element using the extended syntax, which is a superset of what
- * uci_parse_tuple accepts. It can look up sections by an index with an optional
- * type.
+ * Looks up an element using the extended syntax.
+ * It can look up sections by an index with an optional type.
  *
  * Examples:
  *   network.@interface[0].ifname ('ifname' option of the first interface section)
@@ -333,13 +329,14 @@ extern bool uci_validate_text(const char *str);
 
 /* UCI data structures */
 enum uci_type {
-	UCI_TYPE_HISTORY = 0,
-	UCI_TYPE_PACKAGE = 1,
-	UCI_TYPE_SECTION = 2,
-	UCI_TYPE_OPTION = 3,
-	UCI_TYPE_PATH = 4,
-	UCI_TYPE_BACKEND = 5,
-	UCI_TYPE_ITEM = 6,
+	UCI_TYPE_UNSPEC = 0,
+	UCI_TYPE_HISTORY = 1,
+	UCI_TYPE_PACKAGE = 2,
+	UCI_TYPE_SECTION = 3,
+	UCI_TYPE_OPTION = 4,
+	UCI_TYPE_PATH = 5,
+	UCI_TYPE_BACKEND = 6,
+	UCI_TYPE_ITEM = 7,
 };
 
 enum uci_option_type {
@@ -452,6 +449,25 @@ struct uci_history
 	struct uci_element e;
 	enum uci_command cmd;
 	char *section;
+	char *value;
+};
+
+struct uci_ptr
+{
+	enum uci_type target;
+	enum {
+		UCI_LOOKUP_DONE =     (1 << 0),
+		UCI_LOOKUP_COMPLETE = (1 << 1),
+		UCI_LOOKUP_EXTENDED = (1 << 2),
+	} flags;
+
+	struct uci_package *p;
+	struct uci_section *s;
+	struct uci_option *o;
+
+	char *package;
+	char *section;
+	char *option;
 	char *value;
 };
 
