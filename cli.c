@@ -187,13 +187,7 @@ static int package_cmd(int cmd, char *tuple)
 		return 1;
 	}
 
-	if (ptr.o)
-		e = &ptr.o->e;
-	else if (ptr.s)
-		e = &ptr.s->e;
-	else
-		e = &ptr.p->e;
-
+	e = ptr.last;
 	switch(cmd) {
 	case CMD_CHANGES:
 		uci_show_changes(ptr.p);
@@ -341,13 +335,7 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 	if (ptr.value && (cmd != CMD_SET) && (cmd != CMD_ADD_LIST) && (cmd != CMD_RENAME))
 		return 1;
 
-	if (ptr.o)
-		e = &ptr.o->e;
-	else if (ptr.s)
-		e = &ptr.s->e;
-	else
-		e = &ptr.p->e;
-
+	e = ptr.last;
 	switch(cmd) {
 	case CMD_GET:
 		switch(e->type) {

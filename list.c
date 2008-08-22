@@ -350,6 +350,7 @@ error:
 	UCI_THROW(ctx, UCI_ERR_INVAL);
 done:
 	free(section);
+	ptr->section = e->name;
 	return e;
 }
 
@@ -371,8 +372,10 @@ int uci_lookup_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str, bool
 		UCI_INTERNAL(uci_load, ctx, ptr->package, &ptr->p);
 		if (!ptr->p)
 			goto notfound;
+		ptr->last = &ptr->p->e;
 	} else {
 		ptr->p = uci_to_package(e);
+		ptr->last = e;
 	}
 
 	if (!ptr->section)
@@ -388,6 +391,7 @@ int uci_lookup_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str, bool
 	if (!e)
 		goto abort;
 
+	ptr->last = e;
 	ptr->s = uci_to_section(e);
 
 	if (ptr->option) {
@@ -396,6 +400,7 @@ int uci_lookup_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str, bool
 			goto abort;
 
 		ptr->o = uci_to_option(e);
+		ptr->last = e;
 	}
 
 complete:
