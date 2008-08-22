@@ -324,16 +324,15 @@ done:
 	uci_cleanup(ctx);
 }
 
-int uci_revert(struct uci_context *ctx, struct uci_package **pkg, const char *section, const char *option)
+int uci_revert(struct uci_context *ctx, struct uci_ptr *ptr)
 {
-	struct uci_package *p;
-	char *name = NULL;
+	char *package = NULL;
+	char *section = NULL;
+	char *option = NULL;
 
 	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, pkg != NULL);
-	p = *pkg;
-	UCI_ASSERT(ctx, p != NULL);
-	UCI_ASSERT(ctx, p->has_history);
+	expand_ptr(ctx, ptr, true);
+	UCI_ASSERT(ctx, ptr->p->has_history);
 
 	/* 
 	 * - flush unwritten changes
@@ -343,20 +342,28 @@ int uci_revert(struct uci_context *ctx, struct uci_package **pkg, const char *se
 	 * - reload the package
 	 */
 	UCI_TRAP_SAVE(ctx, error);
-	UCI_INTERNAL(uci_save, ctx, p);
-	name = uci_strdup(ctx, p->e.name);
+	UCI_INTERNAL(uci_save, ctx, ptr->p);
 
-	*pkg = NULL;
-	uci_free_package(&p);
-	uci_filter_history(ctx, name, section, option);
+	/* NB: need to clone package, section and option names, 
+	 * as they may get freed on uci_free_package() */
+	package = uci_strdup(ctx, ptr->p->e.name);
+	section = uci_strdup(ctx, ptr->section);
+	option = uci_strdup(ctx, ptr->option);
 
-	UCI_INTERNAL(uci_load, ctx, name, &p);
+	uci_free_package(&ptr->p);
+	uci_filter_history(ctx, package, section, option);
+
+	UCI_INTERNAL(uci_load, ctx, package, &ptr->p);
 	UCI_TRAP_RESTORE(ctx);
 	ctx->err = 0;
 
 error:
-	if (name)
-		free(name);
+	if (package)
+		free(package);
+	if (section)
+		free(section);
+	if (option)
+		free(option);
 	if (ctx->err)
 		UCI_THROW(ctx, ctx->err);
 	return 0;

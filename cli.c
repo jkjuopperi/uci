@@ -354,7 +354,7 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 		ret = uci_rename(ctx, &ptr);
 		break;
 	case CMD_REVERT:
-		ret = uci_revert(ctx, &ptr.p, ptr.section, ptr.option);
+		ret = uci_revert(ctx, &ptr);
 		break;
 	case CMD_SET:
 		ret = uci_set(ctx, ptr.p, ptr.section, ptr.option, ptr.value, NULL);

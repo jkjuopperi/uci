@@ -247,11 +247,9 @@ extern int uci_add_history_path(struct uci_context *ctx, const char *dir);
 /**
  * uci_revert: revert all changes to a config item
  * @ctx: uci context
- * @p: pointer to a uci_package struct ptr (will be replaced by the revert)
- * @section: section name (optional)
- * @option option name (optional)
+ * @ptr: uci pointer
  */
-extern int uci_revert(struct uci_context *ctx, struct uci_package **p, const char *section, const char *option);
+extern int uci_revert(struct uci_context *ctx, struct uci_ptr *ptr);
 
 /**
  * uci_parse_argument: parse a shell-style argument, with an arbitrary quoting style
