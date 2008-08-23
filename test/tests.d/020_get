@@ -1,0 +1,13 @@
+test_get_option()
+{
+	cp ${REF_DIR}/get.data ${CONFIG_DIR}/test
+	value=$($UCI get test.section.opt)
+	assertEquals 'val' "$value"
+}
+
+test_get_section()
+{
+	cp ${REF_DIR}/get.data ${CONFIG_DIR}/test
+	type=$($UCI get test.section)
+	assertEquals 'type' "$type"
+}

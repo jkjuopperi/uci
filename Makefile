@@ -61,5 +61,8 @@ install: all
 	ln -sf $(SHLIB_FILE) $(DESTDIR)$(prefix)/lib/libuci.$(SHLIB_EXT)
 	$(INSTALL) -m0755 uci $(DESTDIR)/usr/bin/
 
+test: all
+	make -C test
+
 FORCE: ;
 .PHONY: FORCE
