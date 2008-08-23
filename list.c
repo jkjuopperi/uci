@@ -620,6 +620,12 @@ int uci_set(struct uci_context *ctx, struct uci_ptr *ptr)
 		UCI_ASSERT(ctx, uci_validate_str(ptr->value, false));
 	}
 
+	if (!ptr->o && ptr->s && ptr->option) {
+		struct uci_element *e;
+		e = uci_lookup_list(&ptr->s->options, ptr->option);
+		if (e)
+			ptr->o = uci_to_option(e);
+	}
 	if (!ptr->o && ptr->option) { /* new option */
 		ptr->o = uci_alloc_option(ptr->s, ptr->option, ptr->value);
 		ptr->last = &ptr->o->e;
@@ -627,6 +633,9 @@ int uci_set(struct uci_context *ctx, struct uci_ptr *ptr)
 		ptr->s = uci_alloc_section(ptr->p, ptr->value, ptr->section);
 		ptr->last = &ptr->s->e;
 	} else if (ptr->o && ptr->option) { /* update option */
+		if ((ptr->o->type == UCI_TYPE_STRING) &&
+			!strcmp(ptr->o->v.string, ptr->value))
+			return 0;
 		uci_free_option(ptr->o);
 		ptr->o = uci_alloc_option(ptr->s, ptr->option, ptr->value);
 		ptr->last = &ptr->o->e;
