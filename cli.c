@@ -202,6 +202,8 @@ static int package_cmd(int cmd, char *tuple)
 		uci_export(ctx, stdout, ptr.p, true);
 		break;
 	case CMD_SHOW:
+		if (!(ptr.flags & UCI_LOOKUP_COMPLETE))
+			return 1;
 		switch(e->type) {
 			case UCI_TYPE_PACKAGE:
 				uci_show_package(ptr.p);
