@@ -318,7 +318,7 @@ static void uci_filter_history(struct uci_context *ctx, const char *name, const 
 done:
 	if (filename)
 		free(filename);
-	uci_close_stream(f);
+	uci_close_stream(pctx->file);
 	uci_foreach_element_safe(&list, tmp, e) {
 		uci_free_element(e);
 	}
