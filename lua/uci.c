@@ -41,10 +41,22 @@ enum autoload {
 };
 
 static struct uci_package *
-find_package(lua_State *L, const char *name, enum autoload al)
+find_package(lua_State *L, const char *str, enum autoload al)
 {
 	struct uci_package *p = NULL;
 	struct uci_element *e;
+	char *sep;
+	char *name;
+
+	sep = strchr(str, '.');
+	if (sep) {
+		name = malloc(1 + sep - str);
+		if (!name)
+			luaL_error(L, "out of memory");
+		strncpy(name, str, sep - str);
+		name[sep - str] = 0;
+	} else
+		name = (char *) str;
 
 	uci_foreach_element(&ctx->root, e) {
 		if (strcmp(e->name, name) != 0)
@@ -72,6 +84,8 @@ find_package(lua_State *L, const char *name, enum autoload al)
 	}
 
 done:
+	if (name != str)
+		free(name);
 	return p;
 }
 
@@ -86,6 +100,49 @@ static void uci_lua_perror(lua_State *L, char *name)
 	uci_perror(ctx, name);
 done:
 	lua_pop(L, 2);
+}
+
+static int
+lookup_args(lua_State *L, struct uci_ptr *ptr, char **buf)
+{
+	char *s;
+	int n;
+
+	n = lua_gettop(L);
+	luaL_checkstring(L, 1);
+	s = strdup(lua_tostring(L, 1));
+	if (!s)
+		goto error;
+
+	memset(ptr, 0, sizeof(struct uci_ptr));
+	if (!find_package(L, s, AUTOLOAD_ON))
+		goto error;
+
+	switch (n) {
+	case 3:
+		ptr->option = luaL_checkstring(L, 3);
+		/* fall through */
+	case 2:
+		ptr->section = luaL_checkstring(L, 2);
+		ptr->package = luaL_checkstring(L, 1);
+		if (uci_lookup_ptr(ctx, ptr, NULL, false) != UCI_OK)
+			goto error;
+		break;
+	case 1:
+		if (uci_lookup_ptr(ctx, ptr, s, false) != UCI_OK)
+			goto error;
+		break;
+	default:
+		goto error;
+	}
+
+	*buf = s;
+	return 0;
+
+error:
+	if (s)
+		free(s);
+	return 1;
 }
 
 static void uci_push_option(lua_State *L, struct uci_option *o)
@@ -223,63 +280,33 @@ static int
 uci_lua_get_any(lua_State *L, bool all)
 {
 	struct uci_element *e = NULL;
-	struct uci_package *p = NULL;
-	struct uci_option *o = NULL;
-	const char *package = NULL;
-	const char *section = NULL;
-	const char *option = NULL;
+	struct uci_ptr ptr;
 	char *s;
-	int err = UCI_ERR_MEM;
-	int n;
+	int err = UCI_ERR_NOTFOUND;
 
-	n = lua_gettop(L);
-
-	luaL_checkstring(L, 1);
-	s = strdup(lua_tostring(L, 1));
-	if (!s)
+	if (lookup_args(L, &ptr, &s))
 		goto error;
 
-	if (n > 1) {
-		package = luaL_checkstring(L, 1);
-		section = luaL_checkstring(L, 2);
-		if (n > 2)
-			option = luaL_checkstring(L, 3);
-	} else {
-		if ((err = uci_parse_tuple(ctx, s, (char **) &package, (char **) &section, (char **) &option, NULL)))
-			goto error;
-	}
-
-	if (!all && (section == NULL)) {
+	uci_lookup_ptr(ctx, &ptr, NULL, false);
+	if (!all && !ptr.s) {
 		err = UCI_ERR_INVAL;
 		goto error;
 	}
 
-	p = find_package(L, package, AUTOLOAD_ON);
-	if (!p) {
-		err = UCI_ERR_NOTFOUND;
-		goto error;
-	}
-
-	if (section) {
-		if ((err = uci_lookup(ctx, &e, p, section, option)))
-			goto error;
-	} else {
-		e = &p->e;
-	}
-
+	err = UCI_OK;
+	e = ptr.last;
 	switch(e->type) {
 		case UCI_TYPE_PACKAGE:
-			uci_push_package(L, p);
+			uci_push_package(L, ptr.p);
 			break;
 		case UCI_TYPE_SECTION:
 			if (all)
-				uci_push_section(L, uci_to_section(e));
+				uci_push_section(L, ptr.s);
 			else
-				lua_pushstring(L, uci_to_section(e)->type);
+				lua_pushstring(L, ptr.s->type);
 			break;
 		case UCI_TYPE_OPTION:
-			o = uci_to_option(e);
-			uci_push_option(L, o);
+			uci_push_option(L, ptr.o);
 			break;
 		default:
 			err = UCI_ERR_INVAL;
@@ -343,50 +370,20 @@ uci_lua_add(lua_State *L)
 static int
 uci_lua_delete(lua_State *L)
 {
-	const char *package = NULL;
-	const char *section = NULL;
-	const char *option = NULL;
-	struct uci_package *p;
-	const char *s;
-	int err = UCI_ERR_MEM;
-	int nargs;
+	struct uci_ptr ptr;
+	char *s = NULL;
+	int err = UCI_ERR_NOTFOUND;
 
-	nargs = lua_gettop(L);
-	s = luaL_checkstring(L, 1);
-	switch(nargs) {
-	case 1:
-		/* Format: uci.delete("p.s[.o]") */
-		s = strdup(s);
-		if (!s)
-			goto error;
-
-		if ((err = uci_parse_tuple(ctx, (char *) s, (char **) &package, (char **) &section, (char **) &option, NULL)))
-			goto error;
-		break;
-	case 3:
-		/* Format: uci.delete("p", "s", "o") */
-		option = luaL_checkstring(L, 3);
-		/* fall through */
-	case 2:
-		/* Format: uci.delete("p", "s") */
-		section = luaL_checkstring(L, 2);
-		package = s;
-		break;
-	default:
-		err = UCI_ERR_INVAL;
+	if (lookup_args(L, &ptr, &s))
 		goto error;
-	}
 
-	p = find_package(L, package, AUTOLOAD_ON);
-	if (!p) {
-		err = UCI_ERR_NOTFOUND;
-		goto error;
-	}
-	err = uci_delete(ctx, p, section, option);
+	err = uci_delete(ctx, &ptr);
 
 error:
+	if (s)
+		free(s);
 	if (err)
-		uci_lua_perror(L, "uci.set");
+		uci_lua_perror(L, "uci.delete");
 	lua_pushboolean(L, (err == 0));
 	return 1;
 }
@@ -394,69 +391,61 @@ error:
 static int
 uci_lua_set(lua_State *L)
 {
-	struct uci_package *p;
-	const char *package = NULL;
-	const char *section = NULL;
-	const char *option = NULL;
-	const char *value = NULL;
-	const char *s;
-	int err = UCI_ERR_MEM;
-	int i, nargs;
 	bool istable = false;
+	struct uci_ptr ptr;
+	int err = UCI_ERR_MEM;
+	char *s = NULL;
+	int i, nargs;
 
 	nargs = lua_gettop(L);
+	if (lookup_args(L, &ptr, &s))
+		goto error;
 
-	s = luaL_checkstring(L, 1);
 	switch(nargs) {
 	case 1:
 		/* Format: uci.set("p.s.o=v") or uci.set("p.s=v") */
-		s = strdup(s);
-		if (!s)
-			goto error;
-
-		if ((err = uci_parse_tuple(ctx, (char *) s, (char **) &package, (char **) &section, (char **) &option, (char **) &value)))
-			goto error;
 		break;
 	case 4:
 		/* Format: uci.set("p", "s", "o", "v") */
-		option = luaL_checkstring(L, 3);
-		/* fall through */
-	case 3:
-		/* Format: uci.set("p", "s", "v") */
-		package = s;
-		section = luaL_checkstring(L, 2);
 		if (lua_istable(L, nargs)) {
 			if (lua_objlen(L, nargs) < 1)
 				luaL_error(L, "Cannot set an uci option to an empty table value");
 			lua_rawgeti(L, nargs, 1);
-			value = luaL_checkstring(L, -1);
+			ptr.value = luaL_checkstring(L, -1);
 			lua_pop(L, 1);
 			istable = true;
 		} else {
-			value = luaL_checkstring(L, nargs);
+			ptr.value = luaL_checkstring(L, nargs);
 		}
+		break;
+	case 3:
+		/* Format: uci.set("p", "s", "v") */
+		ptr.value = ptr.option;
+		ptr.option = NULL;
 		break;
 	default:
 		err = UCI_ERR_INVAL;
 		goto error;
 	}
 
-	if ((section == NULL) || (value == NULL)) {
+	err = uci_lookup_ptr(ctx, &ptr, NULL, false);
+	if (err)
+		goto error;
+
+	if ((ptr.s == NULL) || (ptr.value == NULL)) {
 		err = UCI_ERR_INVAL;
 		goto error;
 	}
 
-	p = find_package(L, package, AUTOLOAD_ON);
-	if (!p) {
-		err = UCI_ERR_NOTFOUND;
+	err = uci_set(ctx, &ptr);
+	if (err)
 		goto error;
-	}
-	err = uci_set(ctx, p, section, option, value, NULL);
+
 	if (istable) {
 		for (i = 2; i <= lua_objlen(L, nargs); i++) {
 			lua_rawgeti(L, nargs, i);
-			value = luaL_checkstring(L, -1);
-			err = uci_add_list(ctx, p, section, option, value, NULL);
+			ptr.value = luaL_checkstring(L, -1);
+			err = uci_add_list(ctx, &ptr);
 			lua_pop(L, 1);
 			if (err)
 				goto error;
@@ -480,48 +469,28 @@ static int
 uci_lua_package_cmd(lua_State *L, enum pkg_cmd cmd)
 {
 	struct uci_element *e, *tmp;
-	const char *s = NULL;
-	const char *section = NULL;
-	const char *option = NULL;
+	struct uci_ptr ptr;
+	char *s = NULL;
 	int failed = 0;
 	int nargs;
 
 	nargs = lua_gettop(L);
-	switch(nargs) {
-	case 3:
-		if (cmd != CMD_REVERT)
-			goto err;
-		luaL_checkstring(L, 1);
-		option = lua_tostring(L, -1);
-		lua_pop(L, 1);
-		/* fall through */
-	case 2:
-		if (cmd != CMD_REVERT)
-			goto err;
-		luaL_checkstring(L, 1);
-		section = lua_tostring(L, -1);
-		lua_pop(L, 1);
-		/* fall through */
-	case 1:
-		luaL_checkstring(L, 1);
-		s = lua_tostring(L, -1);
-		lua_pop(L, 1);
-		break;
-	case 0:
-		break;
-	default:
-		err:
-		luaL_error(L, "Invalid argument count");
-		break;
-	}
+	if ((cmd != CMD_REVERT) && (nargs > 1))
+		goto err;
+
+	if (lookup_args(L, &ptr, &s))
+		goto err;
+
+	uci_lookup_ptr(ctx, &ptr, NULL, false);
 
 	uci_foreach_element_safe(&ctx->root, tmp, e) {
 		struct uci_package *p = uci_to_package(e);
 		int ret = UCI_ERR_INVAL;
 
-		if (s && (strcmp(s, e->name) != 0))
+		if (ptr.p && (ptr.p != p))
 			continue;
 
+		ptr.p = p;
 		switch(cmd) {
 		case CMD_COMMIT:
 			ret = uci_commit(ctx, &p, false);
@@ -530,7 +499,7 @@ uci_lua_package_cmd(lua_State *L, enum pkg_cmd cmd)
 			ret = uci_save(ctx, p);
 			break;
 		case CMD_REVERT:
-			ret = uci_revert(ctx, &p, section, option);
+			ret = uci_revert(ctx, &ptr);
 			break;
 		}
 
@@ -538,6 +507,7 @@ uci_lua_package_cmd(lua_State *L, enum pkg_cmd cmd)
 			failed = 1;
 	}
 
+err:
 	lua_pushboolean(L, !failed);
 	return 1;
 }
