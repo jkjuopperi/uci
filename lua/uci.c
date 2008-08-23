@@ -119,6 +119,7 @@ lookup_args(lua_State *L, struct uci_ptr *ptr, char **buf)
 		goto error;
 
 	switch (n) {
+	case 4:
 	case 3:
 		ptr->option = luaL_checkstring(L, 3);
 		/* fall through */
@@ -133,6 +134,7 @@ lookup_args(lua_State *L, struct uci_ptr *ptr, char **buf)
 			goto error;
 		break;
 	default:
+		luaL_error(L, "invalid argument count");
 		goto error;
 	}
 
