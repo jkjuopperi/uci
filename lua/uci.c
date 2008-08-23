@@ -105,7 +105,7 @@ done:
 static int
 lookup_args(lua_State *L, struct uci_ptr *ptr, char **buf)
 {
-	char *s;
+	char *s = NULL;
 	int n;
 
 	n = lua_gettop(L);
@@ -281,7 +281,7 @@ uci_lua_get_any(lua_State *L, bool all)
 {
 	struct uci_element *e = NULL;
 	struct uci_ptr ptr;
-	char *s;
+	char *s = NULL;
 	int err = UCI_ERR_NOTFOUND;
 
 	if (lookup_args(L, &ptr, &s))
