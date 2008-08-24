@@ -175,6 +175,8 @@ static void uci_push_section(lua_State *L, struct uci_section *s)
 	struct uci_element *e;
 
 	lua_newtable(L);
+	lua_pushboolean(L, s->anonymous);
+	lua_setfield(L, -2, ".anonymous");
 	lua_pushstring(L, s->type);
 	lua_setfield(L, -2, ".type");
 	lua_pushstring(L, s->e.name);
