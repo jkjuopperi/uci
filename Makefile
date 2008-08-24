@@ -56,10 +56,12 @@ clean:
 	rm -f uci uci-static *.[oa] *.so* *.dylib* uci_config.h
 
 install: all
+	$(MKDIR) -p $(DESTDIR)$(prefix)/lib
 	$(INSTALL) -m0644 libuci.a $(DESTDIR)$(prefix)/lib/
 	$(INSTALL) -m0755 $(SHLIB_FILE) $(DESTDIR)$(prefix)/lib/
 	ln -sf $(SHLIB_FILE) $(DESTDIR)$(prefix)/lib/libuci.$(SHLIB_EXT)
-	$(INSTALL) -m0755 uci $(DESTDIR)/usr/bin/
+	$(MKDIR) -p $(DESTDIR)$(prefix)/bin
+	$(INSTALL) -m0755 uci $(DESTDIR)$(prefix)/bin/
 
 test: all
 	make -C test

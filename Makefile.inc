@@ -11,6 +11,7 @@ LD=ld
 CC=gcc
 RANLIB=ranlib
 INSTALL=install
+MKDIR=mkdir
 
 ifeq ($(DEBUG),1)
   COPTS = -O0
