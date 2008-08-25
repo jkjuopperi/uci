@@ -1,3 +1,13 @@
+test_set_parsing()
+{
+	cp ${REF_DIR}/set_parsing.data ${CONFIG_DIR}/test
+
+	assertFailWithNoReturn "${UCI} set test.=val"
+	assertFailWithNoReturn "${UCI} set test.section.=val"
+	assertFailWithNoReturn "${UCI} set test.section.opt.=val"
+	assertFailWithNoReturn "${UCI} set test.section.opt.zflk=val"
+}
+
 test_set_named_section()
 {
 	touch ${CONFIG_DIR}/set

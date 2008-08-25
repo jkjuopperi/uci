@@ -40,6 +40,12 @@ assertSameFile() {
 		echo "----"
 	}
 }
+assertFailWithNoReturn() {
+	local test="$1"
+	value=$( $test )
+	assertFalse "'$test' does not fail" $?
+	assertNull "'$test' returns '$value'" "$value"
+}
 EOF
 
 for suite in $(ls ${SCRIPTS_DIR}/*)
