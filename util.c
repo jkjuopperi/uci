@@ -120,6 +120,7 @@ static void uci_alloc_parse_context(struct uci_context *ctx)
 int uci_parse_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str)
 {
 	char *last = NULL;
+	char *tmp;
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, str);
@@ -152,6 +153,10 @@ int uci_parse_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str)
 	} else {
 		ptr->target = UCI_TYPE_OPTION;
 	}
+
+	tmp = strsep(&str, ".");
+	if (tmp)
+		goto error;
 
 lastval:
 	if (ptr->package && !uci_validate_str(ptr->package, false))
