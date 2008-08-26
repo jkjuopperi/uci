@@ -40,10 +40,21 @@ assertSameFile() {
 		echo "----"
 	}
 }
+assertNotSegFault()
+{
+	[ $1 -eq 139 ] && fail "Returned with 139: segmentation fault (SIGSEGV)!!!"
+}
+assertNotIllegal()
+{
+	[ $1 -eq 132 ] && fail "Returned with 132: Illegal instruction (SIGILL)!!!"
+}
 assertFailWithNoReturn() {
 	local test="$1"
 	value=$( $test )
-	assertFalse "'$test' does not fail" $?
+	rv=$?
+	assertFalse "'$test' does not fail" $rv
+	assertNotSegFault $rv
+	assertNotIllegal $rv
 	assertNull "'$test' returns '$value'" "$value"
 }
 EOF
