@@ -145,7 +145,7 @@ uci_get_errorstr(struct uci_context *ctx, char **dest, const char *prefix)
 		"%s%s" /* prefix */
 		"%s%s" /* function */
 		"%s" /* error */
-		"%s\n"; /* details */
+		"%s"; /* details */
 
 	error_info[0] = 0;
 
@@ -160,7 +160,7 @@ uci_get_errorstr(struct uci_context *ctx, char **dest, const char *prefix)
 	switch (err) {
 	case UCI_ERR_PARSE:
 		if (ctx->pctx) {
-			snprintf(error_info, sizeof(error_info), " (%s) at line %d, byte %d", (ctx->pctx->reason ? ctx->pctx->reason : "unknown"), ctx->pctx->line, ctx->pctx->byte);
+			snprintf(error_info, sizeof(error_info) - 1, " (%s) at line %d, byte %d", (ctx->pctx->reason ? ctx->pctx->reason : "unknown"), ctx->pctx->line, ctx->pctx->byte);
 			break;
 		}
 		break;
@@ -173,12 +173,14 @@ uci_get_errorstr(struct uci_context *ctx, char **dest, const char *prefix)
 			(ctx->func ? ctx->func : ""), (ctx->func ? ": " : ""),
 			uci_errstr[err],
 			error_info);
-	else
+	else {
+		strcat(error_info, "\n");
 		fprintf(stderr, format,
 			(prefix ? prefix : ""), (prefix ? ": " : ""),
 			(ctx->func ? ctx->func : ""), (ctx->func ? ": " : ""),
 			uci_errstr[err],
 			error_info);
+	}
 }
 
 int uci_list_configs(struct uci_context *ctx, char ***list)
