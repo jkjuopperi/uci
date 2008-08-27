@@ -506,7 +506,7 @@ uci_lua_package_cmd(lua_State *L, enum pkg_cmd cmd)
 
 	ctx = find_context(L, &offset);
 	nargs = lua_gettop(L);
-	if ((cmd != CMD_REVERT) && (nargs > 1))
+	if ((cmd != CMD_REVERT) && (nargs - offset > 1))
 		goto err;
 
 	if (lookup_args(L, ctx, offset, &ptr, &s))
