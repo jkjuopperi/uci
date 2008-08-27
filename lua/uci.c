@@ -97,20 +97,6 @@ done:
 	return p;
 }
 
-static void
-uci_lua_perror(lua_State *L, struct uci_context *ctx, char *name)
-{
-	lua_getfield(L, LUA_GLOBALSINDEX, "uci");
-	lua_getfield(L, -1, "warn");
-	if (!lua_isboolean(L, -1))
-		goto done;
-	if (lua_toboolean(L, -1) != 1)
-		goto done;
-	uci_perror(ctx, name);
-done:
-	lua_pop(L, 2);
-}
-
 static int
 lookup_args(lua_State *L, struct uci_context *ctx, int offset, struct uci_ptr *ptr, char **buf)
 {
@@ -153,6 +139,24 @@ lookup_args(lua_State *L, struct uci_context *ctx, int offset, struct uci_ptr *p
 error:
 	if (s)
 		free(s);
+	return 1;
+}
+
+static int
+uci_push_status(lua_State *L, struct uci_context *ctx, bool hasarg)
+{
+	char *str = NULL;
+
+	if (!hasarg)
+		lua_pushboolean(L, (ctx->err == UCI_OK));
+	if (ctx->err) {
+		uci_get_errorstr(ctx, &str, MODNAME);
+		if (str) {
+			lua_pushstring(L, str);
+			free(str);
+			return 2;
+		}
+	}
 	return 1;
 }
 
@@ -228,7 +232,7 @@ uci_lua_unload(lua_State *L)
 	p = find_package(L, ctx, s, false);
 	if (p) {
 		uci_unload(ctx, p);
-		lua_pushboolean(L, 1);
+		return uci_push_status(L, ctx, false);
 	} else {
 		lua_pushboolean(L, 0);
 	}
@@ -248,14 +252,8 @@ uci_lua_load(lua_State *L)
 	lua_pop(L, 1); /* bool ret value of unload */
 	s = lua_tostring(L, -1);
 
-	if (uci_load(ctx, s, &p)) {
-		uci_lua_perror(L, ctx, "uci.load");
-		lua_pushboolean(L, 0);
-	} else {
-		lua_pushboolean(L, 1);
-	}
-
-	return 1;
+	uci_load(ctx, s, &p);
+	return uci_push_status(L, ctx, false);
 }
 
 
@@ -349,17 +347,8 @@ error:
 	if (s)
 		free(s);
 
-	switch(err) {
-	default:
-		ctx->err = err;
-		uci_lua_perror(L, ctx, "uci.get");
-		/* fall through */
-	case UCI_ERR_NOTFOUND:
-		lua_pushnil(L);
-		/* fall through */
-	case 0:
-		return 1;
-	}
+	lua_pushnil(L);
+	return uci_push_status(L, ctx, true);
 }
 
 static int
@@ -401,7 +390,7 @@ uci_lua_add(lua_State *L)
 
 fail:
 	lua_pushnil(L);
-	return 1;
+	return uci_push_status(L, ctx, true);
 }
 
 static int
@@ -423,10 +412,7 @@ uci_lua_delete(lua_State *L)
 error:
 	if (s)
 		free(s);
-	if (err)
-		uci_lua_perror(L, ctx, "uci.delete");
-	lua_pushboolean(L, (err == 0));
-	return 1;
+	return uci_push_status(L, ctx, false);
 }
 
 static int
@@ -496,10 +482,7 @@ uci_lua_set(lua_State *L)
 	}
 
 error:
-	if (err)
-		uci_lua_perror(L, ctx, "uci.set");
-	lua_pushboolean(L, (err == 0));
-	return 1;
+	return uci_push_status(L, ctx, false);
 }
 
 enum pkg_cmd {
@@ -553,8 +536,7 @@ uci_lua_package_cmd(lua_State *L, enum pkg_cmd cmd)
 	}
 
 err:
-	lua_pushboolean(L, !failed);
-	return 1;
+	return uci_push_status(L, ctx, false);
 }
 
 static int
@@ -687,8 +669,7 @@ uci_lua_set_confdir(lua_State *L)
 	ctx = find_context(L, &offset);
 	luaL_checkstring(L, 1 + offset);
 	ret = uci_set_confdir(ctx, lua_tostring(L, -1));
-	lua_pushboolean(L, (ret == 0));
-	return 1;
+	return uci_push_status(L, ctx, false);
 }
 
 static int
@@ -708,9 +689,7 @@ uci_lua_set_savedir(lua_State *L)
 	ctx = find_context(L, &offset);
 	luaL_checkstring(L, 1 + offset);
 	ret = uci_set_savedir(ctx, lua_tostring(L, -1));
-	lua_pushboolean(L, (ret == 0));
-
-	return 1;
+	return uci_push_status(L, ctx, false);
 }
 
 static int
