@@ -358,7 +358,8 @@ error:
 	UCI_THROW(ctx, UCI_ERR_INVAL);
 done:
 	free(section);
-	ptr->section = e->name;
+	if (e)
+		ptr->section = e->name;
 	return e;
 }
 
