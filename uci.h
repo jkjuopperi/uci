@@ -84,6 +84,16 @@ extern void uci_free_context(struct uci_context *ctx);
 extern void uci_perror(struct uci_context *ctx, const char *str);
 
 /**
+ * uci_geterror: Get an error string for the last uci error
+ * @ctx: uci context
+ * @dest: target pointer for the string
+ * @str: prefix for the error message
+ *
+ * Note: string must be freed by the caller
+ */
+extern void uci_get_errorstr(struct uci_context *ctx, char **dest, const char *str);
+
+/**
  * uci_import: Import uci config data from a stream
  * @ctx: uci context
  * @stream: file stream to import from
