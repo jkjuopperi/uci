@@ -632,6 +632,13 @@ done:
 }
 
 static int
+uci_lua_get_confdir(lua_State *L)
+{
+	lua_pushstring(L, ctx->confdir);
+	return 1;
+}
+
+static int
 uci_lua_set_confdir(lua_State *L)
 {
 	int ret;
@@ -639,6 +646,13 @@ uci_lua_set_confdir(lua_State *L)
 	luaL_checkstring(L, 1);
 	ret = uci_set_confdir(ctx, lua_tostring(L, -1));
 	lua_pushboolean(L, (ret == 0));
+	return 1;
+}
+
+static int
+uci_lua_get_savedir(lua_State *L)
+{
+	lua_pushstring(L, ctx->savedir);
 	return 1;
 }
 
@@ -667,7 +681,9 @@ static const luaL_Reg uci[] = {
 	{ "revert", uci_lua_revert },
 	{ "changes", uci_lua_changes },
 	{ "foreach", uci_lua_foreach },
+	{ "get_confdir", uci_lua_get_confdir },
 	{ "set_confdir", uci_lua_set_confdir },
+	{ "get_savedir", uci_lua_get_savedir },
 	{ "set_savedir", uci_lua_set_savedir },
 	{ NULL, NULL },
 };
