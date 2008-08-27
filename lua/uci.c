@@ -296,6 +296,10 @@ uci_lua_get_any(lua_State *L, bool all)
 		err = UCI_ERR_INVAL;
 		goto error;
 	}
+	if (!(ptr.flags & UCI_LOOKUP_COMPLETE)) {
+		err = UCI_ERR_NOTFOUND;
+		goto error;
+	}
 
 	err = UCI_OK;
 	e = ptr.last;
