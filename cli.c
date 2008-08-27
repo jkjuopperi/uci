@@ -202,8 +202,11 @@ static int package_cmd(int cmd, char *tuple)
 		uci_export(ctx, stdout, ptr.p, true);
 		break;
 	case CMD_SHOW:
-		if (!(ptr.flags & UCI_LOOKUP_COMPLETE))
+		if (!(ptr.flags & UCI_LOOKUP_COMPLETE)) {
+			ctx->err = UCI_ERR_NOTFOUND;
+			cli_perror();
 			return 1;
+		}
 		switch(e->type) {
 			case UCI_TYPE_PACKAGE:
 				uci_show_package(ptr.p);
@@ -340,6 +343,11 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 	e = ptr.last;
 	switch(cmd) {
 	case CMD_GET:
+		if (!(ptr.flags & UCI_LOOKUP_COMPLETE)) {
+			ctx->err = UCI_ERR_NOTFOUND;
+			cli_perror();
+			return 1;
+		}
 		switch(e->type) {
 		case UCI_TYPE_SECTION:
 			printf("%s\n", ptr.s->type);
