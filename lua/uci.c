@@ -440,7 +440,7 @@ uci_lua_set(lua_State *L)
 	if (err)
 		goto error;
 
-	if ((ptr.s == NULL) || (ptr.value == NULL)) {
+	if (((ptr.s == NULL) && (ptr.option != NULL)) || (ptr.value == NULL)) {
 		err = UCI_ERR_INVAL;
 		goto error;
 	}
