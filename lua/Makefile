@@ -1,10 +1,25 @@
 include ../Makefile.inc
-prefix=/usr/local
-libdir=$(prefix)/lib
-luadir=$(libdir)/lua/5.1
+LUA_VERSION=5.1
+PREFIX_SEARCH=/usr /usr/local /opt/local
+LUA_PLUGINDIR=$(firstword \
+	$(foreach ldir,$(subst ;, ,$(shell lua -e 'print(package.cpath)')), \
+		$(if $(findstring lib/lua/,$(ldir)),$(patsubst %/?.so,%,$(ldir))) \
+	) \
+)
 
-CPPFLAGS=-I.. $(shell pkg-config --silence-errors --cflags lua5.1)
-LIBS=-L.. -luci $(shell pkg-config --silence-errors --libs lua5.1)
+# find lua prefix
+LUA_PREFIX=$(firstword \
+	$(foreach prefix,$(PREFIX_SEARCH),\
+		$(if $(wildcard $(prefix)/include/lua.h),$(prefix)) \
+	) \
+)
+
+libdir=$(prefix)/libs
+luadir=$(if $(LUA_PLUGINDIR),$(LUA_PLUGINDIR),$(libdir)/lua/$(LUA_VERSION))
+luainc=$(shell pkg-config --silence-errors --cflags lua$(LUA_VERSION))
+
+CPPFLAGS=-I.. -I$(if $(luainc),$(luainc),$(LUA_PREFIX)/include)
+LIBS=-L.. -luci $(shell pkg-config --silence-errors --libs lua$(LUA_VERSION))
 
 PLUGIN_LD=$(CC)
 ifeq ($(OS),Darwin)
