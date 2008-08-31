@@ -398,14 +398,14 @@ int uci_parse_argument(struct uci_context *ctx, FILE *stream, char **str, char *
 	UCI_ASSERT(ctx, str != NULL);
 	UCI_ASSERT(ctx, result != NULL);
 
-	if (ctx->pctx) {
-		if (ctx->pctx->file != stream) {
-			uci_cleanup(ctx);
-		}
-	} else {
+	if (ctx->pctx && (ctx->pctx->file != stream))
+		uci_cleanup(ctx);
+
+	if (!ctx->pctx)
 		uci_alloc_parse_context(ctx);
-		ctx->pctx->file = stream;
-	}
+
+	ctx->pctx->file = stream;
+
 	if (!*str) {
 		uci_getln(ctx, 0);
 		*str = ctx->pctx->buf;
