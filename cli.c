@@ -440,6 +440,7 @@ static int uci_batch(void)
 {
 	int ret = 0;
 
+	flags |= CLI_FLAG_BATCH;
 	while (!feof(input)) {
 		struct uci_element *e, *tmp;
 
@@ -454,6 +455,8 @@ static int uci_batch(void)
 			uci_unload(ctx, uci_to_package(e));
 		}
 	}
+	flags &= ~CLI_FLAG_BATCH;
+
 	return 0;
 }
 
