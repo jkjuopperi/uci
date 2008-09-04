@@ -467,7 +467,7 @@ expand_ptr(struct uci_context *ctx, struct uci_ptr *ptr, bool complete)
 	UCI_ASSERT(ctx, ptr != NULL);
 
 	if (!(ptr->flags & UCI_LOOKUP_DONE))
-		uci_lookup_ptr(ctx, ptr, NULL, 1);
+		UCI_INTERNAL(uci_lookup_ptr, ctx, ptr, NULL, 1);
 	if (complete && !(ptr->flags & UCI_LOOKUP_COMPLETE))
 		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 	UCI_ASSERT(ctx, ptr->p != NULL);
