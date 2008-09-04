@@ -18,7 +18,7 @@ libdir=$(prefix)/libs
 luadir=$(if $(LUA_PLUGINDIR),$(LUA_PLUGINDIR),$(libdir)/lua/$(LUA_VERSION))
 luainc=$(shell pkg-config --silence-errors --cflags lua$(LUA_VERSION))
 
-CPPFLAGS=-I.. -I$(if $(luainc),$(luainc),$(LUA_PREFIX)/include)
+CPPFLAGS=-I.. $(if $(luainc),$(luainc), -I$(LUA_PREFIX)/include)
 LIBS=-L.. -luci $(shell pkg-config --silence-errors --libs lua$(LUA_VERSION))
 
 PLUGIN_LD=$(CC)
