@@ -119,7 +119,7 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 	*str += strlen(*str) + 1;
 
 	type = next_arg(ctx, str, true, false);
-	if (!uci_validate_str(type, false))
+	if (!uci_validate_type(type))
 		uci_parse_error(ctx, type, "invalid character in field");
 	name = next_arg(ctx, str, false, true);
 	assert_eol(ctx, str);
@@ -353,7 +353,7 @@ int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct u
 	 * NB: the config file can still override the package name
 	 */
 	if (name) {
-		UCI_ASSERT(ctx, uci_validate_str(name, false));
+		UCI_ASSERT(ctx, uci_validate_package(name));
 		pctx->name = name;
 	}
 
@@ -394,7 +394,7 @@ static char *uci_config_path(struct uci_context *ctx, const char *name)
 {
 	char *filename;
 
-	UCI_ASSERT(ctx, uci_validate_str(name, false));
+	UCI_ASSERT(ctx, uci_validate_package(name));
 	filename = uci_malloc(ctx, strlen(name) + strlen(ctx->confdir) + 2);
 	sprintf(filename, "%s/%s", ctx->confdir, name);
 
@@ -520,7 +520,7 @@ static char **uci_list_config_files(struct uci_context *ctx)
 		if (!p)
 			continue;
 
-		if (!uci_validate_name(p))
+		if (!uci_validate_package(p))
 			continue;
 
 		configs[i] = buf;

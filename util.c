@@ -96,6 +96,16 @@ __plugin bool uci_validate_str(const char *str, bool name)
 	return true;
 }
 
+static inline bool uci_validate_package(const char *str)
+{
+	return uci_validate_str(str, false);
+}
+
+static inline bool uci_validate_type(const char *str)
+{
+	return uci_validate_str(str, false);
+}
+
 static inline bool uci_validate_name(const char *str)
 {
 	return uci_validate_str(str, true);
@@ -159,7 +169,7 @@ int uci_parse_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str)
 		goto error;
 
 lastval:
-	if (ptr->package && !uci_validate_str(ptr->package, false))
+	if (ptr->package && !uci_validate_package(ptr->package))
 		goto error;
 	if (ptr->section && !uci_validate_name(ptr->section))
 		ptr->flags |= UCI_LOOKUP_EXTENDED;

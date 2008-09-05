@@ -322,7 +322,7 @@ uci_lookup_ext_section(struct uci_context *ctx, struct uci_ptr *ptr)
 
 	if (!*name)
 		name = NULL;
-	else if (!uci_validate_str(name, false))
+	else if (!uci_validate_type(name))
 		goto error;
 
 	/* if the given index is negative, it specifies the section number from 
@@ -618,7 +618,7 @@ int uci_set(struct uci_context *ctx, struct uci_ptr *ptr)
 	UCI_ASSERT(ctx, ptr->value);
 	UCI_ASSERT(ctx, ptr->s || (!ptr->option && ptr->section));
 	if (!ptr->option) {
-		UCI_ASSERT(ctx, uci_validate_str(ptr->value, false));
+		UCI_ASSERT(ctx, uci_validate_type(ptr->value));
 	}
 
 	if (!ptr->o && ptr->s && ptr->option) {
