@@ -185,7 +185,7 @@ uci_push_option(lua_State *L, struct uci_option *o)
 }
 
 static void
-uci_push_section(lua_State *L, struct uci_section *s)
+uci_push_section(lua_State *L, struct uci_section *s, int index)
 {
 	struct uci_element *e;
 
@@ -196,6 +196,10 @@ uci_push_section(lua_State *L, struct uci_section *s)
 	lua_setfield(L, -2, ".type");
 	lua_pushstring(L, s->e.name);
 	lua_setfield(L, -2, ".name");
+	if (index >= 0) {
+		lua_pushinteger(L, index);
+		lua_setfield(L, -2, ".index");
+	}
 
 	uci_foreach_element(&s->options, e) {
 		struct uci_option *o = uci_to_option(e);
@@ -212,9 +216,9 @@ uci_push_package(lua_State *L, struct uci_package *p)
 
 	lua_newtable(L);
 	uci_foreach_element(&p->sections, e) {
-		i++;
-		uci_push_section(L, uci_to_section(e));
+		uci_push_section(L, uci_to_section(e), i);
 		lua_setfield(L, -2, e->name);
+		i++;
 	}
 }
 
@@ -266,6 +270,7 @@ uci_lua_foreach(lua_State *L)
 	const char *package, *type;
 	bool ret = false;
 	int offset = 0;
+	int i = 0;
 
 	ctx = find_context(L, &offset);
 	package = luaL_checkstring(L, 1 + offset);
@@ -285,11 +290,13 @@ uci_lua_foreach(lua_State *L)
 	uci_foreach_element(&p->sections, e) {
 		struct uci_section *s = uci_to_section(e);
 
+		i++;
+
 		if (type && (strcmp(s->type, type) != 0))
 			continue;
 
 		lua_pushvalue(L, 3 + offset); /* iterator function */
-		uci_push_section(L, s);
+		uci_push_section(L, s, i - 1);
 		if (lua_pcall(L, 1, 0, 0) == 0)
 			ret = true;
 	}
@@ -332,7 +339,7 @@ uci_lua_get_any(lua_State *L, bool all)
 			break;
 		case UCI_TYPE_SECTION:
 			if (all)
-				uci_push_section(L, ptr.s);
+				uci_push_section(L, ptr.s, -1);
 			else
 				lua_pushstring(L, ptr.s->type);
 			break;
