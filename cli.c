@@ -50,7 +50,67 @@ enum {
 	CMD_HELP,
 };
 
+struct uci_type_list {
+	unsigned int idx;
+	const char *name;
+	struct uci_type_list *next;
+};
+
+static struct uci_type_list *type_list = NULL;
+static char *typestr = NULL;
+static const char *cur_section_ref = NULL;
+
 static int uci_cmd(int argc, char **argv);
+
+static void
+uci_reset_typelist(void)
+{
+	struct uci_type_list *type;
+	while (type_list != NULL) {
+			type = type_list;
+			type_list = type_list->next;
+			free(type);
+	}
+	if (typestr) {
+		free(typestr);
+		typestr = NULL;
+	}
+	cur_section_ref = NULL;
+}
+
+static char *
+uci_lookup_section_ref(struct uci_section *s)
+{
+	struct uci_type_list *ti = type_list;
+	int maxlen;
+
+	if (!s->anonymous)
+		return s->e.name;
+
+	/* look up in section type list */
+	while (ti) {
+		if (strcmp(ti->name, s->type) == 0)
+			break;
+		ti = ti->next;
+	}
+	if (!ti) {
+		ti = malloc(sizeof(struct uci_type_list));
+		memset(ti, 0, sizeof(struct uci_type_list));
+		ti->next = type_list;
+		type_list = ti;
+		ti->name = s->type;
+	}
+
+	maxlen = strlen(s->type) + 1 + 2 + 10;
+	if (!typestr) {
+		typestr = malloc(maxlen);
+	} else {
+		typestr = realloc(typestr, maxlen);
+	}
+	sprintf(typestr, "@%s[%d]", ti->name, ti->idx);
+	ti->idx++;
+	return typestr;
+}
 
 static void uci_usage(void)
 {
@@ -122,20 +182,21 @@ static void uci_show_option(struct uci_option *o)
 {
 	printf("%s.%s.%s=",
 		o->section->package->e.name,
-		o->section->e.name,
+		(cur_section_ref ? cur_section_ref : o->section->e.name),
 		o->e.name);
 	uci_show_value(o);
 }
 
-static void uci_show_section(struct uci_section *p)
+static void uci_show_section(struct uci_section *s)
 {
 	struct uci_element *e;
-	const char *cname, *sname;
+	const char *cname;
+	const char *sname;
 
-	cname = p->package->e.name;
-	sname = p->e.name;
-	printf("%s.%s=%s\n", cname, sname, p->type);
-	uci_foreach_element(&p->options, e) {
+	cname = s->package->e.name;
+	sname = (cur_section_ref ? cur_section_ref : s->e.name);
+	printf("%s.%s=%s\n", cname, sname, s->type);
+	uci_foreach_element(&s->options, e) {
 		uci_show_option(uci_to_option(e));
 	}
 }
@@ -144,9 +205,13 @@ static void uci_show_package(struct uci_package *p)
 {
 	struct uci_element *e;
 
+	uci_reset_typelist();
 	uci_foreach_element( &p->sections, e) {
-		uci_show_section(uci_to_section(e));
+		struct uci_section *s = uci_to_section(e);
+		cur_section_ref = uci_lookup_section_ref(s);
+		uci_show_section(s);
 	}
+	uci_reset_typelist();
 }
 
 static void uci_show_changes(struct uci_package *p)
