@@ -26,6 +26,7 @@ static enum {
 	CLI_FLAG_QUIET =    (1 << 1),
 	CLI_FLAG_NOCOMMIT = (1 << 2),
 	CLI_FLAG_BATCH =    (1 << 3),
+	CLI_FLAG_SHOW_EXT = (1 << 4),
 } flags;
 
 static FILE *input;
@@ -84,7 +85,7 @@ uci_lookup_section_ref(struct uci_section *s)
 	struct uci_type_list *ti = type_list;
 	int maxlen;
 
-	if (!s->anonymous)
+	if (!s->anonymous || !(flags & CLI_FLAG_SHOW_EXT))
 		return s->e.name;
 
 	/* look up in section type list */
@@ -143,6 +144,7 @@ static void uci_usage(void)
 		"\t-q         quiet mode (don't print error messages)\n"
 		"\t-s         force strict mode (stop on parser errors, default)\n"
 		"\t-S         disable strict mode\n"
+		"\t-X         do not use extended syntax on 'show'\n"
 		"\n",
 		appname
 	);
@@ -592,6 +594,7 @@ int main(int argc, char **argv)
 	int ret;
 	int c;
 
+	flags = CLI_FLAG_SHOW_EXT;
 	appname = argv[0];
 	input = stdin;
 	ctx = uci_alloc_context();
@@ -600,7 +603,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	while((c = getopt(argc, argv, "c:d:f:mnNp:P:sSq")) != -1) {
+	while((c = getopt(argc, argv, "c:d:f:mnNp:P:sSqX")) != -1) {
 		switch(c) {
 			case 'c':
 				uci_set_confdir(ctx, optarg);
@@ -641,6 +644,9 @@ int main(int argc, char **argv)
 				break;
 			case 'q':
 				flags |= CLI_FLAG_QUIET;
+				break;
+			case 'X':
+				flags &= ~CLI_FLAG_SHOW_EXT;
 				break;
 			default:
 				uci_usage();
