@@ -432,8 +432,10 @@ struct uci_ptr
  * @type:   the type of the container struct this is embedded in.
  * @member: the name of the member within the struct.
  */
+#ifndef container_of
 #define container_of(ptr, type, member) \
 	((type *) ((char *)ptr - offsetof(type,member)))
+#endif
 
 
 /**
