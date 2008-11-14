@@ -476,12 +476,8 @@ uci_lua_set(lua_State *L)
 		goto error;
 	}
 
-	err = uci_set(ctx, &ptr);
-	if (err)
-		goto error;
-
 	if (istable) {
-		for (i = 2; i <= lua_objlen(L, nargs); i++) {
+		for (i = 1; i <= lua_objlen(L, nargs); i++) {
 			lua_rawgeti(L, nargs, i);
 			ptr.value = luaL_checkstring(L, -1);
 			err = uci_add_list(ctx, &ptr);
@@ -489,7 +485,12 @@ uci_lua_set(lua_State *L)
 			if (err)
 				goto error;
 		}
+	} else {
+		err = uci_set(ctx, &ptr);
+		if (err)
+			goto error;
 	}
+
 
 error:
 	return uci_push_status(L, ctx, false);
