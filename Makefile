@@ -55,9 +55,15 @@ libuci.$(SHLIB_EXT): libuci-shared.o
 clean:
 	rm -f uci uci-static *.[oa] *.so* *.dylib* uci_config.h
 
-install: all
+install: install-bin install-dev
+
+install-dev: all
 	$(MKDIR) -p $(DESTDIR)$(prefix)/lib
+	$(MKDIR) -p $(DESTDIR)$(prefix)/include
 	$(INSTALL) -m0644 libuci.a $(DESTDIR)$(prefix)/lib/
+	$(INSTALL) -m0644 uci_config.h uci.h $(DESTDIR)$(prefix)/include/
+
+install-bin: all
 	$(INSTALL) -m0755 $(SHLIB_FILE) $(DESTDIR)$(prefix)/lib/
 	ln -sf $(SHLIB_FILE) $(DESTDIR)$(prefix)/lib/libuci.$(SHLIB_EXT)
 	$(MKDIR) -p $(DESTDIR)$(prefix)/bin
