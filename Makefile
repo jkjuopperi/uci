@@ -16,9 +16,10 @@ endef
 
 LIBUCI_DEPS=file.c history.c list.c util.c uci.h uci_config.h uci_internal.h
 
-all: uci-static uci libuci.$(SHLIB_EXT)
+all: uci-static uci libuci.$(SHLIB_EXT) libucimap.a
 
 cli.o: cli.c uci.h uci_config.h
+ucimap.o: ucimap.c uci.h uci_config.h ucimap.h uci_list.h
 
 uci_config.h: FORCE
 	@rm -f "$@.tmp"
@@ -48,6 +49,11 @@ libuci.a: libuci-static.o
 	$(AR) rc $@ $^
 	$(RANLIB) $@
 
+libucimap.a: ucimap.o
+	rm -f $@
+	$(AR) rc $@ $^
+	$(RANLIB) $@
+
 libuci.$(SHLIB_EXT): libuci-shared.o
 	$(LINK) $(SHLIB_FLAGS) -o $(SHLIB_FILE) $^ $(LIBS)
 	ln -sf $(SHLIB_FILE) $@
@@ -60,8 +66,8 @@ install: install-bin install-dev
 install-dev: all
 	$(MKDIR) -p $(DESTDIR)$(prefix)/lib
 	$(MKDIR) -p $(DESTDIR)$(prefix)/include
-	$(INSTALL) -m0644 libuci.a $(DESTDIR)$(prefix)/lib/
-	$(INSTALL) -m0644 uci_config.h uci.h $(DESTDIR)$(prefix)/include/
+	$(INSTALL) -m0644 libuci.a libucimap.a $(DESTDIR)$(prefix)/lib/
+	$(INSTALL) -m0644 uci_config.h uci.h uci_list.h ucimap.h $(DESTDIR)$(prefix)/include/
 
 install-bin: all
 	$(INSTALL) -m0755 $(SHLIB_FILE) $(DESTDIR)$(prefix)/lib/

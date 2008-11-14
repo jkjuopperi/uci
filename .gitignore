@@ -1,5 +1,6 @@
 uci
 uci-static
+ucimap-example
 *.[oa]
 *.so*
 *.dylib*
