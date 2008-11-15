@@ -692,6 +692,18 @@ uci_lua_get_savedir(lua_State *L)
 }
 
 static int
+uci_lua_add_history(lua_State *L)
+{
+	struct uci_context *ctx;
+	int ret, offset = 0;
+
+	ctx = find_context(L, &offset);
+	luaL_checkstring(L, 1 + offset);
+	ret = uci_add_history_path(ctx, lua_tostring(L, -1));
+	return uci_push_status(L, ctx, false);
+}
+
+static int
 uci_lua_set_savedir(lua_State *L)
 {
 	struct uci_context *ctx;
@@ -756,6 +768,7 @@ static const luaL_Reg uci[] = {
 	{ "revert", uci_lua_revert },
 	{ "changes", uci_lua_changes },
 	{ "foreach", uci_lua_foreach },
+	{ "add_history", uci_lua_add_history },
 	{ "get_confdir", uci_lua_get_confdir },
 	{ "set_confdir", uci_lua_set_confdir },
 	{ "get_savedir", uci_lua_get_savedir },
