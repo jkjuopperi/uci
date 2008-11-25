@@ -528,6 +528,7 @@ static char **uci_list_config_files(struct uci_context *ctx)
 		buf += strlen(buf) + 1;
 	}
 	free(dir);
+	globfree(&globbuf);
 	return configs;
 }
 
