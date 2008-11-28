@@ -44,31 +44,39 @@ struct uci_sectmap;
 struct uci_optmap;
 
 struct uci_map {
-	struct uci_sectmap *sections;
+	struct uci_sectmap **sections;
 	unsigned int n_sections;
 	struct list_head sdata;
+	struct list_head fixup;
 
 	void *priv; /* user data */
 };
 
 enum ucimap_type {
-	UCIMAP_STRING,
-	UCIMAP_BOOL,
-	UCIMAP_INT,
+	/* types */
+	UCIMAP_SIMPLE   = 0x00,
+	UCIMAP_LIST     = 0x10,
+	UCIMAP_TYPE     = 0xf0, /* type mask */
+
+	/* subtypes */
+	UCIMAP_STRING   = 0x0,
+	UCIMAP_BOOL     = 0x1,
+	UCIMAP_INT      = 0x2,
+	UCIMAP_SECTION  = 0x3,
+	UCIMAP_SUBTYPE  = 0xf, /* subtype mask */
 };
 
-/* ucimap internal */
-struct uci_sectmap_data {
+union uci_datamap {
+	int i;
+	bool b;
+	const char *s;
+	void *section;
 	struct list_head list;
-	struct uci_sectmap *sm;
-	const char *section_name;
-	unsigned long allocmap_len;
+};
 
-	/* list of allocations done by ucimap */
-	void **allocmap;
-
-	/* map for changed fields */
-	unsigned char *cmap;
+struct uci_listmap {
+	struct list_head list;
+	union uci_datamap data;
 };
 
 struct uci_sectmap {
@@ -105,6 +113,7 @@ struct uci_optmap {
 		struct {
 			int maxlen;
 		} s;
+		struct uci_sectmap *sm;
 	} data;
 };
 
