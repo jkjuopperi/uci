@@ -527,6 +527,9 @@ int uci_rename(struct uci_context *ctx, struct uci_ptr *ptr)
 		free(e->name);
 	e->name = n;
 
+	if (e->type == UCI_TYPE_SECTION)
+		uci_to_section(e)->anonymous = false;
+
 	return 0;
 }
 
