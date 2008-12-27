@@ -1,4 +1,4 @@
-VERSION=0.6
+VERSION=0.7
 
 # optional features
 PLUGIN_SUPPORT=1
