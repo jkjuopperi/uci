@@ -426,6 +426,56 @@ error:
 }
 
 static int
+uci_lua_rename(lua_State *L)
+{
+	struct uci_context *ctx;
+	struct uci_ptr ptr;
+	int err = UCI_ERR_MEM;
+	char *s = NULL;
+	int nargs, offset = 0;
+
+	ctx = find_context(L, &offset);
+	nargs = lua_gettop(L);
+	if (lookup_args(L, ctx, offset, &ptr, &s))
+		goto error;
+
+	switch(nargs - offset) {
+	case 1:
+		/* Format: uci.set("p.s.o=v") or uci.set("p.s=v") */
+		break;
+	case 4:
+		/* Format: uci.set("p", "s", "o", "v") */
+		ptr.value = luaL_checkstring(L, nargs);
+		break;
+	case 3:
+		/* Format: uci.set("p", "s", "v") */
+		ptr.value = ptr.option;
+		ptr.option = NULL;
+		break;
+	default:
+		err = UCI_ERR_INVAL;
+		goto error;
+	}
+
+	err = uci_lookup_ptr(ctx, &ptr, NULL, false);
+	if (err)
+		goto error;
+
+	if (((ptr.s == NULL) && (ptr.option != NULL)) || (ptr.value == NULL)) {
+		err = UCI_ERR_INVAL;
+		goto error;
+	}
+
+	err = uci_rename(ctx, &ptr);
+	if (err)
+		goto error;
+
+error:
+	return uci_push_status(L, ctx, false);
+}
+
+
+static int
 uci_lua_set(lua_State *L)
 {
 	struct uci_context *ctx;
@@ -762,6 +812,7 @@ static const luaL_Reg uci[] = {
 	{ "get_all", uci_lua_get_all },
 	{ "add", uci_lua_add },
 	{ "set", uci_lua_set },
+	{ "rename", uci_lua_rename },
 	{ "save", uci_lua_save },
 	{ "delete", uci_lua_delete },
 	{ "commit", uci_lua_commit },
