@@ -567,6 +567,12 @@ int uci_delete(struct uci_context *ctx, struct uci_ptr *ptr)
 		uci_add_history(ctx, &p->history, UCI_CMD_REMOVE, ptr->section, ptr->option, NULL);
 
 	uci_free_any(&e);
+
+	if (ptr->option)
+		ptr->o = NULL;
+	else if (ptr->section)
+		ptr->s = NULL;
+
 	return 0;
 }
 
