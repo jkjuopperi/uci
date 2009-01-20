@@ -527,7 +527,18 @@ uci_lua_set(lua_State *L)
 	}
 
 	if (istable) {
-		for (i = 1; i <= lua_objlen(L, nargs); i++) {
+		if (lua_objlen(L, nargs) == 1) {
+			i = 1;
+			if (ptr.o)
+				err = uci_delete(ctx, &ptr);
+		} else {
+			i = 2;
+			err = uci_set(ctx, &ptr);
+			if (err)
+				goto error;
+		}
+
+		for (; i <= lua_objlen(L, nargs); i++) {
 			lua_rawgeti(L, nargs, i);
 			ptr.value = luaL_checkstring(L, -1);
 			err = uci_add_list(ctx, &ptr);
