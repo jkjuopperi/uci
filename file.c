@@ -454,7 +454,8 @@ void uci_file_commit(struct uci_context *ctx, struct uci_package **package, bool
 	}
 
 	rewind(f);
-	ftruncate(fileno(f), 0);
+	if (ftruncate(fileno(f), 0) < 0)
+		UCI_THROW(ctx, UCI_ERR_IO);
 
 	uci_export(ctx, f, p, false);
 	UCI_TRAP_RESTORE(ctx);

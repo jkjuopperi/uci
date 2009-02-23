@@ -167,13 +167,15 @@ uci_get_errorstr(struct uci_context *ctx, char **dest, const char *prefix)
 	default:
 		break;
 	}
-	if (dest)
-		asprintf(dest, format,
+	if (dest) {
+		err = asprintf(dest, format,
 			(prefix ? prefix : ""), (prefix ? ": " : ""),
 			(ctx->func ? ctx->func : ""), (ctx->func ? ": " : ""),
 			uci_errstr[err],
 			error_info);
-	else {
+		if (err < 0)
+			*dest = NULL;
+	} else {
 		strcat(error_info, "\n");
 		fprintf(stderr, format,
 			(prefix ? prefix : ""), (prefix ? ": " : ""),

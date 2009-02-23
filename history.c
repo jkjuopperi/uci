@@ -250,7 +250,10 @@ static int uci_load_history(struct uci_context *ctx, struct uci_package *p, bool
 	changes = uci_load_history_file(ctx, p, filename, &f, flush);
 	if (flush && f && (changes > 0)) {
 		rewind(f);
-		ftruncate(fileno(f), 0);
+		if (ftruncate(fileno(f), 0) < 0) {
+			uci_close_stream(f);
+			UCI_THROW(ctx, UCI_ERR_IO);
+		}
 	}
 	if (filename)
 		free(filename);
@@ -308,7 +311,8 @@ static void uci_filter_history(struct uci_context *ctx, const char *name, const 
 
 	/* rebuild the history file */
 	rewind(f);
-	ftruncate(fileno(f), 0);
+	if (ftruncate(fileno(f), 0) < 0)
+		UCI_THROW(ctx, UCI_ERR_IO);
 	uci_foreach_element_safe(&list, tmp, e) {
 		fprintf(f, "%s\n", e->name);
 		uci_free_element(e);
