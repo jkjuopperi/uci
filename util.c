@@ -478,6 +478,7 @@ static void uci_close_stream(FILE *stream)
 	if (!stream)
 		return;
 
+	fflush(stream);
 	fd = fileno(stream);
 	flock(fd, LOCK_UN);
 	fclose(stream);
