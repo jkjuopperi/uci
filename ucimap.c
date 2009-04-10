@@ -255,6 +255,7 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectmap *sm, struct uci_sec
 {
 	struct uci_sectmap_data *sd = NULL;
 	void *section = NULL;
+	char *section_name;
 	int err;
 
 	sd = malloc(sm->alloc_len + sizeof(struct uci_sectmap_data));
@@ -270,16 +271,18 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectmap *sm, struct uci_sec
 	if (!sd->allocmap)
 		goto error_mem;
 
-	sd->section_name = strdup(s->e.name);
-	if (!sd->section_name)
+	section_name = strdup(s->e.name);
+	if (!section_name)
 		goto error_mem;
+
+	sd->section_name = section_name;
 
 	sd->cmap = malloc(BITFIELD_SIZE(sm->n_options));
 	if (!sd->cmap)
 		goto error_mem;
 
 	memset(sd->cmap, 0, BITFIELD_SIZE(sm->n_options));
-	ucimap_add_alloc(&sd->allocmap[sd->allocmap_len++], (void *)sd->section_name);
+	ucimap_add_alloc(&sd->allocmap[sd->allocmap_len++], (void *)section_name);
 	ucimap_add_alloc(&sd->allocmap[sd->allocmap_len++], (void *)sd->cmap);
 
 	section = (char *)sd + sizeof(struct uci_sectmap_data);
