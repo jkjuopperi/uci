@@ -70,6 +70,7 @@ install-dev: all
 	$(INSTALL) -m0644 uci_config.h uci.h uci_list.h ucimap.h $(DESTDIR)$(prefix)/include/
 
 install-bin: all
+	$(MKDIR) -p $(DESTDIR)$(prefix)/lib
 	$(INSTALL) -m0755 $(SHLIB_FILE) $(DESTDIR)$(prefix)/lib/
 	ln -sf $(SHLIB_FILE) $(DESTDIR)$(prefix)/lib/libuci.$(SHLIB_EXT)
 	$(MKDIR) -p $(DESTDIR)$(prefix)/bin
