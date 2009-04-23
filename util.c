@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <errno.h>
 
 #define LINEBUF	32
 #define LINEBUF_MAX	4096
@@ -453,7 +454,8 @@ static FILE *uci_open_stream(struct uci_context *ctx, const char *filename, int 
 	if (fd < 0)
 		goto error;
 
-	if (flock(fd, (write ? LOCK_EX : LOCK_SH)) < 0)
+	ret = flock(fd, (write ? LOCK_EX : LOCK_SH));
+	if ((ret < 0) && (errno != ENOSYS))
 		goto error;
 
 	ret = lseek(fd, 0, pos);
