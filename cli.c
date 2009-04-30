@@ -462,7 +462,7 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 
 static int uci_batch_cmd(void)
 {
-	char *argv[MAX_ARGS];
+	char *argv[MAX_ARGS + 2];
 	char *str = NULL;
 	int ret = 0;
 	int i, j;
