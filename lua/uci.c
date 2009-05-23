@@ -474,6 +474,55 @@ error:
 	return uci_push_status(L, ctx, false);
 }
 
+static int
+uci_lua_reorder(lua_State *L)
+{
+	struct uci_context *ctx;
+	struct uci_ptr ptr;
+	int err = UCI_ERR_MEM;
+	char *s = NULL;
+	int nargs, offset = 0;
+
+	ctx = find_context(L, &offset);
+	nargs = lua_gettop(L);
+	if (lookup_args(L, ctx, offset, &ptr, &s))
+		goto error;
+
+	switch(nargs - offset) {
+	case 1:
+		/* Format: uci.set("p.s=v") or uci.set("p.s=v") */
+		if (ptr.option) {
+			err = UCI_ERR_INVAL;
+			goto error;
+		}
+		break;
+	case 3:
+		/* Format: uci.set("p", "s", "v") */
+		ptr.value = ptr.option;
+		ptr.option = NULL;
+		break;
+	default:
+		err = UCI_ERR_INVAL;
+		goto error;
+	}
+
+	err = uci_lookup_ptr(ctx, &ptr, NULL, false);
+	if (err)
+		goto error;
+
+	if ((ptr.s == NULL) || (ptr.value == NULL)) {
+		err = UCI_ERR_INVAL;
+		goto error;
+	}
+
+	err = uci_reorder_section(ctx, ptr.s, strtoul(ptr.value, NULL, 10));
+	if (err)
+		goto error;
+
+error:
+	return uci_push_status(L, ctx, false);
+}
+
 
 static int
 uci_lua_set(lua_State *L)
@@ -828,6 +877,7 @@ static const luaL_Reg uci[] = {
 	{ "delete", uci_lua_delete },
 	{ "commit", uci_lua_commit },
 	{ "revert", uci_lua_revert },
+	{ "reorder", uci_lua_reorder },
 	{ "changes", uci_lua_changes },
 	{ "foreach", uci_lua_foreach },
 	{ "add_history", uci_lua_add_history },
