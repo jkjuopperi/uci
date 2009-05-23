@@ -93,6 +93,9 @@ static inline int uci_parse_history_tuple(struct uci_context *ctx, char **buf, s
 	int c = UCI_CMD_CHANGE;
 
 	switch(**buf) {
+	case '^':
+		c = UCI_CMD_REORDER;
+		break;
 	case '-':
 		c = UCI_CMD_REMOVE;
 		break;
@@ -119,6 +122,10 @@ static inline int uci_parse_history_tuple(struct uci_context *ctx, char **buf, s
 		goto error;
 
 	switch(c) {
+	case UCI_CMD_REORDER:
+		if (!ptr->value || ptr->option)
+			goto error;
+		break;
 	case UCI_CMD_RENAME:
 		if (!ptr->value || !uci_validate_name(ptr->value))
 			goto error;
@@ -149,6 +156,12 @@ static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *
 		uci_add_history(ctx, &p->saved_history, cmd, ptr.section, ptr.option, ptr.value);
 
 	switch(cmd) {
+	case UCI_CMD_REORDER:
+		expand_ptr(ctx, &ptr, true);
+		if (!ptr.s)
+			UCI_THROW(ctx, UCI_ERR_NOTFOUND);
+		UCI_INTERNAL(uci_reorder_section, ctx, ptr.s, strtoul(ptr.value, NULL, 10));
+		break;
 	case UCI_CMD_RENAME:
 		UCI_INTERNAL(uci_rename, ctx, &ptr);
 		break;
@@ -424,6 +437,9 @@ int uci_save(struct uci_context *ctx, struct uci_package *p)
 			break;
 		case UCI_CMD_ADD:
 			prefix = "+";
+			break;
+		case UCI_CMD_REORDER:
+			prefix = "^";
 			break;
 		case UCI_CMD_LIST_ADD:
 			prefix = "|";

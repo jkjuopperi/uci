@@ -48,6 +48,20 @@ static inline void uci_list_del(struct uci_list *ptr)
 	uci_list_init(ptr);
 }
 
+static inline void uci_list_set_pos(struct uci_list *head, struct uci_list *ptr, int pos)
+{
+	struct uci_list *new_head = head;
+	struct uci_element *p = NULL;
+
+	uci_list_del(ptr);
+	uci_foreach_element(head, p) {
+		new_head = &p->list;
+		if (pos-- <= 0)
+			break;
+	}
+	uci_list_add(new_head, ptr);
+}
+
 static inline void uci_list_fixup(struct uci_list *ptr)
 {
 	ptr->prev->next = ptr;
@@ -529,6 +543,22 @@ int uci_rename(struct uci_context *ctx, struct uci_ptr *ptr)
 
 	if (e->type == UCI_TYPE_SECTION)
 		uci_to_section(e)->anonymous = false;
+
+	return 0;
+}
+
+int uci_reorder_section(struct uci_context *ctx, struct uci_section *s, int pos)
+{
+	struct uci_package *p = s->package;
+	char order[32];
+
+	UCI_HANDLE_ERR(ctx);
+
+	uci_list_set_pos(&s->package->sections, &s->e.list, pos);
+	if (!ctx->internal && p->has_history) {
+		sprintf(order, "%d", pos);
+		uci_add_history(ctx, &p->history, UCI_CMD_REORDER, s->e.name, NULL, order);
+	}
 
 	return 0;
 }

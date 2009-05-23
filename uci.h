@@ -178,6 +178,14 @@ extern int uci_set(struct uci_context *ctx, struct uci_ptr *ptr);
 extern int uci_add_list(struct uci_context *ctx, struct uci_ptr *ptr);
 
 /**
+ * uci_reorder: Reposition a section
+ * @ctx: uci context
+ * @s: uci section to reposition
+ * @pos: new position in the section list
+ */
+extern int uci_reorder_section(struct uci_context *ctx, struct uci_section *s, int pos);
+
+/**
  * uci_rename: Rename an element
  * @ctx: uci context
  * @ptr: uci pointer (with value)
@@ -389,6 +397,7 @@ enum uci_command {
 	UCI_CMD_REMOVE,
 	UCI_CMD_CHANGE,
 	UCI_CMD_RENAME,
+	UCI_CMD_REORDER,
 	UCI_CMD_LIST_ADD,
 };
 

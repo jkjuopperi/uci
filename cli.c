@@ -40,6 +40,7 @@ enum {
 	CMD_DEL,
 	CMD_RENAME,
 	CMD_REVERT,
+	CMD_REORDER,
 	/* package cmds */
 	CMD_SHOW,
 	CMD_CHANGES,
@@ -131,6 +132,7 @@ static void uci_usage(void)
 		"\tdelete     <config>[.<section[.<option>]]\n"
 		"\trename     <config>.<section>[.<option>]=<name>\n"
 		"\trevert     <config>[.<section>[.<option>]]\n"
+		"\treorder    <config>.<section>=<position>\n"
 		"\n"
 		"Options:\n"
 		"\t-c <path>  set the search path for config files (default: /etc/config)\n"
@@ -404,7 +406,7 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 		return 1;
 	}
 
-	if (ptr.value && (cmd != CMD_SET) && (cmd != CMD_ADD_LIST) && (cmd != CMD_RENAME))
+	if (ptr.value && (cmd != CMD_SET) && (cmd != CMD_ADD_LIST) && (cmd != CMD_RENAME) && (cmd != CMD_REORDER))
 		return 1;
 
 	e = ptr.last;
@@ -438,6 +440,14 @@ static int uci_do_section_cmd(int cmd, int argc, char **argv)
 		break;
 	case CMD_ADD_LIST:
 		ret = uci_add_list(ctx, &ptr);
+		break;
+	case CMD_REORDER:
+		if (!ptr.s) {
+			ctx->err = UCI_ERR_NOTFOUND;
+			cli_perror();
+			return 1;
+		}
+		ret = uci_reorder_section(ctx, ptr.s, strtoul(ptr.value, NULL, 10));
 		break;
 	case CMD_DEL:
 		ret = uci_delete(ctx, &ptr);
@@ -550,6 +560,8 @@ static int uci_cmd(int argc, char **argv)
 		cmd = CMD_RENAME;
 	else if (!strcasecmp(argv[0], "revert"))
 		cmd = CMD_REVERT;
+	else if (!strcasecmp(argv[0], "reorder"))
+		cmd = CMD_REORDER;
 	else if (!strcasecmp(argv[0], "del") ||
 	         !strcasecmp(argv[0], "delete"))
 		cmd = CMD_DEL;
@@ -571,6 +583,7 @@ static int uci_cmd(int argc, char **argv)
 		case CMD_DEL:
 		case CMD_RENAME:
 		case CMD_REVERT:
+		case CMD_REORDER:
 			return uci_do_section_cmd(cmd, argc, argv);
 		case CMD_SHOW:
 		case CMD_EXPORT:
