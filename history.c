@@ -419,6 +419,17 @@ int uci_save(struct uci_context *ctx, struct uci_package *p)
 	if ((asprintf(&filename, "%s/%s", ctx->savedir, p->e.name) < 0) || !filename)
 		UCI_THROW(ctx, UCI_ERR_MEM);
 
+	uci_foreach_element(&ctx->hooks, tmp) {
+		struct uci_hook *hook = uci_to_hook(tmp);
+
+		if (!hook->ops->set)
+			continue;
+
+		uci_foreach_element(&p->history, e) {
+			hook->ops->set(hook->ops, p, uci_to_history(e));
+		}
+	}
+
 	ctx->err = 0;
 	UCI_TRAP_SAVE(ctx, done);
 	f = uci_open_stream(ctx, filename, SEEK_END, true, true);

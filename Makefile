@@ -7,7 +7,7 @@ DEBUG_TYPECAST=0
 
 include Makefile.inc
 
-LIBS=-lc
+LIBS=-lc -ldl
 SHLIB_FILE=libuci.$(SHLIB_EXT).$(VERSION)
 
 define add_feature
@@ -23,6 +23,7 @@ ucimap.o: ucimap.c uci.h uci_config.h ucimap.h uci_list.h
 
 uci_config.h: FORCE
 	@rm -f "$@.tmp"
+	@echo "#define UCI_PREFIX \"$(prefix)\"" > "$@.tmp"
 	$(call add_feature,PLUGIN_SUPPORT)
 	$(call add_feature,DEBUG)
 	$(call add_feature,DEBUG_TYPECAST)
@@ -33,10 +34,10 @@ uci_config.h: FORCE
 	fi
 
 uci: cli.o libuci.$(SHLIB_EXT)
-	$(CC) -o $@ $< -L. -luci
+	$(CC) -o $@ $< -L. -luci $(LIBS)
 
 uci-static: cli.o libuci.a
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 libuci-static.o: libuci.c $(LIBUCI_DEPS)
 	$(CC) $(CFLAGS) -c -o $@ $<

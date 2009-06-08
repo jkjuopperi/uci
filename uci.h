@@ -56,6 +56,8 @@ struct uci_list
 };
 
 struct uci_ptr;
+struct uci_plugin;
+struct uci_hook_ops;
 struct uci_element;
 struct uci_package;
 struct uci_section;
@@ -283,6 +285,43 @@ extern int uci_set_backend(struct uci_context *ctx, const char *name);
  */
 extern bool uci_validate_text(const char *str);
 
+
+/**
+ * uci_add_hook: add a uci hook
+ * @ctx: uci context
+ * @ops: uci hook ops
+ *
+ * NB: allocated and freed by the caller
+ */
+extern int uci_add_hook(struct uci_context *ctx, const struct uci_hook_ops *ops);
+
+/**
+ * uci_remove_hook: remove a uci hook
+ * @ctx: uci context
+ * @ops: uci hook ops
+ */
+extern int uci_remove_hook(struct uci_context *ctx, const struct uci_hook_ops *ops);
+
+/**
+ * uci_load_plugin: load an uci plugin
+ * @ctx: uci context
+ * @filename: path to the uci plugin
+ *
+ * NB: plugin will be unloaded automatically when the context is freed
+ */
+int uci_load_plugin(struct uci_context *ctx, const char *filename);
+
+/**
+ * uci_load_plugins: load all uci plugins from a directory
+ * @ctx: uci context
+ * @pattern: pattern of uci plugin files (optional)
+ *
+ * if pattern is NULL, then uci_load_plugins will call uci_load_plugin
+ * for uci_*.so in <prefix>/lib/
+ */
+int uci_load_plugins(struct uci_context *ctx, const char *pattern);
+
+
 /* UCI data structures */
 enum uci_type {
 	UCI_TYPE_UNSPEC = 0,
@@ -293,6 +332,8 @@ enum uci_type {
 	UCI_TYPE_PATH = 5,
 	UCI_TYPE_BACKEND = 6,
 	UCI_TYPE_ITEM = 7,
+	UCI_TYPE_HOOK = 8,
+	UCI_TYPE_PLUGIN = 9,
 };
 
 enum uci_option_type {
@@ -354,6 +395,9 @@ struct uci_context
 	bool internal, nested;
 	char *buf;
 	int bufsz;
+
+	struct uci_list hooks;
+	struct uci_list plugins;
 };
 
 struct uci_package
@@ -429,6 +473,31 @@ struct uci_ptr
 	const char *value;
 };
 
+struct uci_hook_ops
+{
+	void (*load)(const struct uci_hook_ops *ops, struct uci_package *p);
+	void (*set)(const struct uci_hook_ops *ops, struct uci_package *p, struct uci_history *e);
+};
+
+struct uci_hook
+{
+	struct uci_element e;
+	const struct uci_hook_ops *ops;
+};
+
+struct uci_plugin_ops
+{
+	int (*attach)(struct uci_context *ctx);
+	void (*detach)(struct uci_context *ctx);
+};
+
+struct uci_plugin
+{
+	struct uci_element e;
+	const struct uci_plugin_ops *ops;
+	void *dlh;
+};
+
 
 /* linked list handling */
 #ifndef offsetof
@@ -499,6 +568,8 @@ struct uci_ptr
 #define uci_type_package UCI_TYPE_PACKAGE
 #define uci_type_section UCI_TYPE_SECTION
 #define uci_type_option UCI_TYPE_OPTION
+#define uci_type_hook UCI_TYPE_HOOK
+#define uci_type_plugin UCI_TYPE_PLUGIN
 
 /* element typecasting */
 #ifdef UCI_DEBUG_TYPECAST
@@ -508,6 +579,8 @@ static const char *uci_typestr[] = {
 	[uci_type_package] = "package",
 	[uci_type_section] = "section",
 	[uci_type_option] = "option",
+	[uci_type_hook] = "hook",
+	[uci_type_plugin] = "plugin",
 };
 
 static void uci_typecast_error(int from, int to)
@@ -529,6 +602,8 @@ BUILD_CAST(history)
 BUILD_CAST(package)
 BUILD_CAST(section)
 BUILD_CAST(option)
+BUILD_CAST(hook)
+BUILD_CAST(plugin)
 
 #else
 #define uci_to_backend(ptr) container_of(ptr, struct uci_backend, e)
@@ -536,6 +611,8 @@ BUILD_CAST(option)
 #define uci_to_package(ptr) container_of(ptr, struct uci_package, e)
 #define uci_to_section(ptr) container_of(ptr, struct uci_section, e)
 #define uci_to_option(ptr)  container_of(ptr, struct uci_option, e)
+#define uci_to_hook(ptr)    container_of(ptr, struct uci_hook, e)
+#define uci_to_plugin(ptr)  container_of(ptr, struct uci_plugin, e)
 #endif
 
 /**

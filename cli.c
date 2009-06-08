@@ -27,6 +27,7 @@ static enum {
 	CLI_FLAG_NOCOMMIT = (1 << 2),
 	CLI_FLAG_BATCH =    (1 << 3),
 	CLI_FLAG_SHOW_EXT = (1 << 4),
+	CLI_FLAG_NOPLUGINS= (1 << 5),
 } flags;
 
 static FILE *input;
@@ -138,6 +139,7 @@ static void uci_usage(void)
 		"\t-c <path>  set the search path for config files (default: /etc/config)\n"
 		"\t-d <str>   set the delimiter for list values in uci show\n"
 		"\t-f <file>  use <file> as input instead of stdin\n"
+		"\t-L         do not load any plugins\n"
 		"\t-m         when importing, merge data into an existing package\n"
 		"\t-n         name unnamed sections on export (default)\n"
 		"\t-N         don't name unnamed sections\n"
@@ -616,7 +618,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	while((c = getopt(argc, argv, "c:d:f:mnNp:P:sSqX")) != -1) {
+	while((c = getopt(argc, argv, "c:d:f:LmnNp:P:sSqX")) != -1) {
 		switch(c) {
 			case 'c':
 				uci_set_confdir(ctx, optarg);
@@ -630,6 +632,9 @@ int main(int argc, char **argv)
 					perror("uci");
 					return 1;
 				}
+				break;
+			case 'L':
+				flags |= CLI_FLAG_NOPLUGINS;
 				break;
 			case 'm':
 				flags |= CLI_FLAG_MERGE;
@@ -675,6 +680,10 @@ int main(int argc, char **argv)
 		uci_usage();
 		return 0;
 	}
+
+	if (!(flags & CLI_FLAG_NOPLUGINS))
+		uci_load_plugins(ctx, NULL);
+
 	ret = uci_cmd(argc - 1, argv + 1);
 	if (input != stdin)
 		fclose(input);
