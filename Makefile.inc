@@ -1,5 +1,6 @@
 prefix=/usr
 DESTDIR=
+LIBDIRNAME=lib
 
 COPTS=-O2
 WOPTS=-pedantic -Werror -Wall
