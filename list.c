@@ -667,6 +667,11 @@ int uci_set(struct uci_context *ctx, struct uci_ptr *ptr)
 			ptr->o = uci_to_option(e);
 	}
 	if (!ptr->value[0]) {
+		/* if setting a nonexistant option/section to a nonexistant value,
+		 * exit without errors */
+		if (!(ptr->flags & UCI_LOOKUP_COMPLETE))
+			return 0;
+
 		return uci_delete(ctx, ptr);
 	} else if (!ptr->o && ptr->option) { /* new option */
 		ptr->o = uci_alloc_option(ptr->s, ptr->option, ptr->value);
