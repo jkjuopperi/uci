@@ -656,7 +656,7 @@ int uci_set(struct uci_context *ctx, struct uci_ptr *ptr)
 	expand_ptr(ctx, ptr, false);
 	UCI_ASSERT(ctx, ptr->value);
 	UCI_ASSERT(ctx, ptr->s || (!ptr->option && ptr->section));
-	if (!ptr->option) {
+	if (!ptr->option && ptr->value[0]) {
 		UCI_ASSERT(ctx, uci_validate_type(ptr->value));
 	}
 
@@ -666,7 +666,9 @@ int uci_set(struct uci_context *ctx, struct uci_ptr *ptr)
 		if (e)
 			ptr->o = uci_to_option(e);
 	}
-	if (!ptr->o && ptr->option) { /* new option */
+	if (!ptr->value[0]) {
+		return uci_delete(ctx, ptr);
+	} else if (!ptr->o && ptr->option) { /* new option */
 		ptr->o = uci_alloc_option(ptr->s, ptr->option, ptr->value);
 		ptr->last = &ptr->o->e;
 	} else if (!ptr->s && ptr->section) { /* new section */
