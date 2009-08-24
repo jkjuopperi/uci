@@ -297,8 +297,11 @@ uci_lua_foreach(lua_State *L)
 
 		lua_pushvalue(L, 3 + offset); /* iterator function */
 		uci_push_section(L, s, i - 1);
-		if (lua_pcall(L, 1, 0, 0) == 0)
+		if (lua_pcall(L, 1, 1, 0) == 0) {
 			ret = true;
+			if (lua_isboolean(L, -1) && !lua_toboolean(L, -1))
+				break;
+		}
 	}
 
 done:
