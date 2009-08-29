@@ -82,50 +82,68 @@ network_add_alias(struct uci_map *map, void *section)
 	return 0;
 }
 
+struct my_optmap {
+	struct uci_optmap map;
+	int test;
+};
+
 static struct uci_sectmap network_interface;
 static struct uci_sectmap network_alias;
 
-static struct uci_optmap network_interface_options[] = {
+static struct my_optmap network_interface_options[] = {
 	{
-		UCIMAP_OPTION(struct uci_network, proto),
-		.type = UCIMAP_STRING,
-		.name = "proto",
-		.data.s.maxlen = 32,
+		.map = {
+			UCIMAP_OPTION(struct uci_network, proto),
+			.type = UCIMAP_STRING,
+			.name = "proto",
+			.data.s.maxlen = 32,
+		}
 	},
 	{
-		UCIMAP_OPTION(struct uci_network, ifname),
-		.type = UCIMAP_STRING,
-		.name = "ifname"
+		.map = {
+			UCIMAP_OPTION(struct uci_network, ifname),
+			.type = UCIMAP_STRING,
+			.name = "ifname"
+		}
 	},
 	{
-		UCIMAP_OPTION(struct uci_network, ipaddr),
-		.type = UCIMAP_STRING,
-		.name = "ipaddr",
+		.map = {
+			UCIMAP_OPTION(struct uci_network, ipaddr),
+			.type = UCIMAP_STRING,
+			.name = "ipaddr",
+		}
 	},
 	{
-		UCIMAP_OPTION(struct uci_network, enabled),
-		.type = UCIMAP_BOOL,
-		.name = "enabled",
+		.map = {
+			UCIMAP_OPTION(struct uci_network, enabled),
+			.type = UCIMAP_BOOL,
+			.name = "enabled",
+		}
 	},
 	{
-		UCIMAP_OPTION(struct uci_network, test),
-		.type = UCIMAP_INT,
-		.name = "test"
+		.map = {
+			UCIMAP_OPTION(struct uci_network, test),
+			.type = UCIMAP_INT,
+			.name = "test"
+		}
 	},
 	{
-		UCIMAP_OPTION(struct uci_network, aliases),
-		.type = UCIMAP_LIST | UCIMAP_SECTION,
-		.data.sm = &network_alias
+		.map = {
+			UCIMAP_OPTION(struct uci_network, aliases),
+			.type = UCIMAP_LIST | UCIMAP_SECTION,
+			.data.sm = &network_alias
+		}
 	}
 };
 
 static struct uci_sectmap network_interface = {
 	.type = "interface",
-	.options = network_interface_options,
 	.alloc_len = sizeof(struct uci_network),
 	.init_section = network_init_interface,
 	.add_section = network_add_interface,
+	.options = &network_interface_options[0].map,
 	.n_options = ARRAY_SIZE(network_interface_options),
+	.options_size = sizeof(struct my_optmap)
 };
 
 static struct uci_optmap network_alias_options[] = {
