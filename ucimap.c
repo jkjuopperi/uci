@@ -282,11 +282,17 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct uci_
 	int n_alloc = 2;
 	int err;
 
-	sd = malloc(sm->alloc_len);
+	if (sm->alloc) {
+		sd = sm->alloc(map, sm, s);
+		memset(sd, 0, sizeof(struct ucimap_section_data));
+	} else {
+		sd = malloc(sm->alloc_len);
+		memset(sd, 0, sm->alloc_len);
+	}
+
 	if (!sd)
 		return UCI_ERR_MEM;
 
-	memset(sd, 0, sm->alloc_len);
 	INIT_LIST_HEAD(&sd->list);
 	sd->map = map;
 	sd->sm = sm;
