@@ -216,12 +216,20 @@ ucimap_parse_options(struct uci_map *map, struct uci_sectmap *sm, struct uci_sec
 	section = (unsigned long) sd + sizeof(struct uci_sectmap_data);
 	uci_foreach_element(&s->options, e) {
 		struct uci_optmap *om = NULL;
+		void *ptr = sm->options;
+		int size = sm->options_size;
+
+		if (!size)
+			size = sizeof(struct uci_optmap);
 
 		for (i = 0; i < sm->n_options; i++) {
-			if (strcmp(e->name, sm->options[i].name) == 0) {
-				om = &sm->options[i];
+			struct uci_optmap *tmp = ptr;
+
+			if (strcmp(e->name, tmp->name) == 0) {
+				om = ptr;
 				break;
 			}
+			ptr = (unsigned char *)ptr + size;
 		}
 		if (!om)
 			continue;

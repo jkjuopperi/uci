@@ -98,6 +98,7 @@ struct uci_sectmap {
 	/* list of option mappings for this section */
 	struct uci_optmap *options;
 	unsigned int n_options;
+	unsigned int options_size;
 };
 
 struct uci_optmap {
