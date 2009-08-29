@@ -388,13 +388,14 @@ ucimap_set_changed(void *section, void *field)
 	struct uci_sectmap *sm = sd->sm;
 	struct uci_optmap *om;
 	int ofs = (char *)field - (char *)section;
-	int i;
+	int i = 0;
 
 	ucimap_foreach_option(sm, om) {
 		if (om->offset == ofs) {
 			SET_BIT(sd->cmap, i);
 			break;
 		}
+		i++;
 	}
 }
 
