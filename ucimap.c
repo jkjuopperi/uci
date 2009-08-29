@@ -93,12 +93,25 @@ ucimap_is_list(enum ucimap_type type)
 	return ((type & UCIMAP_TYPE) == UCIMAP_LIST);
 }
 
+static inline bool
+ucimap_is_custom(enum ucimap_type type)
+{
+	return ((type & UCIMAP_SUBTYPE) == UCIMAP_CUSTOM);
+}
+
+static inline void *
+ucimap_section_ptr(struct uci_sectmap_data *sd)
+{
+	void *data = sd + 1;
+	return data;
+}
+
 static inline union ucimap_data *
 ucimap_get_data(struct uci_sectmap_data *sd, struct uci_optmap *om)
 {
 	void *data;
 
-	data = (char *) sd + sizeof(struct uci_sectmap_data) + om->offset;
+	data = (char *) ucimap_section_ptr(sd) + om->offset;
 	return data;
 }
 
@@ -132,10 +145,10 @@ ucimap_add_alloc(struct uci_sectmap_data *sd, void *ptr)
 static void
 ucimap_free_section(struct uci_map *map, struct uci_sectmap_data *sd)
 {
-	void *section = sd;
+	void *section;
 	int i;
 
-	section = (char *) section + sizeof(struct uci_sectmap_data);
+	section = ucimap_section_ptr(sd);
 	if (!list_empty(&sd->list))
 		list_del(&sd->list);
 
@@ -181,13 +194,13 @@ ucimap_add_fixup(struct uci_map *map, union ucimap_data *data, struct uci_optmap
 static void
 ucimap_add_value(union ucimap_data *data, struct uci_optmap *om, struct uci_sectmap_data *sd, const char *str)
 {
-	union ucimap_data *tdata = data;
+	union ucimap_data tdata = *data;
 	char *eptr = NULL;
 	char *s;
 	int val;
 
 	if (ucimap_is_list(om->type) && !ucimap_is_fixup(om->type))
-		tdata = &data->list->item[data->list->n_items++];
+		data = &data->list->item[data->list->n_items++];
 
 	switch(om->type & UCIMAP_SUBTYPE) {
 	case UCIMAP_STRING:
@@ -196,7 +209,7 @@ ucimap_add_value(union ucimap_data *data, struct uci_optmap *om, struct uci_sect
 			return;
 
 		s = strdup(str);
-		tdata->s = s;
+		tdata.s = s;
 		ucimap_add_alloc(sd, s);
 		break;
 	case UCIMAP_BOOL:
@@ -216,19 +229,29 @@ ucimap_add_value(union ucimap_data *data, struct uci_optmap *om, struct uci_sect
 		if (val == -1)
 			return;
 
-		tdata->b = val;
+		tdata.b = val;
 		break;
 	case UCIMAP_INT:
 		val = strtol(str, &eptr, om->data.i.base);
 		if (!eptr || *eptr == '\0')
-			tdata->i = val;
+			tdata.i = val;
 		else
 			return;
 		break;
 	case UCIMAP_SECTION:
 		ucimap_add_fixup(sd->map, data, om, str);
+		return;
+	case UCIMAP_CUSTOM:
+		tdata.s = (char *) data;
 		break;
 	}
+	if (om->parse) {
+		if (om->parse(ucimap_section_ptr(sd), om, &tdata, str) < 0)
+			return;
+	}
+	if (ucimap_is_custom(om->type))
+		return;
+	memcpy(data, &tdata, sizeof(union ucimap_data));
 }
 
 
@@ -339,7 +362,7 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectmap *sm, struct uci_sec
 		ucimap_add_alloc(sd, ucimap_get_data(sd, om)->list);
 	}
 
-	section = (char *)sd + sizeof(struct uci_sectmap_data);
+	section = ucimap_section_ptr(sd);
 
 	err = sm->init(map, section, s);
 	if (err)

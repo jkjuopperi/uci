@@ -26,7 +26,7 @@ struct uci_network {
 	const char *name;
 	const char *proto;
 	const char *ifname;
-	const char *ipaddr;
+	unsigned char ipaddr[4];
 	int test;
 	bool enabled;
 	struct ucimap_list *aliases;
@@ -38,6 +38,23 @@ struct uci_alias {
 	const char *name;
 	struct uci_network *interface;
 };
+
+static int
+network_parse_ip(void *section, struct uci_optmap *om, union ucimap_data *data, const char *str)
+{
+	struct uci_network *net = section;
+	unsigned char *target = data->s;
+	unsigned int tmp[4];
+	int i;
+
+	if (sscanf(str, "%d.%d.%d.%d", &tmp[0], &tmp[1], &tmp[2], &tmp[3]) != 4)
+		return -1;
+
+	for (i = 0; i < 4; i++)
+		target[i] = (char) tmp[i];
+
+	return 0;
+}
 
 static int
 network_init_interface(struct uci_map *map, void *section, struct uci_section *s)
@@ -109,8 +126,9 @@ static struct my_optmap network_interface_options[] = {
 	{
 		.map = {
 			UCIMAP_OPTION(struct uci_network, ipaddr),
-			.type = UCIMAP_STRING,
+			.type = UCIMAP_CUSTOM,
 			.name = "ipaddr",
+			.parse = network_parse_ip,
 		}
 	},
 	{
@@ -196,13 +214,14 @@ int main(int argc, char **argv)
 		printf("New network section '%s'\n"
 			"	type: %s\n"
 			"	ifname: %s\n"
-			"	ipaddr: %s\n"
+			"	ipaddr: %d.%d.%d.%d\n"
 			"	test: %d\n"
 			"	enabled: %s\n",
 			net->name,
 			net->proto,
 			net->ifname,
-			net->ipaddr,
+			net->ipaddr[0],	net->ipaddr[1],
+			net->ipaddr[2],	net->ipaddr[3],
 			net->test,
 			(net->enabled ? "on" : "off"));
 

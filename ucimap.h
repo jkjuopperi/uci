@@ -33,6 +33,7 @@
 	(_name[(_bit) / 8] & (1 << ((_bit) % 8)))
 
 #define UCIMAP_OPTION(_type, _field) \
+	.type = UCIMAP_CUSTOM, \
 	.name = #_field, \
 	.offset = offsetof(_type, _field)
 
@@ -60,13 +61,14 @@ enum ucimap_type {
 	UCIMAP_BOOL     = 0x1,
 	UCIMAP_INT      = 0x2,
 	UCIMAP_SECTION  = 0x3,
+	UCIMAP_CUSTOM	= 0x4,
 	UCIMAP_SUBTYPE  = 0xf, /* subtype mask */
 };
 
 union ucimap_data {
 	int i;
 	bool b;
-	const char *s;
+	char *s;
 	void *section;
 	struct ucimap_list *list;
 };
@@ -102,6 +104,7 @@ struct uci_optmap {
 	unsigned int offset;
 	const char *name;
 	enum ucimap_type type;
+	int (*parse)(void *section, struct uci_optmap *om, union ucimap_data *data, const char *string);
 	union {
 		struct {
 			int base;
