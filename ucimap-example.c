@@ -101,6 +101,14 @@ network_add_alias(struct uci_map *map, void *section)
 	return 0;
 }
 
+static struct ucimap_section_data *
+network_allocate(struct uci_map *map, struct uci_sectionmap *sm, struct uci_section *s)
+{
+	struct uci_network *p = malloc(sizeof(struct uci_network));
+	memset(p, 0, sizeof(struct uci_network));
+	return &p->map;
+}
+
 struct my_optmap {
 	struct uci_optmap map;
 	int test;
@@ -159,7 +167,7 @@ static struct my_optmap network_interface_options[] = {
 static struct uci_sectionmap network_interface = {
 	UCIMAP_SECTION(struct uci_network, map),
 	.type = "interface",
-	.alloc_len = sizeof(struct uci_network),
+	.alloc = network_allocate,
 	.init = network_init_interface,
 	.add = network_add_interface,
 	.options = &network_interface_options[0].map,
