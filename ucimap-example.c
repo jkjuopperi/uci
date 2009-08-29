@@ -82,10 +82,10 @@ network_add_alias(struct uci_map *map, void *section)
 	return 0;
 }
 
-struct uci_sectmap network_interface;
-struct uci_sectmap network_alias;
+static struct uci_sectmap network_interface;
+static struct uci_sectmap network_alias;
 
-struct uci_optmap network_interface_options[] = {
+static struct uci_optmap network_interface_options[] = {
 	OPTMAP_OPTION(UCIMAP_STRING, struct uci_network, proto, .data.s.maxlen = 32),
 	OPTMAP_OPTION(UCIMAP_STRING, struct uci_network, ifname),
 	OPTMAP_OPTION(UCIMAP_STRING, struct uci_network, ipaddr),
@@ -94,7 +94,7 @@ struct uci_optmap network_interface_options[] = {
 	OPTMAP_OPTION(UCIMAP_LIST | UCIMAP_SECTION, struct uci_network, aliases, .data.sm = &network_alias),
 };
 
-struct uci_sectmap network_interface = {
+static struct uci_sectmap network_interface = {
 	.type = "interface",
 	.options = network_interface_options,
 	.alloc_len = sizeof(struct uci_network),
@@ -103,11 +103,11 @@ struct uci_sectmap network_interface = {
 	.n_options = ARRAY_SIZE(network_interface_options),
 };
 
-struct uci_optmap network_alias_options[] = {
+static struct uci_optmap network_alias_options[] = {
 	OPTMAP_OPTION(UCIMAP_SECTION, struct uci_alias, interface, .data.sm = &network_interface),
 };
 
-struct uci_sectmap network_alias = {
+static struct uci_sectmap network_alias = {
 	.type = "alias",
 	.options = network_alias_options,
 	.alloc_len = sizeof(struct uci_network),
@@ -116,12 +116,12 @@ struct uci_sectmap network_alias = {
 	.n_options = ARRAY_SIZE(network_alias_options),
 };
 
-struct uci_sectmap *network_smap[] = {
+static struct uci_sectmap *network_smap[] = {
 	&network_interface,
 	&network_alias,
 };
 
-struct uci_map network_map = {
+static struct uci_map network_map = {
 	.sections = network_smap,
 	.n_sections = ARRAY_SIZE(network_smap),
 };
