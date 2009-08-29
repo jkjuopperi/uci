@@ -86,12 +86,37 @@ static struct uci_sectmap network_interface;
 static struct uci_sectmap network_alias;
 
 static struct uci_optmap network_interface_options[] = {
-	OPTMAP_OPTION(UCIMAP_STRING, struct uci_network, proto, .data.s.maxlen = 32),
-	OPTMAP_OPTION(UCIMAP_STRING, struct uci_network, ifname),
-	OPTMAP_OPTION(UCIMAP_STRING, struct uci_network, ipaddr),
-	OPTMAP_OPTION(UCIMAP_BOOL, struct uci_network, enabled),
-	OPTMAP_OPTION(UCIMAP_INT, struct uci_network, test),
-	OPTMAP_OPTION(UCIMAP_LIST | UCIMAP_SECTION, struct uci_network, aliases, .data.sm = &network_alias),
+	{
+		UCIMAP_OPTION(struct uci_network, proto),
+		.type = UCIMAP_STRING,
+		.name = "proto",
+		.data.s.maxlen = 32,
+	},
+	{
+		UCIMAP_OPTION(struct uci_network, ifname),
+		.type = UCIMAP_STRING,
+		.name = "ifname"
+	},
+	{
+		UCIMAP_OPTION(struct uci_network, ipaddr),
+		.type = UCIMAP_STRING,
+		.name = "ipaddr",
+	},
+	{
+		UCIMAP_OPTION(struct uci_network, enabled),
+		.type = UCIMAP_BOOL,
+		.name = "enabled",
+	},
+	{
+		UCIMAP_OPTION(struct uci_network, test),
+		.type = UCIMAP_INT,
+		.name = "test"
+	},
+	{
+		UCIMAP_OPTION(struct uci_network, aliases),
+		.type = UCIMAP_LIST | UCIMAP_SECTION,
+		.data.sm = &network_alias
+	}
 };
 
 static struct uci_sectmap network_interface = {
@@ -104,7 +129,11 @@ static struct uci_sectmap network_interface = {
 };
 
 static struct uci_optmap network_alias_options[] = {
-	OPTMAP_OPTION(UCIMAP_SECTION, struct uci_alias, interface, .data.sm = &network_interface),
+	{
+		UCIMAP_OPTION(struct uci_alias, interface),
+		.type = UCIMAP_SECTION,
+		.data.sm = &network_interface
+	}
 };
 
 static struct uci_sectmap network_alias = {

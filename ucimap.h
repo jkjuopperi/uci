@@ -32,13 +32,9 @@
 #define TEST_BIT(_name, _bit) \
 	(_name[(_bit) / 8] & (1 << ((_bit) % 8)))
 
-#define OPTMAP_OPTION(_maptype, _type, _field, ...) \
-	{ \
-		.type = _maptype, \
-		.name = #_field, \
-		.offset = offsetof(_type, _field), \
-		__VA_ARGS__  \
-	}
+#define UCIMAP_OPTION(_type, _field) \
+	.name = #_field, \
+	.offset = offsetof(_type, _field)
 
 struct uci_sectmap;
 struct uci_optmap;
