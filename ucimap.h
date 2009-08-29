@@ -42,6 +42,7 @@
 
 struct uci_sectmap;
 struct uci_optmap;
+struct ucimap_list;
 
 struct uci_map {
 	struct uci_sectmap **sections;
@@ -66,17 +67,17 @@ enum ucimap_type {
 	UCIMAP_SUBTYPE  = 0xf, /* subtype mask */
 };
 
-union uci_datamap {
+union ucimap_data {
 	int i;
 	bool b;
 	const char *s;
 	void *section;
-	struct list_head list;
+	struct ucimap_list *list;
 };
 
 struct uci_listmap {
 	struct list_head list;
-	union uci_datamap data;
+	union ucimap_data data;
 };
 
 struct uci_sectmap {
@@ -116,6 +117,11 @@ struct uci_optmap {
 		} s;
 		struct uci_sectmap *sm;
 	} data;
+};
+
+struct ucimap_list {
+	int n_items;
+	union ucimap_data item[];
 };
 
 extern int ucimap_init(struct uci_map *map);

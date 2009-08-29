@@ -29,7 +29,7 @@ struct uci_network {
 	const char *ipaddr;
 	int test;
 	bool enabled;
-	struct list_head aliases;
+	struct ucimap_list *aliases;
 };
 
 struct uci_alias {
@@ -134,6 +134,7 @@ int main(int argc, char **argv)
 	struct list_head *p, *p2;
 	struct uci_network *net;
 	struct uci_alias *alias;
+	int i;
 
 	INIT_LIST_HEAD(&ifs);
 	ctx = uci_alloc_context();
@@ -158,9 +159,8 @@ int main(int argc, char **argv)
 			net->test,
 			(net->enabled ? "on" : "off"));
 
-		list_for_each(p2, &net->aliases) {
-			struct uci_listmap *li = list_entry(p2, struct uci_listmap, list);
-			alias = li->data.section;
+		for (i = 0; i < net->aliases->n_items; i++) {
+			alias = net->aliases->item[i].section;
 			printf("New alias: %s\n", alias->name);
 		}
 #if 0
