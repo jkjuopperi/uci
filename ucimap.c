@@ -426,6 +426,9 @@ ucimap_store_section(struct uci_map *map, struct uci_package *p, void *section)
 		static char buf[32];
 		const char *str = NULL;
 
+		if (ucimap_is_list(om->type))
+			continue;
+
 		data = ucimap_get_data(sd, om);
 		if (!TEST_BIT(sd->cmap, i))
 			continue;
@@ -443,6 +446,8 @@ ucimap_store_section(struct uci_map *map, struct uci_package *p, void *section)
 			sprintf(buf, "%d", !!data->b);
 			str = buf;
 			break;
+		default:
+			continue;
 		}
 		ptr.value = str;
 
