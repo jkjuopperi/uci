@@ -139,8 +139,8 @@ ucimap_free_section(struct uci_map *map, struct uci_sectmap_data *sd)
 	if (!list_empty(&sd->list))
 		list_del(&sd->list);
 
-	if (sd->sm->free_section)
-		sd->sm->free_section(map, section);
+	if (sd->sm->free)
+		sd->sm->free(map, section);
 
 	for (i = 0; i < sd->allocmap_len; i++) {
 		ucimap_free_item(&sd->allocmap[i]);
@@ -341,7 +341,7 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectmap *sm, struct uci_sec
 
 	section = (char *)sd + sizeof(struct uci_sectmap_data);
 
-	err = sm->init_section(map, section, s);
+	err = sm->init(map, section, s);
 	if (err)
 		goto error;
 
@@ -525,7 +525,7 @@ ucimap_parse(struct uci_map *map, struct uci_package *pkg)
 			continue;
 
 		section = (char *) sd + sizeof(struct uci_sectmap_data);
-		if (sd->sm->add_section(map, section) != 0)
+		if (sd->sm->add(map, section) != 0)
 			ucimap_free_section(map, sd);
 	}
 }

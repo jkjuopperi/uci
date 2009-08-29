@@ -84,13 +84,13 @@ struct uci_sectmap {
 	unsigned int alloc_len;
 
 	/* give the caller time to initialize the preallocated struct */
-	int (*init_section)(struct uci_map *map, void *section, struct uci_section *s);
+	int (*init)(struct uci_map *map, void *section, struct uci_section *s);
 
 	/* pass the fully processed struct to the callback after the section end */
-	int (*add_section)(struct uci_map *map, void *section);
+	int (*add)(struct uci_map *map, void *section);
 
 	/* let the callback clean up its own stuff in the section */
-	int (*free_section)(struct uci_map *map, void *section);
+	int (*free)(struct uci_map *map, void *section);
 
 	/* list of option mappings for this section */
 	struct uci_optmap *options;
