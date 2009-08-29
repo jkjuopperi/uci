@@ -509,6 +509,7 @@ ucimap_parse(struct uci_map *map, struct uci_package *pkg)
 			list->item[list->n_items++].section = ptr;
 			break;
 		}
+		free(f);
 	}
 	list_for_each_safe(p, tmp, &map->sdata) {
 		struct uci_sectmap_data *sd = list_entry(p, struct uci_sectmap_data, list);
