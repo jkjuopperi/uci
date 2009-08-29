@@ -104,8 +104,8 @@ struct my_optmap {
 	int test;
 };
 
-static struct uci_sectmap network_interface;
-static struct uci_sectmap network_alias;
+static struct uci_sectionmap network_interface;
+static struct uci_sectionmap network_alias;
 
 static struct my_optmap network_interface_options[] = {
 	{
@@ -154,7 +154,7 @@ static struct my_optmap network_interface_options[] = {
 	}
 };
 
-static struct uci_sectmap network_interface = {
+static struct uci_sectionmap network_interface = {
 	.type = "interface",
 	.alloc_len = sizeof(struct uci_network),
 	.init = network_init_interface,
@@ -172,7 +172,7 @@ static struct uci_optmap network_alias_options[] = {
 	}
 };
 
-static struct uci_sectmap network_alias = {
+static struct uci_sectionmap network_alias = {
 	.type = "alias",
 	.options = network_alias_options,
 	.alloc_len = sizeof(struct uci_network),
@@ -181,7 +181,7 @@ static struct uci_sectmap network_alias = {
 	.n_options = ARRAY_SIZE(network_alias_options),
 };
 
-static struct uci_sectmap *network_smap[] = {
+static struct uci_sectionmap *network_smap[] = {
 	&network_interface,
 	&network_alias,
 };

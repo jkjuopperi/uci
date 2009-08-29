@@ -37,12 +37,12 @@
 	.name = #_field, \
 	.offset = offsetof(_type, _field)
 
-struct uci_sectmap;
+struct uci_sectionmap;
 struct uci_optmap;
 struct ucimap_list;
 
 struct uci_map {
-	struct uci_sectmap **sections;
+	struct uci_sectionmap **sections;
 	unsigned int n_sections;
 	struct list_head sdata;
 	struct list_head fixup;
@@ -78,7 +78,7 @@ struct uci_listmap {
 	union ucimap_data data;
 };
 
-struct uci_sectmap {
+struct uci_sectionmap {
 	/* type string for the uci section */
 	const char *type;
 
@@ -114,7 +114,7 @@ struct uci_optmap {
 		struct {
 			int maxlen;
 		} s;
-		struct uci_sectmap *sm;
+		struct uci_sectionmap *sm;
 	} data;
 };
 
