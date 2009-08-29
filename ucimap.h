@@ -37,6 +37,11 @@
 	.name = #_field, \
 	.offset = offsetof(_type, _field)
 
+
+#define UCIMAP_SECTION(_name, _field) \
+	.alloc_len = sizeof(_name), \
+	.smap_offset = offsetof(_name, _field)
+
 struct uci_sectionmap;
 struct uci_optmap;
 struct ucimap_list;
@@ -73,6 +78,22 @@ union ucimap_data {
 	struct ucimap_list *list;
 };
 
+struct ucimap_section_data {
+	struct list_head list;
+	struct uci_map *map;
+	struct uci_sectionmap *sm;
+	const char *section_name;
+
+	/* list of allocations done by ucimap */
+	struct uci_alloc *allocmap;
+	unsigned long allocmap_len;
+
+	/* map for changed fields */
+	unsigned char *cmap;
+	bool done;
+};
+
+
 struct uci_listmap {
 	struct list_head list;
 	union ucimap_data data;
@@ -84,6 +105,9 @@ struct uci_sectionmap {
 
 	/* length of the struct to map into */
 	unsigned int alloc_len;
+
+	/* sectionmap offset */
+	unsigned int smap_offset;
 
 	/* give the caller time to initialize the preallocated struct */
 	int (*init)(struct uci_map *map, void *section, struct uci_section *s);
@@ -125,7 +149,7 @@ struct ucimap_list {
 
 extern int ucimap_init(struct uci_map *map);
 extern void ucimap_cleanup(struct uci_map *map);
-extern void ucimap_set_changed(void *section, void *field);
+extern void ucimap_set_changed(struct ucimap_section_data *sd, void *field);
 extern int ucimap_store_section(struct uci_map *map, struct uci_package *p, void *section);
 extern void ucimap_parse(struct uci_map *map, struct uci_package *pkg);
 

@@ -33,22 +33,6 @@ struct uci_fixup {
 	union ucimap_data *data;
 };
 
-struct uci_sectionmap_data {
-	struct list_head list;
-	struct uci_map *map;
-	struct uci_sectionmap *sm;
-	const char *section_name;
-
-	/* list of allocations done by ucimap */
-	struct uci_alloc *allocmap;
-	unsigned long allocmap_len;
-
-	/* map for changed fields */
-	unsigned char *cmap;
-	bool done;
-};
-
-
 #define ucimap_foreach_option(_sm, _o) \
 	if (!(_sm)->options_size) \
 		(_sm)->options_size = sizeof(struct uci_optmap); \
@@ -100,14 +84,13 @@ ucimap_is_custom(enum ucimap_type type)
 }
 
 static inline void *
-ucimap_section_ptr(struct uci_sectionmap_data *sd)
+ucimap_section_ptr(struct ucimap_section_data *sd)
 {
-	void *data = sd + 1;
-	return data;
+	return ((char *) sd - sd->sm->smap_offset);
 }
 
 static inline union ucimap_data *
-ucimap_get_data(struct uci_sectionmap_data *sd, struct uci_optmap *om)
+ucimap_get_data(struct ucimap_section_data *sd, struct uci_optmap *om)
 {
 	void *data;
 
@@ -135,7 +118,7 @@ ucimap_free_item(struct uci_alloc *a)
 }
 
 static void
-ucimap_add_alloc(struct uci_sectionmap_data *sd, void *ptr)
+ucimap_add_alloc(struct ucimap_section_data *sd, void *ptr)
 {
 	struct uci_alloc *a = &sd->allocmap[sd->allocmap_len++];
 	a->type = UCIMAP_SIMPLE;
@@ -143,7 +126,7 @@ ucimap_add_alloc(struct uci_sectionmap_data *sd, void *ptr)
 }
 
 static void
-ucimap_free_section(struct uci_map *map, struct uci_sectionmap_data *sd)
+ucimap_free_section(struct uci_map *map, struct ucimap_section_data *sd)
 {
 	void *section;
 	int i;
@@ -169,7 +152,7 @@ ucimap_cleanup(struct uci_map *map)
 	struct list_head *ptr, *tmp;
 
 	list_for_each_safe(ptr, tmp, &map->sdata) {
-		struct uci_sectionmap_data *sd = list_entry(ptr, struct uci_sectionmap_data, list);
+		struct ucimap_section_data *sd = list_entry(ptr, struct ucimap_section_data, list);
 		ucimap_free_section(map, sd);
 	}
 }
@@ -192,7 +175,7 @@ ucimap_add_fixup(struct uci_map *map, union ucimap_data *data, struct uci_optmap
 }
 
 static void
-ucimap_add_value(union ucimap_data *data, struct uci_optmap *om, struct uci_sectionmap_data *sd, const char *str)
+ucimap_add_value(union ucimap_data *data, struct uci_optmap *om, struct ucimap_section_data *sd, const char *str)
 {
 	union ucimap_data tdata = *data;
 	char *eptr = NULL;
@@ -256,7 +239,7 @@ ucimap_add_value(union ucimap_data *data, struct uci_optmap *om, struct uci_sect
 
 
 static int
-ucimap_parse_options(struct uci_map *map, struct uci_sectionmap *sm, struct uci_sectionmap_data *sd, struct uci_section *s)
+ucimap_parse_options(struct uci_map *map, struct uci_sectionmap *sm, struct ucimap_section_data *sd, struct uci_section *s)
 {
 	struct uci_element *e, *l;
 	struct uci_option *o;
@@ -292,19 +275,21 @@ ucimap_parse_options(struct uci_map *map, struct uci_sectionmap *sm, struct uci_
 static int
 ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct uci_section *s)
 {
-	struct uci_sectionmap_data *sd = NULL;
+	struct ucimap_section_data *sd = NULL;
 	struct uci_optmap *om;
 	char *section_name;
 	void *section;
 	int n_alloc = 2;
 	int err;
 
-	sd = malloc(sm->alloc_len + sizeof(struct uci_sectionmap_data));
+	sd = malloc(sm->alloc_len);
 	if (!sd)
 		return UCI_ERR_MEM;
 
-	memset(sd, 0, sm->alloc_len + sizeof(struct uci_sectionmap_data));
+	memset(sd, 0, sm->alloc_len);
 	INIT_LIST_HEAD(&sd->list);
+	sd->map = map;
+	sd->sm = sm;
 
 	ucimap_foreach_option(sm, om) {
 		if (ucimap_is_list(om->type)) {
@@ -336,8 +321,6 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct uci_
 		}
 	}
 
-	sd->map = map;
-	sd->sm = sm;
 	sd->allocmap = malloc(n_alloc * sizeof(struct uci_alloc));
 	if (!sd->allocmap)
 		goto error_mem;
@@ -363,7 +346,6 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct uci_
 	}
 
 	section = ucimap_section_ptr(sd);
-
 	err = sm->init(map, section, s);
 	if (err)
 		goto error;
@@ -404,10 +386,9 @@ ucimap_fill_ptr(struct uci_ptr *ptr, struct uci_section *s, const char *option)
 }
 
 void
-ucimap_set_changed(void *section, void *field)
+ucimap_set_changed(struct ucimap_section_data *sd, void *field)
 {
-	char *sptr = (char *)section - sizeof(struct uci_sectionmap_data);
-	struct uci_sectionmap_data *sd = (struct uci_sectionmap_data *) sptr;
+	void *section = ucimap_section_ptr(sd);
 	struct uci_sectionmap *sm = sd->sm;
 	struct uci_optmap *om;
 	int ofs = (char *)field - (char *)section;
@@ -425,8 +406,8 @@ ucimap_set_changed(void *section, void *field)
 int
 ucimap_store_section(struct uci_map *map, struct uci_package *p, void *section)
 {
-	char *sptr = (char *)section - sizeof(struct uci_sectionmap_data);
-	struct uci_sectionmap_data *sd = (struct uci_sectionmap_data *) sptr;
+	char *sptr = (char *)section - sizeof(struct ucimap_section_data);
+	struct ucimap_section_data *sd = (struct ucimap_section_data *) sptr;
 	struct uci_sectionmap *sm = sd->sm;
 	struct uci_section *s = NULL;
 	struct uci_optmap *om;
@@ -488,18 +469,16 @@ ucimap_store_section(struct uci_map *map, struct uci_package *p, void *section)
 void *
 ucimap_find_section(struct uci_map *map, struct uci_fixup *f)
 {
-	struct uci_sectionmap_data *sd;
+	struct ucimap_section_data *sd;
 	struct list_head *p;
-	void *ret;
 
 	list_for_each(p, &map->sdata) {
-		sd = list_entry(p, struct uci_sectionmap_data, list);
+		sd = list_entry(p, struct ucimap_section_data, list);
 		if (sd->sm != f->sm)
 			continue;
 		if (strcmp(f->name, sd->section_name) != 0)
 			continue;
-		ret = (char *)sd + sizeof(struct uci_sectionmap_data);
-		return ret;
+		return ucimap_section_ptr(sd);
 	}
 	return NULL;
 }
@@ -541,13 +520,13 @@ ucimap_parse(struct uci_map *map, struct uci_package *pkg)
 		free(f);
 	}
 	list_for_each_safe(p, tmp, &map->sdata) {
-		struct uci_sectionmap_data *sd = list_entry(p, struct uci_sectionmap_data, list);
+		struct ucimap_section_data *sd = list_entry(p, struct ucimap_section_data, list);
 		void *section;
 
 		if (sd->done)
 			continue;
 
-		section = (char *) sd + sizeof(struct uci_sectionmap_data);
+		section = ucimap_section_ptr(sd);
 		if (sd->sm->add(map, section) != 0)
 			ucimap_free_section(map, sd);
 	}

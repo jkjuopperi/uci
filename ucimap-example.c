@@ -20,6 +20,7 @@
 struct list_head ifs;
 
 struct uci_network {
+	struct ucimap_section_data map;
 	struct list_head list;
 	struct list_head alias;
 
@@ -33,6 +34,7 @@ struct uci_network {
 };
 
 struct uci_alias {
+	struct ucimap_section_data map;
 	struct list_head list;
 
 	const char *name;
@@ -43,7 +45,7 @@ static int
 network_parse_ip(void *section, struct uci_optmap *om, union ucimap_data *data, const char *str)
 {
 	struct uci_network *net = section;
-	unsigned char *target = data->s;
+	unsigned char *target = (unsigned char *) data->s;
 	unsigned int tmp[4];
 	int i;
 
@@ -155,6 +157,7 @@ static struct my_optmap network_interface_options[] = {
 };
 
 static struct uci_sectionmap network_interface = {
+	UCIMAP_SECTION(struct uci_network, map),
 	.type = "interface",
 	.alloc_len = sizeof(struct uci_network),
 	.init = network_init_interface,
@@ -173,9 +176,9 @@ static struct uci_optmap network_alias_options[] = {
 };
 
 static struct uci_sectionmap network_alias = {
+	UCIMAP_SECTION(struct uci_alias, map),
 	.type = "alias",
 	.options = network_alias_options,
-	.alloc_len = sizeof(struct uci_network),
 	.init = network_init_alias,
 	.add = network_add_alias,
 	.n_options = ARRAY_SIZE(network_alias_options),
