@@ -60,7 +60,7 @@ libuci.$(SHLIB_EXT): libuci-shared.o
 	ln -sf $(SHLIB_FILE) $@
 
 ucimap-example: ucimap-example.c libuci.a libucimap.a
-	$(CC) $(CFLAGS) -I. -o $@ $^
+	$(CC) $(CFLAGS) -I. -o $@ $^ $(LIBS)
 
 clean:
 	rm -f uci uci-static *.[oa] *.so* *.dylib* uci_config.h ucimap-example
