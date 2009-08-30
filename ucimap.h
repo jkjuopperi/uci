@@ -109,7 +109,7 @@ struct uci_sectionmap {
 	/* sectionmap offset, filled in by macro */
 	unsigned int smap_offset;
 
-	/* allocate a new data structure and return a pointer to the section map data */
+	/* return a pointer to the section map data (allocate if necessary) */
 	struct ucimap_section_data *(*alloc)(struct uci_map *map,
 		struct uci_sectionmap *sm, struct uci_section *s);
 
