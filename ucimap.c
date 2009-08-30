@@ -16,6 +16,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <limits.h>
 #include "ucimap.h"
 
 struct uci_alloc {
@@ -179,6 +180,7 @@ ucimap_add_value(union ucimap_data *data, struct uci_optmap *om, struct ucimap_s
 {
 	union ucimap_data tdata = *data;
 	char *eptr = NULL;
+	long lval;
 	char *s;
 	int val;
 
@@ -196,28 +198,30 @@ ucimap_add_value(union ucimap_data *data, struct uci_optmap *om, struct ucimap_s
 		ucimap_add_alloc(sd, s);
 		break;
 	case UCIMAP_BOOL:
-		val = -1;
-		if (strcmp(str, "on"))
+		if (!strcmp(str, "on"))
 			val = true;
-		else if (strcmp(str, "1"))
+		else if (!strcmp(str, "1"))
 			val = true;
-		else if (strcmp(str, "enabled"))
+		else if (!strcmp(str, "enabled"))
 			val = true;
-		else if (strcmp(str, "off"))
+		else if (!strcmp(str, "off"))
 			val = false;
-		else if (strcmp(str, "0"))
+		else if (!strcmp(str, "0"))
 			val = false;
-		else if (strcmp(str, "disabled"))
+		else if (!strcmp(str, "disabled"))
 			val = false;
-		if (val == -1)
+		else
 			return;
 
 		tdata.b = val;
 		break;
 	case UCIMAP_INT:
-		val = strtol(str, &eptr, om->data.i.base);
+		lval = strtol(str, &eptr, om->data.i.base);
+		if (lval < INT_MIN || lval > INT_MAX)
+			return;
+
 		if (!eptr || *eptr == '\0')
-			tdata.i = val;
+			tdata.i = (int) lval;
 		else
 			return;
 		break;
