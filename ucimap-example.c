@@ -59,6 +59,18 @@ network_parse_ip(void *section, struct uci_optmap *om, union ucimap_data *data, 
 }
 
 static int
+network_format_ip(void *sction, struct uci_optmap *om, union ucimap_data *data, char **str)
+{
+	static char buf[16];
+	unsigned char *ip = (unsigned char *) data->s;
+
+	sprintf(buf, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+	*str = buf;
+
+	return 0;
+}
+
+static int
 network_init_interface(struct uci_map *map, void *section, struct uci_section *s)
 {
 	struct uci_network *net = section;
@@ -139,6 +151,7 @@ static struct my_optmap network_interface_options[] = {
 			.type = UCIMAP_CUSTOM,
 			.name = "ipaddr",
 			.parse = network_parse_ip,
+			.format = network_format_ip,
 		}
 	},
 	{
@@ -241,9 +254,9 @@ int main(int argc, char **argv)
 			printf("New alias: %s\n", alias->name);
 		}
 #if 0
-		net->ipaddr = "2.3.4.5";
-		ucimap_set_changed(net, &net->ipaddr);
-		ucimap_store_section(&network_map, pkg, net);
+		memcpy(net->ipaddr, "\x01\x03\x04\x05", 4);
+		ucimap_set_changed(&net->map, &net->ipaddr);
+		ucimap_store_section(&network_map, pkg, &net->map);
 		uci_save(ctx, pkg);
 #endif
 	}

@@ -133,6 +133,7 @@ struct uci_optmap {
 	const char *name;
 	enum ucimap_type type;
 	int (*parse)(void *section, struct uci_optmap *om, union ucimap_data *data, const char *string);
+	int (*format)(void *section, struct uci_optmap *om, union ucimap_data *data, char **string);
 	union {
 		struct {
 			int base;
@@ -154,6 +155,6 @@ struct ucimap_list {
 extern int ucimap_init(struct uci_map *map);
 extern void ucimap_cleanup(struct uci_map *map);
 extern void ucimap_set_changed(struct ucimap_section_data *sd, void *field);
-extern int ucimap_store_section(struct uci_map *map, struct uci_package *p, void *section);
+extern int ucimap_store_section(struct uci_map *map, struct uci_package *p, struct ucimap_section_data *sd);
 extern void ucimap_parse(struct uci_map *map, struct uci_package *pkg);
 
