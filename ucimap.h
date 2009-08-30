@@ -103,10 +103,10 @@ struct uci_sectionmap {
 	/* type string for the uci section */
 	const char *type;
 
-	/* length of the struct to map into */
+	/* length of the struct to map into, filled in by macro */
 	unsigned int alloc_len;
 
-	/* sectionmap offset */
+	/* sectionmap offset, filled in by macro */
 	unsigned int smap_offset;
 
 	/* allocate a new data structure and return a pointer to the section map data */
