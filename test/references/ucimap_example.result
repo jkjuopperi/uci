@@ -3,7 +3,7 @@ New network section 'lan'
 	ifname: eth0
 	ipaddr: 2.3.4.5
 	test: 123
-	enabled: on
+	enabled: off
 New alias: b
 New alias: a
 New network section 'wan'
@@ -11,4 +11,4 @@ New network section 'wan'
 	ifname: eth1
 	ipaddr: 0.0.0.0
 	test: -1
-	enabled: off
+	enabled: on
