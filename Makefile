@@ -59,6 +59,9 @@ libuci.$(SHLIB_EXT): libuci-shared.o
 	$(LINK) $(SHLIB_FLAGS) -o $(SHLIB_FILE) $^ $(LIBS)
 	ln -sf $(SHLIB_FILE) $@
 
+ucimap-example: ucimap-example.c libuci.a libucimap.a
+	$(CC) $(CFLAGS) -I. -o $@ $^
+
 clean:
 	rm -f uci uci-static *.[oa] *.so* *.dylib* uci_config.h
 
@@ -77,7 +80,7 @@ install-bin: all
 	$(MKDIR) -p $(DESTDIR)$(prefix)/bin
 	$(INSTALL) -m0755 uci $(DESTDIR)$(prefix)/bin/
 
-test: all
+test: all ucimap-example
 	make -C test
 
 FORCE: ;

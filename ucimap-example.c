@@ -44,9 +44,8 @@ struct uci_alias {
 static int
 network_parse_ip(void *section, struct uci_optmap *om, union ucimap_data *data, const char *str)
 {
-	struct uci_network *net = section;
 	unsigned char *target = (unsigned char *) data->s;
-	unsigned int tmp[4];
+	int tmp[4];
 	int i;
 
 	if (sscanf(str, "%d.%d.%d.%d", &tmp[0], &tmp[1], &tmp[2], &tmp[3]) != 4)
@@ -220,7 +219,7 @@ int main(int argc, char **argv)
 {
 	struct uci_context *ctx;
 	struct uci_package *pkg;
-	struct list_head *p, *p2;
+	struct list_head *p;
 	struct uci_network *net;
 	struct uci_alias *alias;
 	int i;
@@ -229,6 +228,7 @@ int main(int argc, char **argv)
 	ctx = uci_alloc_context();
 	ucimap_init(&network_map);
 
+	uci_set_confdir(ctx, "./test/config");
 	uci_load(ctx, "network", &pkg);
 
 	ucimap_parse(&network_map, pkg);
@@ -262,7 +262,6 @@ int main(int argc, char **argv)
 	}
 
 
-done:
 	ucimap_cleanup(&network_map);
 	uci_free_context(ctx);
 

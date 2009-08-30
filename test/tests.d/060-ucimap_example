@@ -1,0 +1,5 @@
+test_ucimap_example()
+{
+	( cd ..; ./ucimap-example ) > "${TMP_DIR}/ucimap_example.result"
+	assertSameFile "${TMP_DIR}/ucimap_example.result" "${REF_DIR}/ucimap_example.result"
+}
