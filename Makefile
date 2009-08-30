@@ -63,7 +63,7 @@ ucimap-example: ucimap-example.c libuci.a libucimap.a
 	$(CC) $(CFLAGS) -I. -o $@ $^
 
 clean:
-	rm -f uci uci-static *.[oa] *.so* *.dylib* uci_config.h
+	rm -f uci uci-static *.[oa] *.so* *.dylib* uci_config.h ucimap-example
 
 install: install-bin install-dev
 
