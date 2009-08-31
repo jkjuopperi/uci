@@ -11,6 +11,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+#ifndef __UCIMAP_H
+#define __UCIMAP_H
+
 #include <stdbool.h>
 #include "uci_list.h"
 #include "uci.h"
@@ -163,3 +166,4 @@ extern void ucimap_set_changed(struct ucimap_section_data *sd, void *field);
 extern int ucimap_store_section(struct uci_map *map, struct uci_package *p, struct ucimap_section_data *sd);
 extern void ucimap_parse(struct uci_map *map, struct uci_package *pkg);
 
+#endif
