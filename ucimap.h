@@ -68,6 +68,11 @@ enum ucimap_type {
 	UCIMAP_SECTION  = 0x3,
 	UCIMAP_CUSTOM	= 0x4,
 	UCIMAP_SUBTYPE  = 0xf, /* subtype mask */
+
+	/* automatically create lists from
+	 * options with space-separated items */
+	UCIMAP_LIST_AUTO = 0x0100,
+	UCIMAP_FLAGS     = 0xff00, /* flags mask */
 };
 
 union ucimap_data {

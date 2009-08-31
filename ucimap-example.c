@@ -170,7 +170,7 @@ static struct my_optmap network_interface_options[] = {
 	{
 		.map = {
 			UCIMAP_OPTION(struct uci_network, aliases),
-			.type = UCIMAP_LIST | UCIMAP_SECTION,
+			.type = UCIMAP_LIST | UCIMAP_SECTION | UCIMAP_LIST_AUTO,
 			.data.sm = &network_alias
 		}
 	}

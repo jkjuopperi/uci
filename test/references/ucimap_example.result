@@ -4,11 +4,13 @@ New network section 'lan'
 	ipaddr: 2.3.4.5
 	test: 123
 	enabled: off
-New alias: b
 New alias: a
+New alias: b
 New network section 'wan'
 	type: dhcp
 	ifname: eth1
 	ipaddr: 0.0.0.0
 	test: -1
 	enabled: on
+New alias: c
+New alias: d

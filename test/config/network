@@ -17,4 +17,11 @@ config 'interface' 'wan'
 	option 'proto'	'dhcp'
 	option 'ifname' 'eth1'
 	option 'enabled' 'on'
+	option 'aliases' 'c d'
+	
+config 'alias' 'c'
+	option 'interface' 'wan'
+
+config 'alias' 'd'
+	option 'interface' 'wan'
 

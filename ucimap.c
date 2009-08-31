@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <limits.h>
+#include <ctype.h>
 #include "ucimap.h"
 
 struct uci_alloc {
@@ -76,6 +77,12 @@ static inline bool
 ucimap_is_list(enum ucimap_type type)
 {
 	return ((type & UCIMAP_TYPE) == UCIMAP_LIST);
+}
+
+static inline bool
+ucimap_is_list_auto(enum ucimap_type type)
+{
+	return ucimap_is_list(type) && !!(type & UCIMAP_LIST_AUTO);
 }
 
 static inline bool
@@ -172,7 +179,7 @@ ucimap_add_fixup(struct uci_map *map, union ucimap_data *data, struct uci_optmap
 	f->name = str;
 	f->type = om->type;
 	f->data = data;
-	list_add(&f->list, &map->fixup);
+	list_add_tail(&f->list, &map->fixup);
 }
 
 static void
@@ -242,6 +249,37 @@ ucimap_add_value(union ucimap_data *data, struct uci_optmap *om, struct ucimap_s
 }
 
 
+static void
+ucimap_convert_list(union ucimap_data *data, struct uci_optmap *om, struct ucimap_section_data *sd, const char *str)
+{
+	char *s, *p;
+
+	s = strdup(str);
+	if (!s)
+		return;
+
+	ucimap_add_alloc(sd, s);
+
+	do {
+		while (isspace(*s))
+			s++;
+
+		if (!*s)
+			break;
+
+		p = s;
+		while (*s && !isspace(*s))
+			s++;
+
+		if (isspace(*s)) {
+			*s = 0;
+			s++;
+		}
+
+		ucimap_add_value(data, om, sd, p);
+	} while (*s);
+}
+
 static int
 ucimap_parse_options(struct uci_map *map, struct uci_sectionmap *sm, struct ucimap_section_data *sd, struct uci_section *s)
 {
@@ -269,6 +307,8 @@ ucimap_parse_options(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 			uci_foreach_element(&o->v.list, l) {
 				ucimap_add_value(data, om, sd, l->name);
 			}
+		} else if ((o->type == UCI_TYPE_STRING) && ucimap_is_list_auto(om->type)) {
+			ucimap_convert_list(data, om, sd, o->v.string);
 		}
 	}
 
@@ -316,11 +356,33 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct uci_
 				if (strcmp(e->name, om->name) != 0)
 					continue;
 
-				uci_foreach_element(&o->v.list, tmp) {
-					n_elements++;
+				if (o->type == UCI_TYPE_LIST) {
+					uci_foreach_element(&o->v.list, tmp) {
+						n_elements++;
+					}
+				} else if ((o->type == UCI_TYPE_STRING) &&
+				           ucimap_is_list_auto(om->type)) {
+					const char *data = o->v.string;
+					do {
+						while (isspace(*data))
+							data++;
+
+						if (!*data)
+							break;
+
+						n_elements++;
+
+						while (*data && !isspace(*data))
+							data++;
+					} while (*data);
+
+					/* for the duplicated data string */
+					if (n_elements > 0)
+						n_alloc++;
 				}
 				break;
 			}
+			/* add one more for the ucimap_list */
 			n_alloc += n_elements + 1;
 			size = sizeof(struct ucimap_list) +
 				n_elements * sizeof(union ucimap_data);
