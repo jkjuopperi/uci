@@ -16,7 +16,7 @@ endef
 
 LIBUCI_DEPS=file.c history.c list.c util.c uci.h uci_config.h uci_internal.h
 
-all: uci-static uci libuci.$(SHLIB_EXT) libucimap.a
+all: uci-static uci libuci.$(SHLIB_EXT)
 
 cli.o: cli.c uci.h uci_config.h
 ucimap.o: ucimap.c uci.h uci_config.h ucimap.h uci_list.h
@@ -45,21 +45,22 @@ libuci-static.o: libuci.c $(LIBUCI_DEPS)
 libuci-shared.o: libuci.c $(LIBUCI_DEPS)
 	$(CC) $(CFLAGS) $(FPIC) -c -o $@ $<
 
-libuci.a: libuci-static.o
+ucimap-static.o: ucimap.c $(LIBUCI_DEPS)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+ucimap-shared.o: ucimap.c $(LIBUCI_DEPS)
+	$(CC) $(CFLAGS) $(FPIC) -c -o $@ $<
+
+libuci.a: libuci-static.o ucimap-static.o
 	rm -f $@
 	$(AR) rc $@ $^
 	$(RANLIB) $@
 
-libucimap.a: ucimap.o
-	rm -f $@
-	$(AR) rc $@ $^
-	$(RANLIB) $@
-
-libuci.$(SHLIB_EXT): libuci-shared.o
+libuci.$(SHLIB_EXT): libuci-shared.o ucimap-shared.o
 	$(LINK) $(SHLIB_FLAGS) -o $(SHLIB_FILE) $^ $(LIBS)
 	ln -sf $(SHLIB_FILE) $@
 
-ucimap-example: ucimap-example.c libuci.a libucimap.a
+ucimap-example: ucimap-example.c libuci.a
 	$(CC) $(CFLAGS) -I. -o $@ $^ $(LIBS)
 
 clean:
@@ -70,7 +71,7 @@ install: install-bin install-dev
 install-dev: all
 	$(MKDIR) -p $(DESTDIR)$(prefix)/lib
 	$(MKDIR) -p $(DESTDIR)$(prefix)/include
-	$(INSTALL) -m0644 libuci.a libucimap.a $(DESTDIR)$(prefix)/lib/
+	$(INSTALL) -m0644 libuci.a $(DESTDIR)$(prefix)/lib/
 	$(INSTALL) -m0644 uci_config.h uci.h uci_list.h ucimap.h $(DESTDIR)$(prefix)/include/
 
 install-bin: all
