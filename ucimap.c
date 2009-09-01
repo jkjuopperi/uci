@@ -165,20 +165,62 @@ ucimap_cleanup(struct uci_map *map)
 	}
 }
 
+static void *
+ucimap_find_section(struct uci_map *map, struct uci_fixup *f)
+{
+	struct ucimap_section_data *sd;
+	struct list_head *p;
+
+	list_for_each(p, &map->sdata) {
+		sd = list_entry(p, struct ucimap_section_data, list);
+		if (sd->sm != f->sm)
+			continue;
+		if (strcmp(f->name, sd->section_name) != 0)
+			continue;
+		return ucimap_section_ptr(sd);
+	}
+	return NULL;
+}
+
+static bool
+ucimap_handle_fixup(struct uci_map *map, struct uci_fixup *f)
+{
+	void *ptr = ucimap_find_section(map, f);
+	struct ucimap_list *list;
+
+	if (!ptr)
+		return false;
+
+	switch(f->type & UCIMAP_TYPE) {
+	case UCIMAP_SIMPLE:
+		f->data->section = ptr;
+		break;
+	case UCIMAP_LIST:
+		list = f->data->list;
+		list->item[list->n_items++].section = ptr;
+		break;
+	}
+	return true;
+}
+
 static void
 ucimap_add_fixup(struct uci_map *map, union ucimap_data *data, struct uci_optmap *om, const char *str)
 {
-	struct uci_fixup *f;
+	struct uci_fixup *f, tmp;
+
+	INIT_LIST_HEAD(&tmp.list);
+	tmp.sm = om->data.sm;
+	tmp.name = str;
+	tmp.type = om->type;
+	tmp.data = data;
+	if (ucimap_handle_fixup(map, &tmp))
+		return;
 
 	f = malloc(sizeof(struct uci_fixup));
 	if (!f)
 		return;
 
-	INIT_LIST_HEAD(&f->list);
-	f->sm = om->data.sm;
-	f->name = str;
-	f->type = om->type;
-	f->data = data;
+	memcpy(f, &tmp, sizeof(tmp));
 	list_add_tail(&f->list, &map->fixup);
 }
 
@@ -316,26 +358,14 @@ ucimap_parse_options(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 }
 
 
-static int
-ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct uci_section *s)
+int
+ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucimap_section_data *sd, struct uci_section *s)
 {
-	struct ucimap_section_data *sd = NULL;
 	struct uci_optmap *om;
 	char *section_name;
 	void *section;
 	int n_alloc = 2;
 	int err;
-
-	if (sm->alloc) {
-		sd = sm->alloc(map, sm, s);
-		memset(sd, 0, sizeof(struct ucimap_section_data));
-	} else {
-		sd = malloc(sm->alloc_len);
-		memset(sd, 0, sm->alloc_len);
-	}
-
-	if (!sd)
-		return UCI_ERR_MEM;
 
 	INIT_LIST_HEAD(&sd->list);
 	sd->map = map;
@@ -552,23 +582,6 @@ ucimap_store_section(struct uci_map *map, struct uci_package *p, struct ucimap_s
 	return 0;
 }
 
-void *
-ucimap_find_section(struct uci_map *map, struct uci_fixup *f)
-{
-	struct ucimap_section_data *sd;
-	struct list_head *p;
-
-	list_for_each(p, &map->sdata) {
-		sd = list_entry(p, struct ucimap_section_data, list);
-		if (sd->sm != f->sm)
-			continue;
-		if (strcmp(f->name, sd->section_name) != 0)
-			continue;
-		return ucimap_section_ptr(sd);
-	}
-	return NULL;
-}
-
 void
 ucimap_parse(struct uci_map *map, struct uci_package *pkg)
 {
@@ -581,28 +594,29 @@ ucimap_parse(struct uci_map *map, struct uci_package *pkg)
 		struct uci_section *s = uci_to_section(e);
 
 		for (i = 0; i < map->n_sections; i++) {
+			struct uci_sectionmap *sm = map->sections[i];
+			struct ucimap_section_data *sd;
+
 			if (strcmp(s->type, map->sections[i]->type) != 0)
 				continue;
-			ucimap_parse_section(map, map->sections[i], s);
+
+			if (sm->alloc) {
+				sd = sm->alloc(map, sm, s);
+				memset(sd, 0, sizeof(struct ucimap_section_data));
+			} else {
+				sd = malloc(sm->alloc_len);
+				memset(sd, 0, sm->alloc_len);
+			}
+			if (!sd)
+				continue;
+
+			ucimap_parse_section(map, sm, sd, s);
 		}
 	}
 	list_for_each_safe(p, tmp, &map->fixup) {
 		struct uci_fixup *f = list_entry(p, struct uci_fixup, list);
-		void *ptr = ucimap_find_section(map, f);
-		struct ucimap_list *list;
-
-		if (!ptr)
-			continue;
-
-		switch(f->type & UCIMAP_TYPE) {
-		case UCIMAP_SIMPLE:
-			f->data->section = ptr;
-			break;
-		case UCIMAP_LIST:
-			list = f->data->list;
-			list->item[list->n_items++].section = ptr;
-			break;
-		}
+		ucimap_handle_fixup(map, f);
+		list_del(&f->list);
 		free(f);
 	}
 	list_for_each_safe(p, tmp, &map->sdata) {
