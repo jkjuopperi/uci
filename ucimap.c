@@ -193,11 +193,11 @@ ucimap_handle_fixup(struct uci_map *map, struct uci_fixup *f)
 
 	switch(f->type & UCIMAP_TYPE) {
 	case UCIMAP_SIMPLE:
-		f->data->section = ptr;
+		f->data->ptr = ptr;
 		break;
 	case UCIMAP_LIST:
 		list = f->data->list;
-		list->item[list->n_items++].section = ptr;
+		list->item[list->n_items++].ptr = ptr;
 		break;
 	}
 	return true;

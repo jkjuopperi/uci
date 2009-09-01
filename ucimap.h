@@ -82,7 +82,7 @@ union ucimap_data {
 	int i;
 	bool b;
 	char *s;
-	void *section;
+	void *ptr;
 	struct ucimap_list *list;
 };
 
