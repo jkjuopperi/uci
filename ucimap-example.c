@@ -250,7 +250,7 @@ int main(int argc, char **argv)
 			(net->enabled ? "on" : "off"));
 
 		for (i = 0; i < net->aliases->n_items; i++) {
-			alias = net->aliases->item[i].section;
+			alias = net->aliases->item[i].ptr;
 			printf("New alias: %s\n", alias->name);
 		}
 #if 0
