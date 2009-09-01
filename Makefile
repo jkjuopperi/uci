@@ -45,10 +45,10 @@ libuci-static.o: libuci.c $(LIBUCI_DEPS)
 libuci-shared.o: libuci.c $(LIBUCI_DEPS)
 	$(CC) $(CFLAGS) $(FPIC) -c -o $@ $<
 
-ucimap-static.o: ucimap.c $(LIBUCI_DEPS)
+ucimap-static.o: ucimap.c $(LIBUCI_DEPS) ucimap.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-ucimap-shared.o: ucimap.c $(LIBUCI_DEPS)
+ucimap-shared.o: ucimap.c $(LIBUCI_DEPS) ucimap.h
 	$(CC) $(CFLAGS) $(FPIC) -c -o $@ $<
 
 libuci.a: libuci-static.o ucimap-static.o
