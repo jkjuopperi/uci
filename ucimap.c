@@ -452,7 +452,7 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 	if (err)
 		goto error;
 
-	list_add(&sd->list, &map->sdata);
+	list_add_tail(&sd->list, &map->sdata);
 	err = ucimap_parse_options(map, sm, sd, s);
 	if (err)
 		goto error;
