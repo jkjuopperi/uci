@@ -109,6 +109,7 @@ ucimap_get_data(struct ucimap_section_data *sd, struct uci_optmap *om)
 int
 ucimap_init(struct uci_map *map)
 {
+	INIT_LIST_HEAD(&map->pending);
 	INIT_LIST_HEAD(&map->sdata);
 	INIT_LIST_HEAD(&map->fixup);
 	return 0;
@@ -172,6 +173,14 @@ ucimap_find_section(struct uci_map *map, struct uci_fixup *f)
 	struct list_head *p;
 
 	list_for_each(p, &map->sdata) {
+		sd = list_entry(p, struct ucimap_section_data, list);
+		if (sd->sm != f->sm)
+			continue;
+		if (strcmp(f->name, sd->section_name) != 0)
+			continue;
+		return ucimap_section_ptr(sd);
+	}
+	list_for_each(p, &map->pending) {
 		sd = list_entry(p, struct ucimap_section_data, list);
 		if (sd->sm != f->sm)
 			continue;
@@ -357,6 +366,17 @@ ucimap_parse_options(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 	return 0;
 }
 
+static void
+ucimap_add_section(struct ucimap_section_data *sd)
+{
+	struct uci_map *map = sd->map;
+
+	if (sd->sm->add(map, ucimap_section_ptr(sd)) < 0)
+		ucimap_free_section(map, sd);
+	else
+		list_add_tail(&sd->list, &map->sdata);
+}
+
 
 int
 ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucimap_section_data *sd, struct uci_section *s)
@@ -452,7 +472,12 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 	if (err)
 		goto error;
 
-	list_add_tail(&sd->list, &map->sdata);
+	if (map->parsed) {
+		ucimap_add_section(sd);
+	} else {
+		list_add_tail(&sd->list, &map->pending);
+	}
+
 	err = ucimap_parse_options(map, sm, sd, s);
 	if (err)
 		goto error;
@@ -613,21 +638,20 @@ ucimap_parse(struct uci_map *map, struct uci_package *pkg)
 			ucimap_parse_section(map, sm, sd, s);
 		}
 	}
+	map->parsed = true;
+
 	list_for_each_safe(p, tmp, &map->fixup) {
 		struct uci_fixup *f = list_entry(p, struct uci_fixup, list);
 		ucimap_handle_fixup(map, f);
 		list_del(&f->list);
 		free(f);
 	}
-	list_for_each_safe(p, tmp, &map->sdata) {
-		struct ucimap_section_data *sd = list_entry(p, struct ucimap_section_data, list);
-		void *section;
 
-		if (sd->done)
-			continue;
+	list_for_each_safe(p, tmp, &map->pending) {
+		struct ucimap_section_data *sd;
+		sd = list_entry(p, struct ucimap_section_data, list);
 
-		section = ucimap_section_ptr(sd);
-		if (sd->sm->add(map, section) != 0)
-			ucimap_free_section(map, sd);
+		list_del_init(&sd->list);
+		ucimap_add_section(sd);
 	}
 }

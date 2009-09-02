@@ -54,6 +54,8 @@ struct uci_map {
 	unsigned int n_sections;
 	struct list_head sdata;
 	struct list_head fixup;
+	struct list_head pending;
+	bool parsed;
 
 	void *priv; /* user data */
 };

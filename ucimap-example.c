@@ -96,7 +96,7 @@ network_add_interface(struct uci_map *map, void *section)
 {
 	struct uci_network *net = section;
 
-	list_add(&net->list, &ifs);
+	list_add_tail(&net->list, &ifs);
 
 	return 0;
 }
@@ -107,7 +107,7 @@ network_add_alias(struct uci_map *map, void *section)
 	struct uci_alias *a = section;
 
 	if (a->interface)
-		list_add(&a->list, &a->interface->alias);
+		list_add_tail(&a->list, &a->interface->alias);
 
 	return 0;
 }
