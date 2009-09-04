@@ -257,6 +257,7 @@ int main(int argc, char **argv)
 
 	list_for_each(p, &ifs) {
 		const unsigned char *ipaddr;
+		int n_aliases = 0;
 
 		net = list_entry(p, struct uci_network, list);
 		ipaddr = net->ipaddr;
@@ -285,6 +286,7 @@ int main(int argc, char **argv)
 			printf("\n");
 		}
 		list_for_each_entry(alias, &net->alias, list) {
+			n_aliases++;
 			for (i = 0; i < net->aliases->n_items; i++) {
 				if (alias == net->aliases->item[i].ptr)
 					goto next_alias;
@@ -296,6 +298,12 @@ next_alias:
 		if (set && !strcmp(net->name, "lan")) {
 			ucimap_free_item(&net->map, &net->ipaddr);
 			ucimap_set_changed(&net->map, &net->ipaddr);
+			ucimap_resize_list(&net->map, &net->aliases, n_aliases);
+			net->aliases->n_items = 0;
+			list_for_each_entry(alias, &net->alias, list) {
+				net->aliases->item[net->aliases->n_items++].ptr = alias;
+			}
+			ucimap_set_changed(&net->map, &net->aliases);
 			ucimap_store_section(&network_map, pkg, &net->map);
 			uci_save(ctx, pkg);
 		}

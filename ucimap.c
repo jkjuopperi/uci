@@ -103,6 +103,12 @@ ucimap_section_ptr(struct ucimap_section_data *sd)
 	return ((char *) sd - sd->sm->smap_offset);
 }
 
+static inline struct ucimap_section_data *
+ucimap_ptr_section(struct uci_sectionmap *sm, void *ptr) {
+	ptr = (char *) ptr + sm->smap_offset;
+	return ptr;
+}
+
 static inline union ucimap_data *
 ucimap_get_data(struct ucimap_section_data *sd, struct uci_optmap *om)
 {
@@ -730,6 +736,53 @@ ucimap_set_changed(struct ucimap_section_data *sd, void *field)
 	}
 }
 
+static char *
+ucimap_data_to_string(struct ucimap_section_data *sd, struct uci_optmap *om, union ucimap_data *data)
+{
+	static char buf[32];
+	char *str = NULL;
+
+	switch(om->type & UCIMAP_SUBTYPE) {
+	case UCIMAP_STRING:
+		str = data->s;
+		break;
+	case UCIMAP_INT:
+		sprintf(buf, "%d", data->i);
+		str = buf;
+		break;
+	case UCIMAP_BOOL:
+		sprintf(buf, "%d", !!data->b);
+		str = buf;
+		break;
+	case UCIMAP_SECTION:
+		if (data->ptr)
+			str = (char *) ucimap_ptr_section(om->data.sm, data->ptr)->section_name;
+		else
+			str = "";
+		break;
+	case UCIMAP_CUSTOM:
+		break;
+	default:
+		return NULL;
+	}
+
+	if (om->format) {
+		union ucimap_data tdata;
+
+		if (ucimap_is_custom(om->type)) {
+			tdata.s = (char *)data;
+			data = &tdata;
+		}
+
+		if (om->format(ucimap_section_ptr(sd), om, data, &str) < 0)
+			return NULL;
+
+		if (!str)
+			str = "";
+	}
+	return str;
+}
+
 int
 ucimap_store_section(struct uci_map *map, struct uci_package *p, struct ucimap_section_data *sd)
 {
@@ -752,57 +805,41 @@ ucimap_store_section(struct uci_map *map, struct uci_package *p, struct ucimap_s
 
 	ucimap_foreach_option(sm, om) {
 		union ucimap_data *data;
-		static char buf[32];
-		char *str = NULL;
 
 		i++;
-		if (ucimap_is_list(om->type))
-			continue;
-
 		data = ucimap_get_data(sd, om);
 		if (!TEST_BIT(sd->cmap, i - 1))
 			continue;
 
 		ucimap_fill_ptr(&ptr, s, om->name);
-		switch(om->type & UCIMAP_SUBTYPE) {
-		case UCIMAP_STRING:
-			str = data->s;
-			break;
-		case UCIMAP_INT:
-			sprintf(buf, "%d", data->i);
-			str = buf;
-			break;
-		case UCIMAP_BOOL:
-			sprintf(buf, "%d", !!data->b);
-			str = buf;
-			break;
-		case UCIMAP_CUSTOM:
-			break;
-		default:
-			continue;
-		}
-		if (om->format) {
-			union ucimap_data tdata, *data;
+		if (ucimap_is_list(om->type)) {
+			struct ucimap_list *list = data->list;
+			bool first = true;
+			int j;
 
-			data = ucimap_get_data(sd, om);
-			if (ucimap_is_custom(om->type)) {
-				tdata.s = (char *)data;
-				data = &tdata;
+			for (j = 0; j < list->n_items; j++) {
+				ptr.value = ucimap_data_to_string(sd, om, &list->item[j]);
+				if (!ptr.value)
+					continue;
+
+				if (first) {
+					ret = uci_set(s->package->ctx, &ptr);
+					first = false;
+				} else {
+					ret = uci_add_list(s->package->ctx, &ptr);
+				}
+				if (ret)
+					return ret;
 			}
-
-			if (om->format(ucimap_section_ptr(sd), om, data, &str) < 0)
+		} else {
+			ptr.value = ucimap_data_to_string(sd, om, data);
+			if (!ptr.value)
 				continue;
 
-			if (!str)
-				str = "";
+			ret = uci_set(s->package->ctx, &ptr);
+			if (ret)
+				return ret;
 		}
-		if (!str)
-			continue;
-		ptr.value = str;
-
-		ret = uci_set(s->package->ctx, &ptr);
-		if (ret)
-			return ret;
 
 		CLR_BIT(sd->cmap, i - 1);
 	}
