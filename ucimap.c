@@ -482,6 +482,7 @@ ucimap_add_section(struct ucimap_section_data *sd)
 		list_add_tail(&sd->list, &map->sdata);
 }
 
+#ifdef UCI_DEBUG
 static const char *ucimap_type_names[] = {
 	[UCIMAP_STRING] = "string",
 	[UCIMAP_INT] = "integer",
@@ -490,7 +491,7 @@ static const char *ucimap_type_names[] = {
 	[UCIMAP_LIST] = "list",
 };
 
-static inline const char *
+static const char *
 ucimap_get_type_name(int type)
 {
 	static char buf[32];
@@ -507,6 +508,7 @@ ucimap_get_type_name(int type)
 
 	return name;
 }
+#endif
 
 static bool
 ucimap_check_optmap_type(struct uci_sectionmap *sm, struct uci_optmap *om)
