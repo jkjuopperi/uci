@@ -136,7 +136,7 @@ ucimap_add_alloc(struct ucimap_section_data *sd, void *ptr)
 	a->data.ptr = ptr;
 }
 
-static void
+void
 ucimap_free_section(struct uci_map *map, struct ucimap_section_data *sd)
 {
 	void *section;

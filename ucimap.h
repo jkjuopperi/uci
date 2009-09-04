@@ -205,5 +205,6 @@ extern void ucimap_set_changed(struct ucimap_section_data *sd, void *field);
 extern int ucimap_store_section(struct uci_map *map, struct uci_package *p, struct ucimap_section_data *sd);
 extern void ucimap_parse(struct uci_map *map, struct uci_package *pkg);
 extern int ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucimap_section_data *sd, struct uci_section *s);
+extern void ucimap_free_section(struct uci_map *map, struct ucimap_section_data *sd);
 
 #endif
