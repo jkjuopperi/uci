@@ -16,7 +16,7 @@ endef
 
 LIBUCI_DEPS=file.c history.c list.c util.c uci.h uci_config.h uci_internal.h
 
-all: uci-static uci libuci.$(SHLIB_EXT)
+all: uci-static uci libuci.$(SHLIB_EXT) ucimap-example
 
 cli.o: cli.c uci.h uci_config.h
 ucimap.o: ucimap.c uci.h uci_config.h ucimap.h uci_list.h
