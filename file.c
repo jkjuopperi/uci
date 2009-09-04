@@ -442,15 +442,11 @@ void uci_file_commit(struct uci_context *ctx, struct uci_package **package, bool
 
 			/* freed together with the uci_package */
 			path = NULL;
-
-			/* check for updated history, flush */
-			if (!uci_load_history(ctx, p, true))
-				goto done;
-		} else {
-			/* flush history */
-			if (!uci_load_history(ctx, NULL, true))
-				goto done;
 		}
+
+		/* flush history */
+		if (!uci_load_history(ctx, p, true))
+			goto done;
 	}
 
 	rewind(f);
