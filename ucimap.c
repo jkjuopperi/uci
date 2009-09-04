@@ -439,6 +439,14 @@ ucimap_check_optmap_type(struct uci_sectionmap *sm, struct uci_optmap *om)
 {
 	unsigned int type;
 
+	if (unlikely(sm->type_name != om->type_name) &&
+	    unlikely(strcmp(sm->type_name, om->type_name) != 0)) {
+		DPRINTF("Option '%s' of section type '%s' refereces unknown "
+			"section type '%s', should be '%s'.\n",
+			om->name, sm->type, om->type_name, sm->type_name);
+		return false;
+	}
+
 	if (om->detected_type < 0)
 		return true;
 

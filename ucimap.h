@@ -36,8 +36,18 @@
 	(_name[(_bit) / 8] & (1 << ((_bit) % 8)))
 
 #ifndef __GNUC__
+
 #define __optmap_gen_type(_type, _field) -1
-#else
+
+#ifndef likely
+#define likely(_expr) !!(_expr)
+#endif
+
+#ifndef unlikely
+#define unlikely(_expr) !!(_expr)
+#endif
+
+#else /* __GNUC__ */
 
 #define __compatible(_type, _field, _newtype) \
 	__builtin_types_compatible_p(typeof(&(((_type *)0)->_field)), _newtype *)
@@ -68,18 +78,28 @@
 	__bool_compatible(_type, _field, UCIMAP_BOOL, \
 	-1))))
 
+#ifndef likely
+#define likely(x)   __builtin_expect(!!(x), 1)
 #endif
+
+#ifndef unlikely
+#define unlikely(x) __builtin_expect(!!(x), 0)
+#endif
+
+#endif /* __GNUC__ */
 
 #define UCIMAP_OPTION(_type, _field) \
 	.type = UCIMAP_CUSTOM, \
 	.name = #_field, \
 	.offset = offsetof(_type, _field), \
-	.detected_type = __optmap_gen_type(_type, _field)
+	.detected_type = __optmap_gen_type(_type, _field), \
+	.type_name = #_type
 
 
 #define UCIMAP_SECTION(_name, _field) \
 	.alloc_len = sizeof(_name), \
-	.smap_offset = offsetof(_name, _field)
+	.smap_offset = offsetof(_name, _field), \
+	.type_name = #_name
 
 struct uci_sectionmap;
 struct uci_optmap;
@@ -177,13 +197,15 @@ struct uci_sectionmap {
 	struct uci_optmap *options;
 	unsigned int n_options;
 	unsigned int options_size;
+
+	/* internal */
+	const char *type_name;
 };
 
 struct uci_optmap {
 	unsigned int offset;
 	const char *name;
 	enum ucimap_type type;
-	int detected_type;
 	int (*parse)(void *section, struct uci_optmap *om, union ucimap_data *data, const char *string);
 	int (*format)(void *section, struct uci_optmap *om, union ucimap_data *data, char **string);
 	void (*free)(void *section, struct uci_optmap *om, void *ptr);
@@ -198,6 +220,10 @@ struct uci_optmap {
 		} s;
 		struct uci_sectionmap *sm;
 	} data;
+
+	/* internal */
+	int detected_type;
+	const char *type_name;
 };
 
 struct ucimap_list {
