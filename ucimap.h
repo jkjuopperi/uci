@@ -35,10 +35,46 @@
 #define TEST_BIT(_name, _bit) \
 	(_name[(_bit) / 8] & (1 << ((_bit) % 8)))
 
+#ifndef __GNUC__
+#define __optmap_gen_type(_type, _field) -1
+#else
+
+#define __compatible(_type, _field, _newtype) \
+	__builtin_types_compatible_p(typeof(&(((_type *)0)->_field)), _newtype *)
+
+#define __list_compatible(_type, _field, __val, __else) \
+	__builtin_choose_expr(__compatible(_type, _field, struct ucimap_list *), __val, __else)
+
+#define __int_compatible(_type, _field, __val, __else) \
+	__builtin_choose_expr(__compatible(_type, _field, int), __val, \
+		__builtin_choose_expr(__compatible(_type, _field, unsigned int), __val, \
+			__else))
+
+#define __string_compatible(_type, _field, __val, __else) \
+	__builtin_choose_expr(__compatible(_type, _field, char *), __val, \
+		__builtin_choose_expr(__compatible(_type, _field, unsigned char *), __val, \
+			__builtin_choose_expr(__compatible(_type, _field, const char *), __val, \
+				__builtin_choose_expr(__compatible(_type, _field, const unsigned char *), __val, \
+					__else))))
+
+#define __bool_compatible(_type, _field, __val, __else) \
+	__builtin_choose_expr(__compatible(_type, _field, bool), __val, __else)
+
+
+#define __optmap_gen_type(_type, _field) \
+	__list_compatible(_type, _field, UCIMAP_LIST, \
+	__int_compatible(_type, _field, UCIMAP_INT, \
+	__string_compatible(_type, _field, UCIMAP_STRING, \
+	__bool_compatible(_type, _field, UCIMAP_BOOL, \
+	-1))))
+
+#endif
+
 #define UCIMAP_OPTION(_type, _field) \
 	.type = UCIMAP_CUSTOM, \
 	.name = #_field, \
-	.offset = offsetof(_type, _field)
+	.offset = offsetof(_type, _field), \
+	.detected_type = __optmap_gen_type(_type, _field)
 
 
 #define UCIMAP_SECTION(_name, _field) \
@@ -142,6 +178,7 @@ struct uci_optmap {
 	unsigned int offset;
 	const char *name;
 	enum ucimap_type type;
+	int detected_type;
 	int (*parse)(void *section, struct uci_optmap *om, union ucimap_data *data, const char *string);
 	int (*format)(void *section, struct uci_optmap *om, union ucimap_data *data, char **string);
 	union {

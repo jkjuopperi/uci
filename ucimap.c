@@ -17,8 +17,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <limits.h>
+#include <stdio.h>
 #include <ctype.h>
 #include "ucimap.h"
+#include "uci_internal.h"
 
 struct uci_alloc {
 	enum ucimap_type type;
@@ -213,9 +215,10 @@ ucimap_handle_fixup(struct uci_map *map, struct uci_fixup *f)
 }
 
 static void
-ucimap_add_fixup(struct uci_map *map, union ucimap_data *data, struct uci_optmap *om, const char *str)
+ucimap_add_fixup(struct ucimap_section_data *sd, union ucimap_data *data, struct uci_optmap *om, const char *str)
 {
 	struct uci_fixup *f, tmp;
+	struct uci_map *map = sd->map;
 
 	INIT_LIST_HEAD(&tmp.list);
 	tmp.sm = om->data.sm;
@@ -284,7 +287,7 @@ ucimap_add_value(union ucimap_data *data, struct uci_optmap *om, struct ucimap_s
 			return;
 		break;
 	case UCIMAP_SECTION:
-		ucimap_add_fixup(sd->map, data, om, str);
+		ucimap_add_fixup(sd, data, om, str);
 		return;
 	case UCIMAP_CUSTOM:
 		tdata.s = (char *) data;
@@ -377,6 +380,73 @@ ucimap_add_section(struct ucimap_section_data *sd)
 		list_add_tail(&sd->list, &map->sdata);
 }
 
+static const char *ucimap_type_names[] = {
+	[UCIMAP_STRING] = "string",
+	[UCIMAP_INT] = "integer",
+	[UCIMAP_BOOL] = "boolean",
+	[UCIMAP_SECTION] = "section",
+	[UCIMAP_LIST] = "list",
+};
+
+static inline const char *
+ucimap_get_type_name(int type)
+{
+	static char buf[32];
+	const char *name;
+
+	if (ucimap_is_list(type))
+		return ucimap_type_names[UCIMAP_LIST];
+
+	name = ucimap_type_names[type & UCIMAP_SUBTYPE];
+	if (!name) {
+		sprintf(buf, "Unknown (%d)", type & UCIMAP_SUBTYPE);
+		name = buf;
+	}
+
+	return name;
+}
+
+static bool
+ucimap_check_optmap_type(struct uci_sectionmap *sm, struct uci_optmap *om)
+{
+	unsigned int type;
+
+	if (om->detected_type < 0)
+		return true;
+
+	if (ucimap_is_custom(om->type))
+		return true;
+
+	if (ucimap_is_list(om->type) !=
+	    ucimap_is_list(om->detected_type))
+		goto failed;
+
+	if (ucimap_is_list(om->type))
+		return true;
+
+	type = om->type & UCIMAP_SUBTYPE;
+	switch(type) {
+	case UCIMAP_STRING:
+	case UCIMAP_INT:
+	case UCIMAP_BOOL:
+		if (type != om->detected_type)
+			goto failed;
+		break;
+	case UCIMAP_SECTION:
+		goto failed;
+	default:
+		break;
+	}
+	return true;
+
+failed:
+	DPRINTF("Invalid type in option '%s' of section type '%s', "
+		"declared type is %s, detected type is %s\n",
+		om->name, sm->type,
+		ucimap_get_type_name(om->type),
+		ucimap_get_type_name(om->detected_type));
+	return false;
+}
 
 int
 ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucimap_section_data *sd, struct uci_section *s)
@@ -392,6 +462,9 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 	sd->sm = sm;
 
 	ucimap_foreach_option(sm, om) {
+		if (!ucimap_check_optmap_type(sm, om))
+			continue;
+
 		if (ucimap_is_list(om->type)) {
 			union ucimap_data *data;
 			struct uci_element *e;
