@@ -29,6 +29,12 @@ struct uci_alloc {
 	} data;
 };
 
+struct uci_alloc_custom {
+	void *section;
+	struct uci_optmap *om;
+	void *ptr;
+};
+
 struct uci_fixup {
 	struct list_head list;
 	struct uci_sectionmap *sm;
@@ -153,6 +159,14 @@ ucimap_free_section(struct uci_map *map, struct ucimap_section_data *sd)
 		ucimap_free_item(&sd->allocmap[i]);
 	}
 
+	if (sd->alloc_custom) {
+		for (i = 0; i < sd->alloc_custom_len; i++) {
+			struct uci_alloc_custom *a = &sd->alloc_custom[i];
+			a->om->free(a->section, a->om, a->ptr);
+		}
+		free(sd->alloc_custom);
+	}
+
 	free(sd->allocmap);
 	free(sd);
 }
@@ -237,6 +251,16 @@ ucimap_add_fixup(struct ucimap_section_data *sd, union ucimap_data *data, struct
 }
 
 static void
+ucimap_add_custom_alloc(struct ucimap_section_data *sd, struct uci_optmap *om, void *ptr)
+{
+	struct uci_alloc_custom *a = &sd->alloc_custom[sd->alloc_custom_len++];
+
+	a->section = ucimap_section_ptr(sd);
+	a->om = om;
+	a->ptr = ptr;
+}
+
+static void
 ucimap_add_value(union ucimap_data *data, struct uci_optmap *om, struct ucimap_section_data *sd, const char *str)
 {
 	union ucimap_data tdata = *data;
@@ -296,6 +320,10 @@ ucimap_add_value(union ucimap_data *data, struct uci_optmap *om, struct ucimap_s
 	if (om->parse) {
 		if (om->parse(ucimap_section_ptr(sd), om, &tdata, str) < 0)
 			return;
+		if (ucimap_is_custom(om->type) && om->free) {
+			if (tdata.ptr != data->ptr)
+				ucimap_add_custom_alloc(sd, om, data->ptr);
+		}
 	}
 	if (ucimap_is_custom(om->type))
 		return;
@@ -448,6 +476,15 @@ failed:
 	return false;
 }
 
+static void
+ucimap_count_alloc(struct uci_optmap *om, int *n_alloc, int *n_custom)
+{
+	if (ucimap_is_alloc(om->type))
+		(*n_alloc)++;
+	else if (ucimap_is_custom(om->type) && om->free)
+		(*n_custom)++;
+}
+
 int
 ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucimap_section_data *sd, struct uci_section *s)
 {
@@ -455,6 +492,7 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 	char *section_name;
 	void *section;
 	int n_alloc = 2;
+	int n_alloc_custom = 0;
 	int err;
 
 	INIT_LIST_HEAD(&sd->list);
@@ -469,6 +507,7 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 			union ucimap_data *data;
 			struct uci_element *e;
 			int n_elements = 0;
+			int n_elements_custom = 0;
 			int size;
 
 			data = ucimap_get_data(sd, om);
@@ -481,7 +520,7 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 
 				if (o->type == UCI_TYPE_LIST) {
 					uci_foreach_element(&o->v.list, tmp) {
-						n_elements++;
+						ucimap_count_alloc(om, &n_elements, &n_elements_custom);
 					}
 				} else if ((o->type == UCI_TYPE_STRING) &&
 				           ucimap_is_list_auto(om->type)) {
@@ -494,31 +533,39 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 							break;
 
 						n_elements++;
+						ucimap_count_alloc(om, &n_elements, &n_elements_custom);
 
 						while (*data && !isspace(*data))
 							data++;
 					} while (*data);
 
 					/* for the duplicated data string */
-					if (n_elements > 0)
+					if (n_elements)
 						n_alloc++;
 				}
 				break;
 			}
 			/* add one more for the ucimap_list */
 			n_alloc += n_elements + 1;
+			n_alloc_custom += n_elements_custom;
 			size = sizeof(struct ucimap_list) +
 				n_elements * sizeof(union ucimap_data);
 			data->list = malloc(size);
 			memset(data->list, 0, size);
-		} else if (ucimap_is_alloc(om->type)) {
-			n_alloc++;
+		} else {
+			ucimap_count_alloc(om, &n_alloc, &n_alloc_custom);
 		}
 	}
 
-	sd->allocmap = malloc(n_alloc * sizeof(struct uci_alloc));
+	sd->allocmap = calloc(n_alloc, sizeof(struct uci_alloc));
 	if (!sd->allocmap)
 		goto error_mem;
+
+	if (n_alloc_custom > 0) {
+		sd->alloc_custom = calloc(n_alloc_custom, sizeof(struct uci_alloc_custom));
+		if (!sd->alloc_custom)
+			goto error_mem;
+	}
 
 	section_name = strdup(s->e.name);
 	if (!section_name)
@@ -526,11 +573,10 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 
 	sd->section_name = section_name;
 
-	sd->cmap = malloc(BITFIELD_SIZE(sm->n_options));
+	sd->cmap = calloc(1, BITFIELD_SIZE(sm->n_options));
 	if (!sd->cmap)
 		goto error_mem;
 
-	memset(sd->cmap, 0, BITFIELD_SIZE(sm->n_options));
 	ucimap_add_alloc(sd, (void *)section_name);
 	ucimap_add_alloc(sd, (void *)sd->cmap);
 	ucimap_foreach_option(sm, om) {

@@ -27,7 +27,7 @@ struct uci_network {
 	const char *name;
 	const char *proto;
 	const char *ifname;
-	unsigned char ipaddr[4];
+	unsigned char *ipaddr;
 	int test;
 	bool enabled;
 	struct ucimap_list *aliases;
@@ -44,13 +44,18 @@ struct uci_alias {
 static int
 network_parse_ip(void *section, struct uci_optmap *om, union ucimap_data *data, const char *str)
 {
-	unsigned char *target = (unsigned char *) data->s;
+	unsigned char *target;
 	int tmp[4];
 	int i;
 
 	if (sscanf(str, "%d.%d.%d.%d", &tmp[0], &tmp[1], &tmp[2], &tmp[3]) != 4)
 		return -1;
 
+	target = malloc(4);
+	if (!target)
+		return -1;
+
+	*data->data = target;
 	for (i = 0; i < 4; i++)
 		target[i] = (char) tmp[i];
 
@@ -61,12 +66,18 @@ static int
 network_format_ip(void *sction, struct uci_optmap *om, union ucimap_data *data, char **str)
 {
 	static char buf[16];
-	unsigned char *ip = (unsigned char *) data->s;
+	unsigned char *ip = (unsigned char *) data->data[0];
 
 	sprintf(buf, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
 	*str = buf;
 
 	return 0;
+}
+
+static void
+network_free_ip(void *section, struct uci_optmap *om, void *ptr)
+{
+	free(ptr);
 }
 
 static int
@@ -151,6 +162,7 @@ static struct my_optmap network_interface_options[] = {
 			.name = "ipaddr",
 			.parse = network_parse_ip,
 			.format = network_format_ip,
+			.free = network_free_ip,
 		}
 	},
 	{
@@ -234,7 +246,13 @@ int main(int argc, char **argv)
 	ucimap_parse(&network_map, pkg);
 
 	list_for_each(p, &ifs) {
+		const unsigned char *ipaddr;
+
 		net = list_entry(p, struct uci_network, list);
+		ipaddr = net->ipaddr;
+		if (!ipaddr)
+			ipaddr = (const unsigned char *) "\x00\x00\x00\x00";
+
 		printf("New network section '%s'\n"
 			"	type: %s\n"
 			"	ifname: %s\n"
@@ -244,8 +262,7 @@ int main(int argc, char **argv)
 			net->name,
 			net->proto,
 			net->ifname,
-			net->ipaddr[0],	net->ipaddr[1],
-			net->ipaddr[2],	net->ipaddr[3],
+			ipaddr[0], ipaddr[1], ipaddr[2], ipaddr[3],
 			net->test,
 			(net->enabled ? "on" : "off"));
 

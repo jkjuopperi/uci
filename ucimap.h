@@ -84,6 +84,8 @@
 struct uci_sectionmap;
 struct uci_optmap;
 struct ucimap_list;
+struct uci_alloc;
+struct uci_alloc_custom;
 
 struct uci_map {
 	struct uci_sectionmap **sections;
@@ -121,6 +123,7 @@ union ucimap_data {
 	bool b;
 	char *s;
 	void *ptr;
+	void **data;
 	struct ucimap_list *list;
 };
 
@@ -132,7 +135,9 @@ struct ucimap_section_data {
 
 	/* list of allocations done by ucimap */
 	struct uci_alloc *allocmap;
-	unsigned long allocmap_len;
+	struct uci_alloc_custom *alloc_custom;
+	unsigned int allocmap_len;
+	unsigned int alloc_custom_len;
 
 	/* map for changed fields */
 	unsigned char *cmap;
@@ -181,6 +186,7 @@ struct uci_optmap {
 	int detected_type;
 	int (*parse)(void *section, struct uci_optmap *om, union ucimap_data *data, const char *string);
 	int (*format)(void *section, struct uci_optmap *om, union ucimap_data *data, char **string);
+	void (*free)(void *section, struct uci_optmap *om, void *ptr);
 	union {
 		struct {
 			int base;
