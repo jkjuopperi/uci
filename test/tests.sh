@@ -12,6 +12,7 @@ UCI_STATIC="../uci-static"
 	return 1
 }
 UCI="${UCI_STATIC} -c ${CONFIG_DIR} -p ${CHANGES_DIR}"
+UCI_Q="${UCI_STATIC} -c ${CONFIG_DIR} -p ${CHANGES_DIR} -q"
 
 REF_DIR="./references"
 SCRIPTS_DIR="./tests.d"
@@ -71,6 +72,7 @@ CONFIG_DIR="${CONFIG_DIR}" \
 CHANGES_DIR="${CHANGES_DIR}" \
 TMP_DIR="${TMP_DIR}" \
 UCI="${UCI}" \
+UCI_Q="${UCI_Q}" \
 /bin/sh ${FULL_SUITE}
 
 rm -rf ${TESTS_DIR}
