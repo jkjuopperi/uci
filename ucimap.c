@@ -19,14 +19,12 @@
 #include <limits.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <errno.h>
 #include "ucimap.h"
 #include "uci_internal.h"
 
 struct uci_alloc {
-	enum ucimap_type type;
-	union {
-		void **ptr;
-	} data;
+	void *ptr;
 };
 
 struct uci_alloc_custom {
@@ -124,22 +122,10 @@ ucimap_init(struct uci_map *map)
 }
 
 static void
-ucimap_free_item(struct uci_alloc *a)
-{
-	switch(a->type & UCIMAP_TYPE) {
-	case UCIMAP_SIMPLE:
-	case UCIMAP_LIST:
-		free(a->data.ptr);
-		break;
-	}
-}
-
-static void
 ucimap_add_alloc(struct ucimap_section_data *sd, void *ptr)
 {
 	struct uci_alloc *a = &sd->allocmap[sd->allocmap_len++];
-	a->type = UCIMAP_SIMPLE;
-	a->data.ptr = ptr;
+	a->ptr = ptr;
 }
 
 void
@@ -156,7 +142,7 @@ ucimap_free_section(struct uci_map *map, struct ucimap_section_data *sd)
 		sd->sm->free(map, section);
 
 	for (i = 0; i < sd->allocmap_len; i++) {
-		ucimap_free_item(&sd->allocmap[i]);
+		free(sd->allocmap[i].ptr);
 	}
 
 	if (sd->alloc_custom) {
@@ -228,6 +214,81 @@ ucimap_handle_fixup(struct uci_map *map, struct uci_fixup *f)
 	return true;
 }
 
+void
+ucimap_free_item(struct ucimap_section_data *sd, void *item)
+{
+	struct uci_alloc_custom *ac;
+	struct uci_alloc *a;
+	void *ptr = *((void **) item);
+	int i;
+
+	if (!ptr)
+		return;
+
+	*((void **)item) = NULL;
+	for (i = 0, a = sd->allocmap; i < sd->allocmap_len; i++, a++) {
+		if (a->ptr != ptr)
+			continue;
+
+		if (i != sd->allocmap_len - 1)
+			a->ptr = sd->allocmap[sd->allocmap_len - 1].ptr;
+
+		sd->allocmap_len--;
+		return;
+	}
+
+	for (i = 0, ac = sd->alloc_custom; i < sd->alloc_custom_len; i++, ac++) {
+		if (ac->ptr != ptr)
+			continue;
+
+		if (i != sd->alloc_custom_len - 1)
+			memcpy(ac, &sd->alloc_custom[sd->alloc_custom_len - 1],
+				sizeof(struct uci_alloc_custom));
+
+		ac->om->free(ac->section, ac->om, ac->ptr);
+		sd->alloc_custom_len--;
+		return;
+	}
+}
+
+int
+ucimap_resize_list(struct ucimap_section_data *sd, struct ucimap_list **list, int items)
+{
+	struct ucimap_list *new;
+	struct uci_alloc *a;
+	int i, offset = 0;
+	int size = sizeof(struct ucimap_list) + items * sizeof(union ucimap_data);
+
+	if (!*list) {
+		new = calloc(1, size);
+
+		ucimap_add_alloc(sd, new);
+		goto set;
+	}
+
+	for (i = 0, a = sd->allocmap; i < sd->allocmap_len; i++, a++) {
+		if (a->ptr != *list)
+			continue;
+
+		goto realloc;
+	}
+	return -ENOENT;
+
+realloc:
+	if (items > (*list)->size)
+		offset = (items - (*list)->size) * sizeof(union ucimap_data);
+
+	a->ptr = realloc(a->ptr, size);
+	if (offset)
+		memset((char *) a->ptr + offset, 0, size - offset);
+	new = a->ptr;
+
+set:
+	new->size = items;
+	*list = new;
+	return 0;
+}
+
 static void
 ucimap_add_fixup(struct ucimap_section_data *sd, union ucimap_data *data, struct uci_optmap *om, const char *str)
 {
@@ -269,8 +330,15 @@ ucimap_add_value(union ucimap_data *data, struct uci_optmap *om, struct ucimap_s
 	char *s;
 	int val;
 
-	if (ucimap_is_list(om->type) && !ucimap_is_fixup(om->type))
+	if (ucimap_is_list(om->type) && !ucimap_is_fixup(om->type)) {
+		if (unlikely(data->list->size <= data->list->n_items)) {
+			/* should not happen */
+			DPRINTF("ERROR: overflow while filling a list\n");
+			return;
+		}
+
 		data = &data->list->item[data->list->n_items++];
+	}
 
 	switch(om->type & UCIMAP_SUBTYPE) {
 	case UCIMAP_STRING:
@@ -558,7 +626,12 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 			n_alloc_custom += n_elements_custom;
 			size = sizeof(struct ucimap_list) +
 				n_elements * sizeof(union ucimap_data);
+
 			data->list = malloc(size);
+			if (!data->list)
+				goto error_mem;
+
+			data->list->size = n_elements;
 			memset(data->list, 0, size);
 		} else {
 			ucimap_count_alloc(om, &n_alloc, &n_alloc_custom);
@@ -719,6 +792,9 @@ ucimap_store_section(struct uci_map *map, struct uci_package *p, struct ucimap_s
 
 			if (om->format(ucimap_section_ptr(sd), om, data, &str) < 0)
 				continue;
+
+			if (!str)
+				str = "";
 		}
 		if (!str)
 			continue;

@@ -164,12 +164,6 @@ struct ucimap_section_data {
 	bool done;
 };
 
-
-struct uci_listmap {
-	struct list_head list;
-	union ucimap_data data;
-};
-
 struct uci_sectionmap {
 	/* type string for the uci section */
 	const char *type;
@@ -228,6 +222,7 @@ struct uci_optmap {
 
 struct ucimap_list {
 	int n_items;
+	int size;
 	union ucimap_data item[];
 };
 
@@ -238,5 +233,7 @@ extern int ucimap_store_section(struct uci_map *map, struct uci_package *p, stru
 extern void ucimap_parse(struct uci_map *map, struct uci_package *pkg);
 extern int ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucimap_section_data *sd, struct uci_section *s);
 extern void ucimap_free_section(struct uci_map *map, struct ucimap_section_data *sd);
+extern int ucimap_resize_list(struct ucimap_section_data *sd, struct ucimap_list **list, int items);
+extern void ucimap_free_item(struct ucimap_section_data *sd, void *item);
 
 #endif

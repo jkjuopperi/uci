@@ -12,5 +12,4 @@ New network section 'wan'
 	ipaddr: 0.0.0.0
 	test: -1
 	enabled: on
-New alias: c
-New alias: d
+Configured aliases: c d

@@ -68,8 +68,12 @@ network_format_ip(void *sction, struct uci_optmap *om, union ucimap_data *data, 
 	static char buf[16];
 	unsigned char *ip = (unsigned char *) data->data[0];
 
-	sprintf(buf, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-	*str = buf;
+	if (ip) {
+		sprintf(buf, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+		*str = buf;
+	} else {
+		*str = NULL;
+	}
 
 	return 0;
 }
@@ -234,11 +238,17 @@ int main(int argc, char **argv)
 	struct list_head *p;
 	struct uci_network *net;
 	struct uci_alias *alias;
+	bool set = false;
 	int i;
 
 	INIT_LIST_HEAD(&ifs);
 	ctx = uci_alloc_context();
 	ucimap_init(&network_map);
+
+	if ((argc >= 2) && !strcmp(argv[1], "-s")) {
+		uci_set_savedir(ctx, "./test/save");
+		set = true;
+	}
 
 	uci_set_confdir(ctx, "./test/config");
 	uci_load(ctx, "network", &pkg);
@@ -266,16 +276,29 @@ int main(int argc, char **argv)
 			net->test,
 			(net->enabled ? "on" : "off"));
 
-		for (i = 0; i < net->aliases->n_items; i++) {
-			alias = net->aliases->item[i].ptr;
-			printf("New alias: %s\n", alias->name);
+		if (net->aliases->n_items > 0) {
+			printf("Configured aliases:");
+			for (i = 0; i < net->aliases->n_items; i++) {
+				alias = net->aliases->item[i].ptr;
+				printf(" %s", alias->name);
+			}
+			printf("\n");
 		}
-#if 0
-		memcpy(net->ipaddr, "\x01\x03\x04\x05", 4);
-		ucimap_set_changed(&net->map, &net->ipaddr);
-		ucimap_store_section(&network_map, pkg, &net->map);
-		uci_save(ctx, pkg);
-#endif
+		list_for_each_entry(alias, &net->alias, list) {
+			for (i = 0; i < net->aliases->n_items; i++) {
+				if (alias == net->aliases->item[i].ptr)
+					goto next_alias;
+			}
+			printf("New alias: %s\n", alias->name);
+next_alias:
+			continue;
+		}
+		if (set && !strcmp(net->name, "lan")) {
+			ucimap_free_item(&net->map, &net->ipaddr);
+			ucimap_set_changed(&net->map, &net->ipaddr);
+			ucimap_store_section(&network_map, pkg, &net->map);
+			uci_save(ctx, pkg);
+		}
 	}
 
 

@@ -9,8 +9,6 @@ config 'interface' 'lan'
 	option 'ifname' 'eth0'
 	option 'test' '123'
 	option 'enabled' 'off'
-	list 'aliases' 'a'
-	list 'aliases' 'b'
 	option 'ipaddr' '2.3.4.5'
 
 config 'interface' 'wan'
