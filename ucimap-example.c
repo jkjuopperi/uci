@@ -63,7 +63,7 @@ network_parse_ip(void *section, struct uci_optmap *om, union ucimap_data *data, 
 }
 
 static int
-network_format_ip(void *sction, struct uci_optmap *om, union ucimap_data *data, char **str)
+network_format_ip(void *section, struct uci_optmap *om, union ucimap_data *data, char **str)
 {
 	static char buf[16];
 	unsigned char *ip = (unsigned char *) data->data[0];
