@@ -1,6 +1,6 @@
 /*
  * ucimap-example - sample code for the ucimap library
- * Copyright (C) 2008 Felix Fietkau <nbd@openwrt.org>
+ * Copyright (C) 2008-2009 Felix Fietkau <nbd@openwrt.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2
@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <ucimap.h>
+#include "list.h"
 
 struct list_head ifs;
 

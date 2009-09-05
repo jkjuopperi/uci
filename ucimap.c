@@ -1,9 +1,9 @@
 /*
- * ucimap - library for mapping uci sections into data structures
- * Copyright (C) 2008 Felix Fietkau <nbd@openwrt.org>
+ * ucimap.c - Library for the Unified Configuration Interface
+ * Copyright (C) 2008-2009 Felix Fietkau <nbd@openwrt.org>
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
+ * it under the terms of the GNU Lesser General Public License version 2.1
  * as published by the Free Software Foundation
  *
  * This program is distributed in the hope that it will be useful,
@@ -11,6 +11,11 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
+/*
+ * This file contains ucimap, an API for mapping UCI to C data structures 
+ */
+
 #include <strings.h>
 #include <stdbool.h>
 #include <string.h>
@@ -23,18 +28,18 @@
 #include "ucimap.h"
 #include "uci_internal.h"
 
-struct uci_alloc {
+struct ucimap_alloc {
 	void *ptr;
 };
 
-struct uci_alloc_custom {
+struct ucimap_alloc_custom {
 	void *section;
 	struct uci_optmap *om;
 	void *ptr;
 };
 
-struct uci_fixup {
-	struct list_head list;
+struct ucimap_fixup {
+	struct ucimap_fixup *next;
 	struct uci_sectionmap *sm;
 	const char *name;
 	enum ucimap_type type;
@@ -121,16 +126,17 @@ ucimap_get_data(struct ucimap_section_data *sd, struct uci_optmap *om)
 int
 ucimap_init(struct uci_map *map)
 {
-	INIT_LIST_HEAD(&map->pending);
-	INIT_LIST_HEAD(&map->sdata);
-	INIT_LIST_HEAD(&map->fixup);
+	map->fixup = NULL;
+	map->sdata = NULL;
+	map->fixup_tail = &map->fixup;
+	map->sdata_tail = &map->sdata;
 	return 0;
 }
 
 static void
 ucimap_add_alloc(struct ucimap_section_data *sd, void *ptr)
 {
-	struct uci_alloc *a = &sd->allocmap[sd->allocmap_len++];
+	struct ucimap_alloc *a = &sd->allocmap[sd->allocmap_len++];
 	a->ptr = ptr;
 }
 
@@ -141,8 +147,8 @@ ucimap_free_section(struct uci_map *map, struct ucimap_section_data *sd)
 	int i;
 
 	section = ucimap_section_ptr(sd);
-	if (!list_empty(&sd->list))
-		list_del(&sd->list);
+	if (sd->ref)
+		*sd->ref = sd->next;
 
 	if (sd->sm->free)
 		sd->sm->free(map, section);
@@ -153,7 +159,7 @@ ucimap_free_section(struct uci_map *map, struct ucimap_section_data *sd)
 
 	if (sd->alloc_custom) {
 		for (i = 0; i < sd->alloc_custom_len; i++) {
-			struct uci_alloc_custom *a = &sd->alloc_custom[i];
+			struct ucimap_alloc_custom *a = &sd->alloc_custom[i];
 			a->om->free(a->section, a->om, a->ptr);
 		}
 		free(sd->alloc_custom);
@@ -166,30 +172,26 @@ ucimap_free_section(struct uci_map *map, struct ucimap_section_data *sd)
 void
 ucimap_cleanup(struct uci_map *map)
 {
-	struct list_head *ptr, *tmp;
+	struct ucimap_section_data *sd;
 
-	list_for_each_safe(ptr, tmp, &map->sdata) {
-		struct ucimap_section_data *sd = list_entry(ptr, struct ucimap_section_data, list);
+	for (sd = map->sdata; sd; sd = sd->next) {
 		ucimap_free_section(map, sd);
 	}
 }
 
 static void *
-ucimap_find_section(struct uci_map *map, struct uci_fixup *f)
+ucimap_find_section(struct uci_map *map, struct ucimap_fixup *f)
 {
 	struct ucimap_section_data *sd;
-	struct list_head *p;
 
-	list_for_each(p, &map->sdata) {
-		sd = list_entry(p, struct ucimap_section_data, list);
+	for (sd = map->sdata; sd; sd = sd->next) {
 		if (sd->sm != f->sm)
 			continue;
 		if (strcmp(f->name, sd->section_name) != 0)
 			continue;
 		return ucimap_section_ptr(sd);
 	}
-	list_for_each(p, &map->pending) {
-		sd = list_entry(p, struct ucimap_section_data, list);
+	for (sd = map->pending; sd; sd = sd->next) {
 		if (sd->sm != f->sm)
 			continue;
 		if (strcmp(f->name, sd->section_name) != 0)
@@ -200,7 +202,7 @@ ucimap_find_section(struct uci_map *map, struct uci_fixup *f)
 }
 
 static bool
-ucimap_handle_fixup(struct uci_map *map, struct uci_fixup *f)
+ucimap_handle_fixup(struct uci_map *map, struct ucimap_fixup *f)
 {
 	void *ptr = ucimap_find_section(map, f);
 	struct ucimap_list *list;
@@ -223,8 +225,8 @@ ucimap_handle_fixup(struct uci_map *map, struct uci_fixup *f)
 void
 ucimap_free_item(struct ucimap_section_data *sd, void *item)
 {
-	struct uci_alloc_custom *ac;
-	struct uci_alloc *a;
+	struct ucimap_alloc_custom *ac;
+	struct ucimap_alloc *a;
 	void *ptr = *((void **) item);
 	int i;
 
@@ -249,7 +251,7 @@ ucimap_free_item(struct ucimap_section_data *sd, void *item)
 
 		if (i != sd->alloc_custom_len - 1)
 			memcpy(ac, &sd->alloc_custom[sd->alloc_custom_len - 1],
-				sizeof(struct uci_alloc_custom));
+				sizeof(struct ucimap_alloc_custom));
 
 		ac->om->free(ac->section, ac->om, ac->ptr);
 		sd->alloc_custom_len--;
@@ -261,7 +263,7 @@ int
 ucimap_resize_list(struct ucimap_section_data *sd, struct ucimap_list **list, int items)
 {
 	struct ucimap_list *new;
-	struct uci_alloc *a;
+	struct ucimap_alloc *a;
 	int i, offset = 0;
 	int size = sizeof(struct ucimap_list) + items * sizeof(union ucimap_data);
 
@@ -298,10 +300,9 @@ set:
 static void
 ucimap_add_fixup(struct ucimap_section_data *sd, union ucimap_data *data, struct uci_optmap *om, const char *str)
 {
-	struct uci_fixup *f, tmp;
+	struct ucimap_fixup *f, tmp;
 	struct uci_map *map = sd->map;
 
-	INIT_LIST_HEAD(&tmp.list);
 	tmp.sm = om->data.sm;
 	tmp.name = str;
 	tmp.type = om->type;
@@ -309,18 +310,20 @@ ucimap_add_fixup(struct ucimap_section_data *sd, union ucimap_data *data, struct
 	if (ucimap_handle_fixup(map, &tmp))
 		return;
 
-	f = malloc(sizeof(struct uci_fixup));
+	f = malloc(sizeof(struct ucimap_fixup));
 	if (!f)
 		return;
 
 	memcpy(f, &tmp, sizeof(tmp));
-	list_add_tail(&f->list, &map->fixup);
+	f->next = NULL;
+	*map->fixup_tail = f;
+	map->fixup_tail = &f->next;
 }
 
 static void
 ucimap_add_custom_alloc(struct ucimap_section_data *sd, struct uci_optmap *om, void *ptr)
 {
-	struct uci_alloc_custom *a = &sd->alloc_custom[sd->alloc_custom_len++];
+	struct ucimap_alloc_custom *a = &sd->alloc_custom[sd->alloc_custom_len++];
 
 	a->section = ucimap_section_ptr(sd);
 	a->om = om;
@@ -472,14 +475,23 @@ ucimap_parse_options(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 }
 
 static void
+ucimap_add_section_list(struct uci_map *map, struct ucimap_section_data *sd)
+{
+	sd->ref = map->sdata_tail;
+	*sd->ref = sd;
+	map->sdata_tail = &sd->next;
+}
+
+static void
 ucimap_add_section(struct ucimap_section_data *sd)
 {
 	struct uci_map *map = sd->map;
 
+	sd->next = NULL;
 	if (sd->sm->add(map, ucimap_section_ptr(sd)) < 0)
 		ucimap_free_section(map, sd);
 	else
-		list_add_tail(&sd->list, &map->sdata);
+		ucimap_add_section_list(map, sd);
 }
 
 #ifdef UCI_DEBUG
@@ -579,7 +591,6 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 	int n_alloc_custom = 0;
 	int err;
 
-	INIT_LIST_HEAD(&sd->list);
 	sd->map = map;
 	sd->sm = sm;
 
@@ -646,12 +657,12 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 		}
 	}
 
-	sd->allocmap = calloc(n_alloc, sizeof(struct uci_alloc));
+	sd->allocmap = calloc(n_alloc, sizeof(struct ucimap_alloc));
 	if (!sd->allocmap)
 		goto error_mem;
 
 	if (n_alloc_custom > 0) {
-		sd->alloc_custom = calloc(n_alloc_custom, sizeof(struct uci_alloc_custom));
+		sd->alloc_custom = calloc(n_alloc_custom, sizeof(struct ucimap_alloc_custom));
 		if (!sd->alloc_custom)
 			goto error_mem;
 	}
@@ -683,7 +694,7 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 	if (map->parsed) {
 		ucimap_add_section(sd);
 	} else {
-		list_add_tail(&sd->list, &map->pending);
+		ucimap_add_section_list(map, sd);
 	}
 
 	err = ucimap_parse_options(map, sm, sd, s);
@@ -853,10 +864,13 @@ void
 ucimap_parse(struct uci_map *map, struct uci_package *pkg)
 {
 	struct uci_element *e;
-	struct list_head *p, *tmp;
+	struct ucimap_section_data *sd, **sd_tail;
+	struct ucimap_fixup *f;
 	int i;
 
-	INIT_LIST_HEAD(&map->fixup);
+	sd_tail = map->sdata_tail;
+	map->parsed = false;
+	map->sdata_tail = &map->pending;
 	uci_foreach_element(&pkg->sections, e) {
 		struct uci_section *s = uci_to_section(e);
 
@@ -880,20 +894,26 @@ ucimap_parse(struct uci_map *map, struct uci_package *pkg)
 			ucimap_parse_section(map, sm, sd, s);
 		}
 	}
-	map->parsed = true;
+	if (!map->parsed) {
+		map->parsed = true;
+		map->sdata_tail = sd_tail;
+	}
 
-	list_for_each_safe(p, tmp, &map->fixup) {
-		struct uci_fixup *f = list_entry(p, struct uci_fixup, list);
+	f = map->fixup;
+	while (f) {
+		struct ucimap_fixup *next = f->next;
 		ucimap_handle_fixup(map, f);
-		list_del(&f->list);
 		free(f);
+		f = next;
 	}
+	map->fixup_tail = &map->fixup;
+	map->fixup = NULL;
 
-	list_for_each_safe(p, tmp, &map->pending) {
-		struct ucimap_section_data *sd;
-		sd = list_entry(p, struct ucimap_section_data, list);
-
-		list_del_init(&sd->list);
+	sd = map->pending;
+	while (sd) {
+		struct ucimap_section_data *next = sd->next;
 		ucimap_add_section(sd);
+		sd = next;
 	}
+	map->pending = NULL;
 }

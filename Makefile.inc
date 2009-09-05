@@ -5,6 +5,7 @@ COPTS=-O2
 WOPTS=-pedantic -Werror -Wall
 FPIC=-fPIC
 CFLAGS=$(COPTS) $(WOPTS) -std=gnu99
+CPPFLAGS=-I.
 
 AR=ar
 LD=ld

@@ -1,9 +1,9 @@
 /*
- * ucimap - library for mapping uci sections into data structures
- * Copyright (C) 2008 Felix Fietkau <nbd@openwrt.org>
+ * ucimap.h - Library for the Unified Configuration Interface
+ * Copyright (C) 2008-2009 Felix Fietkau <nbd@openwrt.org>
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
+ * it under the terms of the GNU Lesser General Public License version 2.1
  * as published by the Free Software Foundation
  *
  * This program is distributed in the hope that it will be useful,
@@ -11,11 +11,15 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
+/*
+ * This file contains ucimap, an API for mapping UCI to C data structures 
+ */
+
 #ifndef __UCIMAP_H
 #define __UCIMAP_H
 
 #include <stdbool.h>
-#include "uci_list.h"
 #include "uci.h"
 
 #ifndef ARRAY_SIZE
@@ -103,19 +107,25 @@
 
 struct uci_sectionmap;
 struct uci_optmap;
+
 struct ucimap_list;
-struct uci_alloc;
-struct uci_alloc_custom;
+struct ucimap_fixup;
+struct ucimap_alloc;
+struct ucimap_alloc_custom;
+struct ucimap_section_data;
 
 struct uci_map {
 	struct uci_sectionmap **sections;
 	unsigned int n_sections;
-	struct list_head sdata;
-	struct list_head fixup;
-	struct list_head pending;
 	bool parsed;
+	void *priv;
 
-	void *priv; /* user data */
+	/* private */
+	struct ucimap_fixup *fixup;
+	struct ucimap_fixup **fixup_tail;
+	struct ucimap_section_data *sdata;
+	struct ucimap_section_data *pending;
+	struct ucimap_section_data **sdata_tail;
 };
 
 enum ucimap_type {
@@ -148,20 +158,20 @@ union ucimap_data {
 };
 
 struct ucimap_section_data {
-	struct list_head list;
 	struct uci_map *map;
 	struct uci_sectionmap *sm;
 	const char *section_name;
 
-	/* list of allocations done by ucimap */
-	struct uci_alloc *allocmap;
-	struct uci_alloc_custom *alloc_custom;
-	unsigned int allocmap_len;
-	unsigned int alloc_custom_len;
-
 	/* map for changed fields */
 	unsigned char *cmap;
 	bool done;
+
+	/* internal */
+	struct ucimap_section_data *next, **ref;
+	struct ucimap_alloc *allocmap;
+	struct ucimap_alloc_custom *alloc_custom;
+	unsigned int allocmap_len;
+	unsigned int alloc_custom_len;
 };
 
 struct uci_sectionmap {
