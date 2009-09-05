@@ -236,14 +236,89 @@ struct ucimap_list {
 	union ucimap_data item[];
 };
 
+/**
+ * ucimap_init: initialize the ucimap data structure
+ * @map: ucimap data structure
+ *
+ * you must call this function before doing any other ucimap operation
+ * on the data structure
+ */
 extern int ucimap_init(struct uci_map *map);
+
+/**
+ * ucimap_cleanup: clean up all allocated data from ucimap
+ * @map: ucimap data structure
+ */
 extern void ucimap_cleanup(struct uci_map *map);
-extern void ucimap_set_changed(struct ucimap_section_data *sd, void *field);
-extern int ucimap_store_section(struct uci_map *map, struct uci_package *p, struct ucimap_section_data *sd);
+
+/**
+ * ucimap_parse: parse all sections in an uci package using ucimap
+ * @map: ucimap data structure
+ * @pkg: uci package
+ */
 extern void ucimap_parse(struct uci_map *map, struct uci_package *pkg);
+
+/**
+ * ucimap_set_changed: mark a field in a custom data structure as changed
+ * @sd: pointer to the ucimap section data
+ * @field: pointer to the field inside the custom data structure
+ *
+ * @sd must be set to the section data inside the data structure that contains @field
+ */
+extern void ucimap_set_changed(struct ucimap_section_data *sd, void *field);
+
+/**
+ * ucimap_store_section: copy all changed data from the converted data structure to uci
+ * @map: ucimap data structure
+ * @p: uci package to store the changes in
+ * @sd: pointer to the ucimap section data
+ *
+ * changes are not saved or committed automatically
+ */
+extern int ucimap_store_section(struct uci_map *map, struct uci_package *p, struct ucimap_section_data *sd);
+
+/**
+ * ucimap_parse_section: parse a single section
+ * @map: ucimap data structure
+ * @sm: uci section map
+ * @sd: pointer to the ucimap section data
+ * @s: pointer to the uci section
+ *
+ * this function overwrites the ucimap section data, do not use on a section
+ * that has been parsed already
+ */
 extern int ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucimap_section_data *sd, struct uci_section *s);
+
+/**
+ * ucimap_free_section: free a data structure for a converted section
+ * @map: ucimap data structure
+ * @sd: pointer to the ucimap section data
+ *
+ * this function will clean up all data that was allocated by ucimap for this section.
+ * all references to the data structure become invalid
+ */
 extern void ucimap_free_section(struct uci_map *map, struct ucimap_section_data *sd);
+
+/**
+ * ucimap_resize_list: allocate or resize a uci list
+ * @sd: pointer to the ucimap section data
+ * @list: pointer to the list field
+ * @items: new size
+ *
+ * @sd must point to the data structure that contains @list.
+ * @list must point to the field containing a pointer to the list, not the list directly
+ * the memory allocated for this list is tracked for the section and freed automatically
+ */
 extern int ucimap_resize_list(struct ucimap_section_data *sd, struct ucimap_list **list, int items);
+
+/**
+ * ucimap_free_item: free the allocated memory for a data structure member
+ * @sd: pointer to the ucimap section data
+ * @item: pointer to the field inside the data structure
+ *
+ * @sd must point to the data structure that contains @item.
+ * @item must point to the field containing a pointer to the allocated item
+ */
 extern void ucimap_free_item(struct ucimap_section_data *sd, void *item);
 
 #endif
