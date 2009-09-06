@@ -7,3 +7,4 @@ ucimap-example
 .*.swp
 .gdb*
 uci_config.h
+test/save
