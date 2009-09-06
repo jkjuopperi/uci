@@ -56,7 +56,7 @@ network_parse_ip(void *section, struct uci_optmap *om, union ucimap_data *data, 
 	if (!target)
 		return -1;
 
-	*data->data = target;
+	data->ptr = target;
 	for (i = 0; i < 4; i++)
 		target[i] = (char) tmp[i];
 
@@ -67,7 +67,7 @@ static int
 network_format_ip(void *section, struct uci_optmap *om, union ucimap_data *data, char **str)
 {
 	static char buf[16];
-	unsigned char *ip = (unsigned char *) data->data[0];
+	unsigned char *ip = (unsigned char *) data->ptr;
 
 	if (ip) {
 		sprintf(buf, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);

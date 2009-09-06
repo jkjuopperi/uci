@@ -404,11 +404,10 @@ ucimap_add_value(union ucimap_data *data, struct uci_optmap *om, struct ucimap_s
 		ucimap_add_fixup(sd, data, om, str);
 		return;
 	case UCIMAP_CUSTOM:
-		tdata.s = (char *) data;
 		break;
 	}
 	if (om->parse) {
-		if (om->parse(ucimap_section_ptr(sd), om, &tdata, str) < 0)
+		if (om->parse(ucimap_section_ptr(sd), om, data, str) < 0)
 			return;
 		if (ucimap_is_custom(om->type) && om->free) {
 			if (tdata.ptr != data->ptr)
@@ -795,13 +794,6 @@ ucimap_data_to_string(struct ucimap_section_data *sd, struct uci_optmap *om, uni
 	}
 
 	if (om->format) {
-		union ucimap_data tdata;
-
-		if (ucimap_is_custom(om->type)) {
-			tdata.s = (char *)data;
-			data = &tdata;
-		}
-
 		if (om->format(ucimap_section_ptr(sd), om, data, &str) < 0)
 			return NULL;
 
