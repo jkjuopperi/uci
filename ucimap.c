@@ -650,8 +650,8 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 			if (!data->list)
 				goto error_mem;
 
-			data->list->size = n_elements;
 			memset(data->list, 0, size);
+			data->list->size = n_elements;
 		} else {
 			ucimap_count_alloc(om, &n_alloc, &n_alloc_custom);
 		}
