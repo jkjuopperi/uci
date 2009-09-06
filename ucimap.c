@@ -201,11 +201,24 @@ ucimap_find_section(struct uci_map *map, struct ucimap_fixup *f)
 	return NULL;
 }
 
+static union ucimap_data *
+ucimap_list_append(struct ucimap_list *list)
+{
+	if (unlikely(list->size <= list->n_items)) {
+		/* should not happen */
+		DPRINTF("ERROR: overflow while filling a list (size=%d)\n", list->size);
+		return NULL;
+	}
+	return &list->item[list->n_items++];
+}
+
+
 static bool
 ucimap_handle_fixup(struct uci_map *map, struct ucimap_fixup *f)
 {
 	void *ptr = ucimap_find_section(map, f);
 	struct ucimap_list *list;
+	union ucimap_data *data;
 
 	if (!ptr)
 		return false;
@@ -216,7 +229,11 @@ ucimap_handle_fixup(struct uci_map *map, struct ucimap_fixup *f)
 		break;
 	case UCIMAP_LIST:
 		list = f->data->list;
-		list->item[list->n_items++].ptr = ptr;
+		data = ucimap_list_append(f->data->list);
+		if (!data)
+			return false;
+
+		data->ptr = ptr;
 		break;
 	}
 	return true;
@@ -340,13 +357,9 @@ ucimap_add_value(union ucimap_data *data, struct uci_optmap *om, struct ucimap_s
 	int val;
 
 	if (ucimap_is_list(om->type) && !ucimap_is_fixup(om->type)) {
-		if (unlikely(data->list->size <= data->list->n_items)) {
-			/* should not happen */
-			DPRINTF("ERROR: overflow while filling a list\n");
+		data = ucimap_list_append(data->list);
+		if (!data)
 			return;
-		}
-
-		data = &data->list->item[data->list->n_items++];
 	}
 
 	switch(om->type & UCIMAP_SUBTYPE) {
@@ -602,6 +615,7 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 			union ucimap_data *data;
 			struct uci_element *e;
 			int n_elements = 0;
+			int n_elements_alloc = 0;
 			int n_elements_custom = 0;
 			int size;
 
@@ -615,7 +629,8 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 
 				if (o->type == UCI_TYPE_LIST) {
 					uci_foreach_element(&o->v.list, tmp) {
-						ucimap_count_alloc(om, &n_elements, &n_elements_custom);
+						ucimap_count_alloc(om, &n_elements_alloc, &n_elements_custom);
+						n_elements++;
 					}
 				} else if ((o->type == UCI_TYPE_STRING) &&
 				           ucimap_is_list_auto(om->type)) {
@@ -628,7 +643,7 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 							break;
 
 						n_elements++;
-						ucimap_count_alloc(om, &n_elements, &n_elements_custom);
+						ucimap_count_alloc(om, &n_elements_alloc, &n_elements_custom);
 
 						while (*data && !isspace(*data))
 							data++;
@@ -641,7 +656,7 @@ ucimap_parse_section(struct uci_map *map, struct uci_sectionmap *sm, struct ucim
 				break;
 			}
 			/* add one more for the ucimap_list */
-			n_alloc += n_elements + 1;
+			n_alloc += n_elements_alloc + 1;
 			n_alloc_custom += n_elements_custom;
 			size = sizeof(struct ucimap_list) +
 				n_elements * sizeof(union ucimap_data);
