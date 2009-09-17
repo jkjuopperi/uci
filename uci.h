@@ -147,7 +147,9 @@ extern int uci_unload(struct uci_context *ctx, struct uci_package *p);
  * Examples:
  *   network.@interface[0].ifname ('ifname' option of the first interface section)
  *   network.@interface[-1]       (last interface section)
- * Note: uci_lookup_ext will automatically load a config package if necessary
+ * Note: uci_lookup_ptr will automatically load a config package if necessary
+ * @str must not be constant, as it will be modified and used for the strings inside @ptr,
+ * thus it must also be available as long as @ptr is in use.
  */
 extern int uci_lookup_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str, bool extended);
 
