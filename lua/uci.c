@@ -302,6 +302,11 @@ uci_lua_foreach(lua_State *L)
 			if (lua_isboolean(L, -1) && !lua_toboolean(L, -1))
 				break;
 		}
+		else
+		{
+			lua_error(L);
+			break;
+		}
 	}
 
 done:
