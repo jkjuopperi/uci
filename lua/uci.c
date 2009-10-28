@@ -121,11 +121,11 @@ lookup_args(lua_State *L, struct uci_context *ctx, int offset, struct uci_ptr *p
 	case 2:
 		ptr->section = luaL_checkstring(L, 2 + offset);
 		ptr->package = luaL_checkstring(L, 1 + offset);
-		if (uci_lookup_ptr(ctx, ptr, NULL, false) != UCI_OK)
+		if (uci_lookup_ptr(ctx, ptr, NULL, true) != UCI_OK)
 			goto error;
 		break;
 	case 1:
-		if (uci_lookup_ptr(ctx, ptr, s, false) != UCI_OK)
+		if (uci_lookup_ptr(ctx, ptr, s, true) != UCI_OK)
 			goto error;
 		break;
 	default:
@@ -329,7 +329,7 @@ uci_lua_get_any(lua_State *L, bool all)
 	if (lookup_args(L, ctx, offset, &ptr, &s))
 		goto error;
 
-	uci_lookup_ptr(ctx, &ptr, NULL, false);
+	uci_lookup_ptr(ctx, &ptr, NULL, true);
 	if (!all && !ptr.s) {
 		err = UCI_ERR_INVAL;
 		goto error;
@@ -465,7 +465,7 @@ uci_lua_rename(lua_State *L)
 		goto error;
 	}
 
-	err = uci_lookup_ptr(ctx, &ptr, NULL, false);
+	err = uci_lookup_ptr(ctx, &ptr, NULL, true);
 	if (err)
 		goto error;
 
@@ -514,7 +514,7 @@ uci_lua_reorder(lua_State *L)
 		goto error;
 	}
 
-	err = uci_lookup_ptr(ctx, &ptr, NULL, false);
+	err = uci_lookup_ptr(ctx, &ptr, NULL, true);
 	if (err)
 		goto error;
 
@@ -574,7 +574,7 @@ uci_lua_set(lua_State *L)
 		goto error;
 	}
 
-	err = uci_lookup_ptr(ctx, &ptr, NULL, false);
+	err = uci_lookup_ptr(ctx, &ptr, NULL, true);
 	if (err)
 		goto error;
 
@@ -638,7 +638,7 @@ uci_lua_package_cmd(lua_State *L, enum pkg_cmd cmd)
 	if (lookup_args(L, ctx, offset, &ptr, &s))
 		goto err;
 
-	uci_lookup_ptr(ctx, &ptr, NULL, false);
+	uci_lookup_ptr(ctx, &ptr, NULL, true);
 
 	uci_foreach_element_safe(&ctx->root, tmp, e) {
 		struct uci_package *p = uci_to_package(e);
