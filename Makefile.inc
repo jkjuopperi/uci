@@ -23,6 +23,9 @@ ifeq ($(OS),Darwin)
   LINK=$(LD)
   SHLIB_EXT=dylib
   SHLIB_FLAGS=-dylib
+  ifeq ($(shell gcc -dumpmachine),i686-apple-darwin10)
+    SHLIB_FLAGS += -arch x86_64
+  endif
 else
   LINK=$(CC)
   SHLIB_EXT=so
