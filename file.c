@@ -494,8 +494,10 @@ static char **uci_list_config_files(struct uci_context *ctx)
 
 	dir = uci_malloc(ctx, strlen(ctx->confdir) + 1 + sizeof("/*"));
 	sprintf(dir, "%s/*", ctx->confdir);
-	if (glob(dir, GLOB_MARK, NULL, &globbuf) != 0)
+	if (glob(dir, GLOB_MARK, NULL, &globbuf) != 0) {
+		free(dir);
 		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
+	}
 
 	size = sizeof(char *) * (globbuf.gl_pathc + 1);
 	for(i = 0; i < globbuf.gl_pathc; i++) {
