@@ -59,23 +59,13 @@ struct ucimap_fixup {
 static inline bool
 ucimap_is_alloc(enum ucimap_type type)
 {
-	switch(type & UCIMAP_SUBTYPE) {
-	case UCIMAP_STRING:
-		return true;
-	default:
-		return false;
-	}
+	return (type & UCIMAP_SUBTYPE) == UCIMAP_STRING;
 }
 
 static inline bool
 ucimap_is_fixup(enum ucimap_type type)
 {
-	switch(type & UCIMAP_SUBTYPE) {
-	case UCIMAP_SECTION:
-		return true;
-	default:
-		return false;
-	}
+	return (type & UCIMAP_SUBTYPE) == UCIMAP_SECTION;
 }
 
 static inline bool
