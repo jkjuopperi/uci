@@ -14,12 +14,18 @@ define add_feature
 	@echo "$(if $(findstring 1,$($(1))),#define UCI_$(1) 1,#undef UCI_$(1))" >> $@.tmp
 endef
 
-LIBUCI_DEPS=file.c history.c list.c util.c uci.h uci_config.h uci_internal.h
+define add_dep
+$(1).shared.o: $(2)
+$(1).static.o: $(2)
+endef
+
 
 all: uci libuci.$(SHLIB_EXT) uci-static ucimap-example
 
+$(eval $(call add_dep,libuci,file.c history.c list.c util.c uci.h uci_config.h uci_internal.h))
+$(eval $(call add_dep,ucimap,uci.h uci_config.h ucimap.h))
+
 cli.o: cli.c uci.h uci_config.h
-ucimap.o: ucimap.c uci.h uci_config.h ucimap.h
 
 uci_config.h: FORCE
 	@rm -f "$@.tmp"
@@ -36,11 +42,11 @@ uci_config.h: FORCE
 %.o: %.c
 	$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 
-%-shared.o: %.c
-	$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $(FPIC) $<
-
-%-static.o: %.c
+%.static.o: %.c
 	$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
+
+%.shared.o: %.c
+	$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $(FPIC) $<
 
 uci: cli.o libuci.$(SHLIB_EXT)
 	$(CC) -o $@ $< -L. -luci $(LIBS)
@@ -48,21 +54,18 @@ uci: cli.o libuci.$(SHLIB_EXT)
 uci-static: cli.o libuci.a
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
-libuci-static.o: libuci.c $(LIBUCI_DEPS)
-libuci-shared.o: libuci.c $(LIBUCI_DEPS)
-ucimap-static.o: ucimap.c $(LIBUCI_DEPS) ucimap.h
-ucimap-shared.o: ucimap.c $(LIBUCI_DEPS) ucimap.h
+ucimap.c: ucimap.h uci.h
 
-libuci.a: libuci-static.o ucimap-static.o
+libuci.a: libuci.static.o ucimap.static.o
 	rm -f $@
 	$(AR) rc $@ $^
 	$(RANLIB) $@
 
-libuci.$(SHLIB_EXT): libuci-shared.o ucimap-shared.o
+libuci.$(SHLIB_EXT): libuci.shared.o ucimap.shared.o
 	$(LINK) $(SHLIB_FLAGS) -o $(SHLIB_FILE) $^ $(LIBS)
 	ln -sf $(SHLIB_FILE) $@
 
-ucimap-example.o: ucimap-example.c list.h
+ucimap-example.c: list.h
 ucimap-example: ucimap-example.o libuci.a
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
