@@ -902,6 +902,7 @@ static const luaL_Reg uci[] = {
 	{ "reorder", uci_lua_reorder },
 	{ "changes", uci_lua_changes },
 	{ "foreach", uci_lua_foreach },
+	{ "add_history", uci_lua_add_delta },
 	{ "add_delta", uci_lua_add_delta },
 	{ "load_plugins", uci_lua_load_plugins },
 	{ "get_confdir", uci_lua_get_confdir },
