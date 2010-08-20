@@ -323,6 +323,15 @@ int uci_load_plugin(struct uci_context *ctx, const char *filename);
  */
 int uci_load_plugins(struct uci_context *ctx, const char *pattern);
 
+/**
+ * uci_parse_ptr: parse a uci string into a uci_ptr
+ * @ctx: uci context
+ * @ptr: target data structure
+ * @str: string to parse
+ *
+ * str is modified by this function
+ */
+int uci_parse_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str);
 
 /* UCI data structures */
 enum uci_type {
