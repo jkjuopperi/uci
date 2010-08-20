@@ -25,9 +25,6 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#define LINEBUF	32
-#define LINEBUF_MAX	4096
-
 __plugin void *uci_malloc(struct uci_context *ctx, size_t size)
 {
 	void *ptr;
@@ -97,21 +94,6 @@ __plugin bool uci_validate_str(const char *str, bool name)
 	return true;
 }
 
-static inline bool uci_validate_package(const char *str)
-{
-	return uci_validate_str(str, false);
-}
-
-static inline bool uci_validate_type(const char *str)
-{
-	return uci_validate_str(str, false);
-}
-
-static inline bool uci_validate_name(const char *str)
-{
-	return uci_validate_str(str, true);
-}
-
 bool uci_validate_text(const char *str)
 {
 	while (*str) {
@@ -124,7 +106,7 @@ bool uci_validate_text(const char *str)
 	return true;
 }
 
-static void uci_alloc_parse_context(struct uci_context *ctx)
+__private void uci_alloc_parse_context(struct uci_context *ctx)
 {
 	ctx->pctx = (struct uci_parse_context *) uci_malloc(ctx, sizeof(struct uci_parse_context));
 }
@@ -188,7 +170,7 @@ error:
 }
 
 
-static void uci_parse_error(struct uci_context *ctx, char *pos, char *reason)
+__private void uci_parse_error(struct uci_context *ctx, char *pos, char *reason)
 {
 	struct uci_parse_context *pctx = ctx->pctx;
 
@@ -198,236 +180,6 @@ static void uci_parse_error(struct uci_context *ctx, char *pos, char *reason)
 }
 
 
-/*
- * Fetch a new line from the input stream and resize buffer if necessary
- */
-static void uci_getln(struct uci_context *ctx, int offset)
-{
-	struct uci_parse_context *pctx = ctx->pctx;
-	char *p;
-	int ofs;
-
-	if (pctx->buf == NULL) {
-		pctx->buf = uci_malloc(ctx, LINEBUF);
-		pctx->bufsz = LINEBUF;
-	}
-
-	ofs = offset;
-	do {
-		p = &pctx->buf[ofs];
-		p[ofs] = 0;
-
-		p = fgets(p, pctx->bufsz - ofs, pctx->file);
-		if (!p || !*p)
-			return;
-
-		ofs += strlen(p);
-		if (pctx->buf[ofs - 1] == '\n') {
-			pctx->line++;
-			pctx->buf[ofs - 1] = 0;
-			return;
-		}
-
-		if (pctx->bufsz > LINEBUF_MAX/2)
-			uci_parse_error(ctx, p, "line too long");
-
-		pctx->bufsz *= 2;
-		pctx->buf = uci_realloc(ctx, pctx->buf, pctx->bufsz);
-	} while (1);
-}
-
-/* 
- * parse a character escaped by '\'
- * returns true if the escaped character is to be parsed
- * returns false if the escaped character is to be ignored
- */
-static inline bool parse_backslash(struct uci_context *ctx, char **str)
-{
-	/* skip backslash */
-	*str += 1;
-
-	/* undecoded backslash at the end of line, fetch the next line */
-	if (!**str) {
-		*str += 1;
-		uci_getln(ctx, *str - ctx->pctx->buf);
-		return false;
-	}
-
-	/* FIXME: decode escaped char, necessary? */
-	return true;
-}
-
-/*
- * move the string pointer forward until a non-whitespace character or
- * EOL is reached
- */
-static void skip_whitespace(struct uci_context *ctx, char **str)
-{
-restart:
-	while (**str && isspace(**str))
-		*str += 1;
-
-	if (**str == '\\') {
-		if (!parse_backslash(ctx, str))
-			goto restart;
-	}
-}
-
-static inline void addc(char **dest, char **src)
-{
-	**dest = **src;
-	*dest += 1;
-	*src += 1;
-}
-
-/*
- * parse a double quoted string argument from the command line
- */
-static void parse_double_quote(struct uci_context *ctx, char **str, char **target)
-{
-	char c;
-
-	/* skip quote character */
-	*str += 1;
-
-	while ((c = **str)) {
-		switch(c) {
-		case '"':
-			**target = 0;
-			*str += 1;
-			return;
-		case '\\':
-			if (!parse_backslash(ctx, str))
-				continue;
-			/* fall through */
-		default:
-			addc(target, str);
-			break;
-		}
-	}
-	uci_parse_error(ctx, *str, "unterminated \"");
-}
-
-/*
- * parse a single quoted string argument from the command line
- */
-static void parse_single_quote(struct uci_context *ctx, char **str, char **target)
-{
-	char c;
-	/* skip quote character */
-	*str += 1;
-
-	while ((c = **str)) {
-		switch(c) {
-		case '\'':
-			**target = 0;
-			*str += 1;
-			return;
-		default:
-			addc(target, str);
-		}
-	}
-	uci_parse_error(ctx, *str, "unterminated '");
-}
-
-/*
- * parse a string from the command line and detect the quoting style
- */
-static void parse_str(struct uci_context *ctx, char **str, char **target)
-{
-	bool next = true;
-	do {
-		switch(**str) {
-		case '\'':
-			parse_single_quote(ctx, str, target);
-			break;
-		case '"':
-			parse_double_quote(ctx, str, target);
-			break;
-		case '#':
-			**str = 0;
-			/* fall through */
-		case 0:
-			goto done;
-		case ';':
-			next = false;
-			goto done;
-		case '\\':
-			if (!parse_backslash(ctx, str))
-				continue;
-			/* fall through */
-		default:
-			addc(target, str);
-			break;
-		}
-	} while (**str && !isspace(**str));
-done:
-
-	/* 
-	 * if the string was unquoted and we've stopped at a whitespace
-	 * character, skip to the next one, because the whitespace will
-	 * be overwritten by a null byte here
-	 */
-	if (**str && next)
-		*str += 1;
-
-	/* terminate the parsed string */
-	**target = 0;
-}
-
-/*
- * extract the next argument from the command line
- */
-static char *next_arg(struct uci_context *ctx, char **str, bool required, bool name)
-{
-	char *val;
-	char *ptr;
-
-	val = ptr = *str;
-	skip_whitespace(ctx, str);
-	if(*str[0] == ';') {
-		*str[0] = 0;
-		*str += 1;
-	} else {
-		parse_str(ctx, str, &ptr);
-	}
-	if (!*val) {
-		if (required)
-			uci_parse_error(ctx, *str, "insufficient arguments");
-		goto done;
-	}
-
-	if (name && !uci_validate_name(val))
-		uci_parse_error(ctx, val, "invalid character in field");
-
-done:
-	return val;
-}
-
-int uci_parse_argument(struct uci_context *ctx, FILE *stream, char **str, char **result)
-{
-	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, str != NULL);
-	UCI_ASSERT(ctx, result != NULL);
-
-	if (ctx->pctx && (ctx->pctx->file != stream))
-		uci_cleanup(ctx);
-
-	if (!ctx->pctx)
-		uci_alloc_parse_context(ctx);
-
-	ctx->pctx->file = stream;
-
-	if (!*str) {
-		uci_getln(ctx, 0);
-		*str = ctx->pctx->buf;
-	}
-
-	*result = next_arg(ctx, str, false, false);
-
-	return 0;
-}
-
 
 /*
  * open a stream and go to the right position
@@ -435,7 +187,7 @@ int uci_parse_argument(struct uci_context *ctx, FILE *stream, char **str, char *
  * note: when opening for write and seeking to the beginning of
  * the stream, truncate the file
  */
-static FILE *uci_open_stream(struct uci_context *ctx, const char *filename, int pos, bool write, bool create)
+__private FILE *uci_open_stream(struct uci_context *ctx, const char *filename, int pos, bool write, bool create)
 {
 	struct stat statbuf;
 	FILE *file = NULL;
@@ -473,7 +225,7 @@ done:
 	return file;
 }
 
-static void uci_close_stream(FILE *stream)
+__private void uci_close_stream(FILE *stream)
 {
 	int fd;
 

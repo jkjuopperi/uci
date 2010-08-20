@@ -40,14 +40,12 @@ static const char *uci_errstr[] = {
 	[UCI_ERR_UNKNOWN] =   "Unknown error",
 };
 
-static void uci_cleanup(struct uci_context *ctx);
 static void uci_unload_plugin(struct uci_context *ctx, struct uci_plugin *p);
 
 #include "uci_internal.h"
 #include "util.c"
 #include "list.c"
 #include "history.c"
-#include "file.c"
 
 /* exported functions */
 struct uci_context *uci_alloc_context(void)
@@ -117,7 +115,7 @@ int uci_set_confdir(struct uci_context *ctx, const char *dir)
 	return 0;
 }
 
-static void uci_cleanup(struct uci_context *ctx)
+__private void uci_cleanup(struct uci_context *ctx)
 {
 	struct uci_parse_context *pctx;
 

@@ -239,7 +239,7 @@ done:
 }
 
 /* returns the number of changes that were successfully parsed */
-static int uci_load_history(struct uci_context *ctx, struct uci_package *p, bool flush)
+__private int uci_load_history(struct uci_context *ctx, struct uci_package *p, bool flush)
 {
 	struct uci_element *e;
 	char *filename = NULL;

@@ -15,6 +15,7 @@
 #ifndef __UCI_INTERNAL_H
 #define __UCI_INTERNAL_H
 
+#define __private __attribute__((visibility("hidden")))
 #define __public
 #ifdef UCI_PLUGIN_SUPPORT
 #define __plugin extern
@@ -46,6 +47,74 @@ __plugin bool uci_validate_str(const char *str, bool name);
 __plugin void uci_add_history(struct uci_context *ctx, struct uci_list *list, int cmd, const char *section, const char *option, const char *value);
 __plugin void uci_free_history(struct uci_history *h);
 __plugin struct uci_package *uci_alloc_package(struct uci_context *ctx, const char *name);
+
+__private FILE *uci_open_stream(struct uci_context *ctx, const char *filename, int pos, bool write, bool create);
+__private void uci_close_stream(FILE *stream);
+__private void uci_getln(struct uci_context *ctx, int offset);
+
+__private void uci_parse_error(struct uci_context *ctx, char *pos, char *reason);
+__private void uci_alloc_parse_context(struct uci_context *ctx);
+
+__private void uci_cleanup(struct uci_context *ctx);
+__private struct uci_element *uci_lookup_list(struct uci_list *list, const char *name);
+__private void uci_fixup_section(struct uci_context *ctx, struct uci_section *s);
+__private void uci_free_package(struct uci_package **package);
+
+__private int uci_load_history(struct uci_context *ctx, struct uci_package *p, bool flush);
+
+static inline bool uci_validate_package(const char *str)
+{
+	return uci_validate_str(str, false);
+}
+
+static inline bool uci_validate_type(const char *str)
+{
+	return uci_validate_str(str, false);
+}
+
+static inline bool uci_validate_name(const char *str)
+{
+	return uci_validate_str(str, true);
+}
+
+/* initialize a list head/item */
+static inline void uci_list_init(struct uci_list *ptr)
+{
+	ptr->prev = ptr;
+	ptr->next = ptr;
+}
+
+/* inserts a new list entry after a given entry */
+static inline void uci_list_insert(struct uci_list *list, struct uci_list *ptr)
+{
+	list->next->prev = ptr;
+	ptr->prev = list;
+	ptr->next = list->next;
+	list->next = ptr;
+}
+
+/* inserts a new list entry at the tail of the list */
+static inline void uci_list_add(struct uci_list *head, struct uci_list *ptr)
+{
+	/* NB: head->prev points at the tail */
+	uci_list_insert(head->prev, ptr);
+}
+
+static inline void uci_list_del(struct uci_list *ptr)
+{
+	struct uci_list *next, *prev;
+
+	next = ptr->next;
+	prev = ptr->prev;
+
+	prev->next = next;
+	next->prev = prev;
+
+	uci_list_init(ptr);
+}
+
+
+extern struct uci_backend uci_file_backend;
 
 #ifdef UCI_PLUGIN_SUPPORT
 /**

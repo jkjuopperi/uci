@@ -12,43 +12,7 @@
  * GNU General Public License for more details.
  */
 
-/* initialize a list head/item */
-static inline void uci_list_init(struct uci_list *ptr)
-{
-	ptr->prev = ptr;
-	ptr->next = ptr;
-}
-
-/* inserts a new list entry after a given entry */
-static inline void uci_list_insert(struct uci_list *list, struct uci_list *ptr)
-{
-	list->next->prev = ptr;
-	ptr->prev = list;
-	ptr->next = list->next;
-	list->next = ptr;
-}
-
-/* inserts a new list entry at the tail of the list */
-static inline void uci_list_add(struct uci_list *head, struct uci_list *ptr)
-{
-	/* NB: head->prev points at the tail */
-	uci_list_insert(head->prev, ptr);
-}
-
-static inline void uci_list_del(struct uci_list *ptr)
-{
-	struct uci_list *next, *prev;
-
-	next = ptr->next;
-	prev = ptr->prev;
-
-	prev->next = next;
-	next->prev = prev;
-
-	uci_list_init(ptr);
-}
-
-static inline void uci_list_set_pos(struct uci_list *head, struct uci_list *ptr, int pos)
+static void uci_list_set_pos(struct uci_list *head, struct uci_list *ptr, int pos)
 {
 	struct uci_list *new_head = head;
 	struct uci_element *p = NULL;
@@ -164,7 +128,7 @@ uci_alloc_list(struct uci_section *s, const char *name)
 }
 
 /* fix up an unnamed section, e.g. after adding options to it */
-static void uci_fixup_section(struct uci_context *ctx, struct uci_section *s)
+__private void uci_fixup_section(struct uci_context *ctx, struct uci_section *s)
 {
 	unsigned int hash = ~0;
 	struct uci_element *e;
@@ -249,7 +213,7 @@ uci_alloc_package(struct uci_context *ctx, const char *name)
 	return p;
 }
 
-static void
+__private void
 uci_free_package(struct uci_package **package)
 {
 	struct uci_element *e, *tmp;
@@ -289,7 +253,7 @@ uci_free_any(struct uci_element **e)
 	*e = NULL;
 }
 
-static inline struct uci_element *
+__private struct uci_element *
 uci_lookup_list(struct uci_list *list, const char *name)
 {
 	struct uci_element *e;
@@ -434,44 +398,6 @@ abort:
 
 notfound:
 	UCI_THROW(ctx, UCI_ERR_NOTFOUND);
-	return 0;
-}
-
-int
-uci_fill_ptr(struct uci_context *ctx, struct uci_ptr *ptr, struct uci_element *e, bool complete)
-{
-	UCI_HANDLE_ERR(ctx);
-	UCI_ASSERT(ctx, ptr != NULL);
-	UCI_ASSERT(ctx, e != NULL);
-
-	memset(ptr, 0, sizeof(struct uci_ptr));
-	switch(e->type) {
-	case UCI_TYPE_OPTION:
-		ptr->o = uci_to_option(e);
-		goto fill_option;
-	case UCI_TYPE_SECTION:
-		ptr->s = uci_to_section(e);
-		goto fill_section;
-	case UCI_TYPE_PACKAGE:
-		ptr->p = uci_to_package(e);
-		goto fill_package;
-	default:
-		UCI_THROW(ctx, UCI_ERR_INVAL);
-	}
-
-fill_option:
-	ptr->option = ptr->o->e.name;
-	ptr->s = ptr->o->section;
-fill_section:
-	ptr->section = ptr->s->e.name;
-	ptr->p = ptr->s->package;
-fill_package:
-	ptr->package = ptr->p->e.name;
-
-	ptr->flags |= UCI_LOOKUP_DONE;
-	if (complete)
-		ptr->flags |= UCI_LOOKUP_COMPLETE;
-
 	return 0;
 }
 
