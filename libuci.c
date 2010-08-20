@@ -43,7 +43,6 @@ static const char *uci_errstr[] = {
 static void uci_unload_plugin(struct uci_context *ctx, struct uci_plugin *p);
 
 #include "uci_internal.h"
-#include "util.c"
 #include "list.c"
 #include "history.c"
 

@@ -127,6 +127,22 @@ uci_alloc_list(struct uci_section *s, const char *name)
 	return o;
 }
 
+/* Based on an efficient hash function published by D. J. Bernstein */
+static unsigned int djbhash(unsigned int hash, char *str)
+{
+	int len = strlen(str);
+	int i;
+
+	/* initial value */
+	if (hash == ~0)
+		hash = 5381;
+
+	for(i = 0; i < len; i++) {
+		hash = ((hash << 5) + hash) + str[i];
+	}
+	return (hash & 0x7FFFFFFF);
+}
+
 /* fix up an unnamed section, e.g. after adding options to it */
 __private void uci_fixup_section(struct uci_context *ctx, struct uci_section *s)
 {

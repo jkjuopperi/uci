@@ -19,10 +19,11 @@ $(1).shared.o: $(2)
 $(1).static.o: $(2)
 endef
 
+SOURCES = libuci.c file.c ucimap.c util.c
 
 all: uci libuci.$(SHLIB_EXT) uci-static ucimap-example
 
-$(eval $(call add_dep,libuci,history.c list.c util.c uci.h uci_config.h uci_internal.h))
+$(eval $(call add_dep,libuci,history.c list.c uci.h uci_config.h uci_internal.h))
 $(eval $(call add_dep,ucimap,uci.h uci_config.h ucimap.h))
 
 cli.o: cli.c uci.h uci_config.h
@@ -56,12 +57,12 @@ uci-static: cli.o libuci.a
 
 ucimap.c: ucimap.h uci.h
 
-libuci.a: libuci.static.o ucimap.static.o file.static.o
+libuci.a: $(patsubst %.c,%.static.o, $(SOURCES))
 	rm -f $@
 	$(AR) rc $@ $^
 	$(RANLIB) $@
 
-libuci.$(SHLIB_EXT): libuci.shared.o file.shared.o ucimap.shared.o
+libuci.$(SHLIB_EXT): $(patsubst %.c,%.shared.o, $(SOURCES))
 	$(LINK) $(SHLIB_FLAGS) -o $(SHLIB_FILE) $^ $(LIBS)
 	ln -sf $(SHLIB_FILE) $@
 
