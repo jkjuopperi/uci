@@ -224,8 +224,8 @@ static void uci_show_changes(struct uci_package *p)
 {
 	struct uci_element *e;
 
-	uci_foreach_element(&p->saved_history, e) {
-		struct uci_history *h = uci_to_history(e);
+	uci_foreach_element(&p->saved_delta, e) {
+		struct uci_delta *h = uci_to_delta(e);
 		char *prefix = "";
 		char *op = "=";
 
@@ -653,10 +653,10 @@ int main(int argc, char **argv)
 				ctx->flags &= ~UCI_FLAG_EXPORT_NAME;
 				break;
 			case 'p':
-				uci_add_history_path(ctx, optarg);
+				uci_add_delta_path(ctx, optarg);
 				break;
 			case 'P':
-				uci_add_history_path(ctx, ctx->savedir);
+				uci_add_delta_path(ctx, ctx->savedir);
 				uci_set_savedir(ctx, optarg);
 				flags |= CLI_FLAG_NOCOMMIT;
 				break;

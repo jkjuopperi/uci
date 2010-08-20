@@ -689,10 +689,10 @@ uci_lua_revert(lua_State *L)
 static void
 uci_lua_add_change(lua_State *L, struct uci_element *e)
 {
-	struct uci_history *h;
+	struct uci_delta *h;
 	const char *name;
 
-	h = uci_to_history(e);
+	h = uci_to_delta(e);
 	if (!h->section)
 		return;
 
@@ -728,14 +728,14 @@ uci_lua_changes_pkg(lua_State *L, struct uci_context *ctx, const char *package)
 			return;
 	}
 
-	if (uci_list_empty(&p->history) && uci_list_empty(&p->saved_history))
+	if (uci_list_empty(&p->delta) && uci_list_empty(&p->saved_delta))
 		goto done;
 
 	lua_newtable(L);
-	uci_foreach_element(&p->saved_history, e) {
+	uci_foreach_element(&p->saved_delta, e) {
 		uci_lua_add_change(L, e);
 	}
-	uci_foreach_element(&p->history, e) {
+	uci_foreach_element(&p->delta, e) {
 		uci_lua_add_change(L, e);
 	}
 	lua_setfield(L, -2, p->e.name);
@@ -810,14 +810,14 @@ uci_lua_get_savedir(lua_State *L)
 }
 
 static int
-uci_lua_add_history(lua_State *L)
+uci_lua_add_delta(lua_State *L)
 {
 	struct uci_context *ctx;
 	int ret, offset = 0;
 
 	ctx = find_context(L, &offset);
 	luaL_checkstring(L, 1 + offset);
-	ret = uci_add_history_path(ctx, lua_tostring(L, -1));
+	ret = uci_add_delta_path(ctx, lua_tostring(L, -1));
 	return uci_push_status(L, ctx, false);
 }
 
@@ -902,7 +902,7 @@ static const luaL_Reg uci[] = {
 	{ "reorder", uci_lua_reorder },
 	{ "changes", uci_lua_changes },
 	{ "foreach", uci_lua_foreach },
-	{ "add_history", uci_lua_add_history },
+	{ "add_delta", uci_lua_add_delta },
 	{ "load_plugins", uci_lua_load_plugins },
 	{ "get_confdir", uci_lua_get_confdir },
 	{ "set_confdir", uci_lua_set_confdir },

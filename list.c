@@ -224,8 +224,8 @@ uci_alloc_package(struct uci_context *ctx, const char *name)
 	p = uci_alloc_element(ctx, package, name, 0);
 	p->ctx = ctx;
 	uci_list_init(&p->sections);
-	uci_list_init(&p->history);
-	uci_list_init(&p->saved_history);
+	uci_list_init(&p->delta);
+	uci_list_init(&p->saved_delta);
 	return p;
 }
 
@@ -243,11 +243,11 @@ uci_free_package(struct uci_package **package)
 	uci_foreach_element_safe(&p->sections, tmp, e) {
 		uci_free_section(uci_to_section(e));
 	}
-	uci_foreach_element_safe(&p->history, tmp, e) {
-		uci_free_history(uci_to_history(e));
+	uci_foreach_element_safe(&p->delta, tmp, e) {
+		uci_free_delta(uci_to_delta(e));
 	}
-	uci_foreach_element_safe(&p->saved_history, tmp, e) {
-		uci_free_history(uci_to_history(e));
+	uci_foreach_element_safe(&p->saved_delta, tmp, e) {
+		uci_free_delta(uci_to_delta(e));
 	}
 	uci_free_element(&p->e);
 	*package = NULL;
@@ -452,8 +452,8 @@ static void uci_add_element_list(struct uci_context *ctx, struct uci_ptr *ptr, b
 	struct uci_package *p;
 
 	p = ptr->p;
-	if (!internal && p->has_history)
-		uci_add_history(ctx, &p->history, UCI_CMD_LIST_ADD, ptr->section, ptr->option, ptr->value);
+	if (!internal && p->has_delta)
+		uci_add_delta(ctx, &p->delta, UCI_CMD_LIST_ADD, ptr->section, ptr->option, ptr->value);
 
 	e = uci_alloc_generic(ctx, UCI_TYPE_ITEM, ptr->value, sizeof(struct uci_option));
 	uci_list_add(&ptr->o->v.list, &e->list);
@@ -461,7 +461,7 @@ static void uci_add_element_list(struct uci_context *ctx, struct uci_ptr *ptr, b
 
 int uci_rename(struct uci_context *ctx, struct uci_ptr *ptr)
 {
-	/* NB: UCI_INTERNAL use means without history tracking */
+	/* NB: UCI_INTERNAL use means without delta tracking */
 	bool internal = ctx->internal;
 	struct uci_element *e;
 	struct uci_package *p;
@@ -475,8 +475,8 @@ int uci_rename(struct uci_context *ctx, struct uci_ptr *ptr)
 	UCI_ASSERT(ctx, ptr->s);
 	UCI_ASSERT(ctx, ptr->value);
 
-	if (!internal && p->has_history)
-		uci_add_history(ctx, &p->history, UCI_CMD_RENAME, ptr->section, ptr->option, ptr->value);
+	if (!internal && p->has_delta)
+		uci_add_delta(ctx, &p->delta, UCI_CMD_RENAME, ptr->section, ptr->option, ptr->value);
 
 	n = uci_strdup(ctx, ptr->value);
 	if (e->name)
@@ -497,9 +497,9 @@ int uci_reorder_section(struct uci_context *ctx, struct uci_section *s, int pos)
 	UCI_HANDLE_ERR(ctx);
 
 	uci_list_set_pos(&s->package->sections, &s->e.list, pos);
-	if (!ctx->internal && p->has_history) {
+	if (!ctx->internal && p->has_delta) {
 		sprintf(order, "%d", pos);
-		uci_add_history(ctx, &p->history, UCI_CMD_REORDER, s->e.name, NULL, order);
+		uci_add_delta(ctx, &p->delta, UCI_CMD_REORDER, s->e.name, NULL, order);
 	}
 
 	return 0;
@@ -515,8 +515,8 @@ int uci_add_section(struct uci_context *ctx, struct uci_package *p, const char *
 	s = uci_alloc_section(p, type, NULL);
 	uci_fixup_section(ctx, s);
 	*res = s;
-	if (!internal && p->has_history)
-		uci_add_history(ctx, &p->history, UCI_CMD_ADD, s->e.name, NULL, type);
+	if (!internal && p->has_delta)
+		uci_add_delta(ctx, &p->delta, UCI_CMD_ADD, s->e.name, NULL, type);
 
 	return 0;
 }
@@ -535,8 +535,8 @@ int uci_delete(struct uci_context *ctx, struct uci_ptr *ptr)
 
 	UCI_ASSERT(ctx, ptr->s);
 
-	if (!internal && p->has_history)
-		uci_add_history(ctx, &p->history, UCI_CMD_REMOVE, ptr->section, ptr->option, NULL);
+	if (!internal && p->has_delta)
+		uci_add_delta(ctx, &p->delta, UCI_CMD_REMOVE, ptr->section, ptr->option, NULL);
 
 	uci_free_any(&e);
 
@@ -550,7 +550,7 @@ int uci_delete(struct uci_context *ctx, struct uci_ptr *ptr)
 
 int uci_add_list(struct uci_context *ctx, struct uci_ptr *ptr)
 {
-	/* NB: UCI_INTERNAL use means without history tracking */
+	/* NB: UCI_INTERNAL use means without delta tracking */
 	bool internal = ctx->internal;
 	struct uci_option *prev = NULL;
 	const char *value2 = NULL;
@@ -591,7 +591,7 @@ int uci_add_list(struct uci_context *ctx, struct uci_ptr *ptr)
 
 int uci_set(struct uci_context *ctx, struct uci_ptr *ptr)
 {
-	/* NB: UCI_INTERNAL use means without history tracking */
+	/* NB: UCI_INTERNAL use means without delta tracking */
 	bool internal = ctx->internal;
 
 	UCI_HANDLE_ERR(ctx);
@@ -644,8 +644,8 @@ int uci_set(struct uci_context *ctx, struct uci_ptr *ptr)
 		UCI_THROW(ctx, UCI_ERR_INVAL);
 	}
 
-	if (!internal && ptr->p->has_history)
-		uci_add_history(ctx, &ptr->p->history, UCI_CMD_CHANGE, ptr->section, ptr->option, ptr->value);
+	if (!internal && ptr->p->has_delta)
+		uci_add_delta(ctx, &ptr->p->delta, UCI_CMD_CHANGE, ptr->section, ptr->option, ptr->value);
 
 	return 0;
 }

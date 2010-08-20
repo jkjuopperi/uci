@@ -23,7 +23,7 @@ SOURCES = libuci.c file.c ucimap.c util.c
 
 all: uci libuci.$(SHLIB_EXT) uci-static ucimap-example
 
-$(eval $(call add_dep,libuci,history.c list.c uci.h uci_config.h uci_internal.h))
+$(eval $(call add_dep,libuci,delta.c list.c uci.h uci_config.h uci_internal.h))
 $(eval $(call add_dep,ucimap,uci.h uci_config.h ucimap.h))
 
 cli.o: cli.c uci.h uci_config.h

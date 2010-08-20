@@ -62,7 +62,7 @@ struct uci_element;
 struct uci_package;
 struct uci_section;
 struct uci_option;
-struct uci_history;
+struct uci_delta;
 struct uci_context;
 struct uci_backend;
 struct uci_parse_context;
@@ -104,7 +104,7 @@ extern void uci_get_errorstr(struct uci_context *ctx, char **dest, const char *s
  * @single: ignore the 'package' keyword and parse everything into a single package
  *
  * the name parameter is for config files that don't explicitly use the 'package <...>' keyword
- * if 'package' points to a non-null struct pointer, enable history tracking and merge 
+ * if 'package' points to a non-null struct pointer, enable delta tracking and merge 
  */
 extern int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct uci_package **package, bool single);
 
@@ -204,7 +204,7 @@ extern int uci_rename(struct uci_context *ctx, struct uci_ptr *ptr);
 extern int uci_delete(struct uci_context *ctx, struct uci_ptr *ptr);
 
 /**
- * uci_save: save change history for a package
+ * uci_save: save change delta for a package
  * @ctx: uci context
  * @p: uci_package struct
  */
@@ -214,7 +214,7 @@ extern int uci_save(struct uci_context *ctx, struct uci_package *p);
  * uci_commit: commit changes to a package
  * @ctx: uci context
  * @p: uci_package struct pointer
- * @overwrite: overwrite existing config data and flush history
+ * @overwrite: overwrite existing config data and flush delta
  *
  * committing may reload the whole uci_package data,
  * the supplied pointer is updated accordingly
@@ -230,7 +230,7 @@ extern int uci_commit(struct uci_context *ctx, struct uci_package **p, bool over
 extern int uci_list_configs(struct uci_context *ctx, char ***list);
 
 /** 
- * uci_set_savedir: override the default history save directory
+ * uci_set_savedir: override the default delta save directory
  * @ctx: uci context
  * @dir: directory name
  */
@@ -244,14 +244,14 @@ extern int uci_set_savedir(struct uci_context *ctx, const char *dir);
 extern int uci_set_confdir(struct uci_context *ctx, const char *dir);
 
 /**
- * uci_add_history_path: add a directory to the search path for change history files
+ * uci_add_delta_path: add a directory to the search path for change delta files
  * @ctx: uci context
  * @dir: directory name
  *
  * This function allows you to add directories, which contain 'overlays'
  * for the active config, that will never be committed.
  */
-extern int uci_add_history_path(struct uci_context *ctx, const char *dir);
+extern int uci_add_delta_path(struct uci_context *ctx, const char *dir);
 
 /**
  * uci_revert: revert all changes to a config item
@@ -336,7 +336,7 @@ int uci_parse_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str);
 /* UCI data structures */
 enum uci_type {
 	UCI_TYPE_UNSPEC = 0,
-	UCI_TYPE_HISTORY = 1,
+	UCI_TYPE_DELTA = 1,
 	UCI_TYPE_PACKAGE = 2,
 	UCI_TYPE_SECTION = 3,
 	UCI_TYPE_OPTION = 4,
@@ -356,7 +356,7 @@ enum uci_flags {
 	UCI_FLAG_STRICT =        (1 << 0), /* strict mode for the parser */
 	UCI_FLAG_PERROR =        (1 << 1), /* print parser error messages */
 	UCI_FLAG_EXPORT_NAME =   (1 << 2), /* when exporting, name unnamed sections */
-	UCI_FLAG_SAVED_HISTORY = (1 << 3), /* store the saved history in memory as well */
+	UCI_FLAG_SAVED_DELTA = (1 << 3), /* store the saved delta in memory as well */
 };
 
 struct uci_element
@@ -396,8 +396,8 @@ struct uci_context
 	char *confdir;
 	char *savedir;
 
-	/* search path for history files */
-	struct uci_list history_path;
+	/* search path for delta files */
+	struct uci_list delta_path;
 
 	/* private: */
 	int err;
@@ -416,15 +416,15 @@ struct uci_package
 	struct uci_element e;
 	struct uci_list sections;
 	struct uci_context *ctx;
-	bool has_history;
+	bool has_delta;
 	char *path;
 
 	/* private: */
 	struct uci_backend *backend;
 	void *priv;
 	int n_section;
-	struct uci_list history;
-	struct uci_list saved_history;
+	struct uci_list delta;
+	struct uci_list saved_delta;
 };
 
 struct uci_section
@@ -456,7 +456,7 @@ enum uci_command {
 	UCI_CMD_LIST_ADD,
 };
 
-struct uci_history
+struct uci_delta
 {
 	struct uci_element e;
 	enum uci_command cmd;
@@ -487,7 +487,7 @@ struct uci_ptr
 struct uci_hook_ops
 {
 	void (*load)(const struct uci_hook_ops *ops, struct uci_package *p);
-	void (*set)(const struct uci_hook_ops *ops, struct uci_package *p, struct uci_history *e);
+	void (*set)(const struct uci_hook_ops *ops, struct uci_package *p, struct uci_delta *e);
 };
 
 struct uci_hook
@@ -575,7 +575,7 @@ struct uci_plugin
 
 /* wrappers for dynamic type handling */
 #define uci_type_backend UCI_TYPE_BACKEND
-#define uci_type_history UCI_TYPE_HISTORY
+#define uci_type_delta UCI_TYPE_DELTA
 #define uci_type_package UCI_TYPE_PACKAGE
 #define uci_type_section UCI_TYPE_SECTION
 #define uci_type_option UCI_TYPE_OPTION
@@ -586,7 +586,7 @@ struct uci_plugin
 #ifdef UCI_DEBUG_TYPECAST
 static const char *uci_typestr[] = {
 	[uci_type_backend] = "backend",
-	[uci_type_history] = "history",
+	[uci_type_delta] = "delta",
 	[uci_type_package] = "package",
 	[uci_type_section] = "section",
 	[uci_type_option] = "option",
@@ -609,7 +609,7 @@ static void uci_typecast_error(int from, int to)
 	}
 
 BUILD_CAST(backend)
-BUILD_CAST(history)
+BUILD_CAST(delta)
 BUILD_CAST(package)
 BUILD_CAST(section)
 BUILD_CAST(option)
@@ -618,7 +618,7 @@ BUILD_CAST(plugin)
 
 #else
 #define uci_to_backend(ptr) container_of(ptr, struct uci_backend, e)
-#define uci_to_history(ptr) container_of(ptr, struct uci_history, e)
+#define uci_to_delta(ptr) container_of(ptr, struct uci_delta, e)
 #define uci_to_package(ptr) container_of(ptr, struct uci_package, e)
 #define uci_to_section(ptr) container_of(ptr, struct uci_section, e)
 #define uci_to_option(ptr)  container_of(ptr, struct uci_option, e)

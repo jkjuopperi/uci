@@ -694,14 +694,14 @@ void uci_file_commit(struct uci_context *ctx, struct uci_package **package, bool
 	/* open the config file for writing now, so that it is locked */
 	f = uci_open_stream(ctx, p->path, SEEK_SET, true, true);
 
-	/* flush unsaved changes and reload from history file */
+	/* flush unsaved changes and reload from delta file */
 	UCI_TRAP_SAVE(ctx, done);
-	if (p->has_history) {
+	if (p->has_delta) {
 		if (!overwrite) {
 			name = uci_strdup(ctx, p->e.name);
 			path = uci_strdup(ctx, p->path);
-			/* dump our own changes to the history file */
-			if (!uci_list_empty(&p->history))
+			/* dump our own changes to the delta file */
+			if (!uci_list_empty(&p->delta))
 				UCI_INTERNAL(uci_save, ctx, p);
 
 			/* 
@@ -713,15 +713,15 @@ void uci_file_commit(struct uci_context *ctx, struct uci_package **package, bool
 			UCI_INTERNAL(uci_import, ctx, f, name, &p, true);
 
 			p->path = path;
-			p->has_history = true;
+			p->has_delta = true;
 			*package = p;
 
 			/* freed together with the uci_package */
 			path = NULL;
 		}
 
-		/* flush history */
-		if (!uci_load_history(ctx, p, true))
+		/* flush delta */
+		if (!uci_load_delta(ctx, p, true))
 			goto done;
 	}
 
@@ -841,8 +841,8 @@ static struct uci_package *uci_file_load(struct uci_context *ctx, const char *na
 
 	if (package) {
 		package->path = filename;
-		package->has_history = confdir;
-		uci_load_history(ctx, package, false);
+		package->has_delta = confdir;
+		uci_load_delta(ctx, package, false);
 	}
 
 done:

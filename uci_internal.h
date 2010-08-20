@@ -44,8 +44,8 @@ __plugin void *uci_malloc(struct uci_context *ctx, size_t size);
 __plugin void *uci_realloc(struct uci_context *ctx, void *ptr, size_t size);
 __plugin char *uci_strdup(struct uci_context *ctx, const char *str);
 __plugin bool uci_validate_str(const char *str, bool name);
-__plugin void uci_add_history(struct uci_context *ctx, struct uci_list *list, int cmd, const char *section, const char *option, const char *value);
-__plugin void uci_free_history(struct uci_history *h);
+__plugin void uci_add_delta(struct uci_context *ctx, struct uci_list *list, int cmd, const char *section, const char *option, const char *value);
+__plugin void uci_free_delta(struct uci_delta *h);
 __plugin struct uci_package *uci_alloc_package(struct uci_context *ctx, const char *name);
 
 __private FILE *uci_open_stream(struct uci_context *ctx, const char *filename, int pos, bool write, bool create);
@@ -60,7 +60,7 @@ __private struct uci_element *uci_lookup_list(struct uci_list *list, const char 
 __private void uci_fixup_section(struct uci_context *ctx, struct uci_section *s);
 __private void uci_free_package(struct uci_package **package);
 
-__private int uci_load_history(struct uci_context *ctx, struct uci_package *p, bool flush);
+__private int uci_load_delta(struct uci_context *ctx, struct uci_package *p, bool flush);
 
 static inline bool uci_validate_package(const char *str)
 {

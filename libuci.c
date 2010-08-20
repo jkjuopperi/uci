@@ -44,7 +44,7 @@ static void uci_unload_plugin(struct uci_context *ctx, struct uci_plugin *p);
 
 #include "uci_internal.h"
 #include "list.c"
-#include "history.c"
+#include "delta.c"
 
 /* exported functions */
 struct uci_context *uci_alloc_context(void)
@@ -57,11 +57,11 @@ struct uci_context *uci_alloc_context(void)
 
 	memset(ctx, 0, sizeof(struct uci_context));
 	uci_list_init(&ctx->root);
-	uci_list_init(&ctx->history_path);
+	uci_list_init(&ctx->delta_path);
 	uci_list_init(&ctx->backends);
 	uci_list_init(&ctx->hooks);
 	uci_list_init(&ctx->plugins);
-	ctx->flags = UCI_FLAG_STRICT | UCI_FLAG_SAVED_HISTORY;
+	ctx->flags = UCI_FLAG_STRICT | UCI_FLAG_SAVED_DELTA;
 
 	ctx->confdir = (char *) uci_confdir;
 	ctx->savedir = (char *) uci_savedir;
@@ -87,7 +87,7 @@ void uci_free_context(struct uci_context *ctx)
 		struct uci_package *p = uci_to_package(e);
 		uci_free_package(&p);
 	}
-	uci_foreach_element_safe(&ctx->history_path, tmp, e) {
+	uci_foreach_element_safe(&ctx->delta_path, tmp, e) {
 		uci_free_element(e);
 	}
 	UCI_TRAP_RESTORE(ctx);

@@ -13,7 +13,7 @@
  */
 
 /*
- * This file contains the code for handling uci config history files
+ * This file contains the code for handling uci config delta files
  */
 
 #define _GNU_SOURCE
@@ -28,16 +28,16 @@
 
 /* record a change that was done to a package */
 void
-uci_add_history(struct uci_context *ctx, struct uci_list *list, int cmd, const char *section, const char *option, const char *value)
+uci_add_delta(struct uci_context *ctx, struct uci_list *list, int cmd, const char *section, const char *option, const char *value)
 {
-	struct uci_history *h;
+	struct uci_delta *h;
 	int size = strlen(section) + 1;
 	char *ptr;
 
 	if (value)
 		size += strlen(value) + 1;
 
-	h = uci_alloc_element(ctx, history, option, size);
+	h = uci_alloc_element(ctx, delta, option, size);
 	ptr = uci_dataptr(h);
 	h->cmd = cmd;
 	h->section = strcpy(ptr, section);
@@ -49,7 +49,7 @@ uci_add_history(struct uci_context *ctx, struct uci_list *list, int cmd, const c
 }
 
 void
-uci_free_history(struct uci_history *h)
+uci_free_delta(struct uci_delta *h)
 {
 	if (!h)
 		return;
@@ -76,19 +76,19 @@ int uci_set_savedir(struct uci_context *ctx, const char *dir)
 	return 0;
 }
 
-int uci_add_history_path(struct uci_context *ctx, const char *dir)
+int uci_add_delta_path(struct uci_context *ctx, const char *dir)
 {
 	struct uci_element *e;
 
 	UCI_HANDLE_ERR(ctx);
 	UCI_ASSERT(ctx, dir != NULL);
 	e = uci_alloc_generic(ctx, UCI_TYPE_PATH, dir, sizeof(struct uci_element));
-	uci_list_add(&ctx->history_path, &e->list);
+	uci_list_add(&ctx->delta_path, &e->list);
 
 	return 0;
 }
 
-static inline int uci_parse_history_tuple(struct uci_context *ctx, char **buf, struct uci_ptr *ptr)
+static inline int uci_parse_delta_tuple(struct uci_context *ctx, char **buf, struct uci_ptr *ptr)
 {
 	int c = UCI_CMD_CHANGE;
 
@@ -142,18 +142,18 @@ error:
 	return 0;
 }
 
-static void uci_parse_history_line(struct uci_context *ctx, struct uci_package *p, char *buf)
+static void uci_parse_delta_line(struct uci_context *ctx, struct uci_package *p, char *buf)
 {
 	struct uci_element *e = NULL;
 	struct uci_ptr ptr;
 	int cmd;
 
-	cmd = uci_parse_history_tuple(ctx, &buf, &ptr);
+	cmd = uci_parse_delta_tuple(ctx, &buf, &ptr);
 	if (strcmp(ptr.package, p->e.name) != 0)
 		goto error;
 
-	if (ctx->flags & UCI_FLAG_SAVED_HISTORY)
-		uci_add_history(ctx, &p->saved_history, cmd, ptr.section, ptr.option, ptr.value);
+	if (ctx->flags & UCI_FLAG_SAVED_DELTA)
+		uci_add_delta(ctx, &p->saved_delta, cmd, ptr.section, ptr.option, ptr.value);
 
 	switch(cmd) {
 	case UCI_CMD_REORDER:
@@ -185,7 +185,7 @@ error:
 }
 
 /* returns the number of changes that were successfully parsed */
-static int uci_parse_history(struct uci_context *ctx, FILE *stream, struct uci_package *p)
+static int uci_parse_delta(struct uci_context *ctx, FILE *stream, struct uci_package *p)
 {
 	struct uci_parse_context *pctx;
 	int changes = 0;
@@ -204,10 +204,10 @@ static int uci_parse_history(struct uci_context *ctx, FILE *stream, struct uci_p
 
 		/*
 		 * ignore parse errors in single lines, we want to preserve as much
-		 * history as possible
+		 * delta as possible
 		 */
 		UCI_TRAP_SAVE(ctx, error);
-		uci_parse_history_line(ctx, p, pctx->buf);
+		uci_parse_delta_line(ctx, p, pctx->buf);
 		UCI_TRAP_RESTORE(ctx);
 		changes++;
 error:
@@ -220,7 +220,7 @@ error:
 }
 
 /* returns the number of changes that were successfully parsed */
-static int uci_load_history_file(struct uci_context *ctx, struct uci_package *p, char *filename, FILE **f, bool flush)
+static int uci_load_delta_file(struct uci_context *ctx, struct uci_package *p, char *filename, FILE **f, bool flush)
 {
 	FILE *stream = NULL;
 	int changes = 0;
@@ -228,7 +228,7 @@ static int uci_load_history_file(struct uci_context *ctx, struct uci_package *p,
 	UCI_TRAP_SAVE(ctx, done);
 	stream = uci_open_stream(ctx, filename, SEEK_SET, flush, false);
 	if (p)
-		changes = uci_parse_history(ctx, stream, p);
+		changes = uci_parse_delta(ctx, stream, p);
 	UCI_TRAP_RESTORE(ctx);
 done:
 	if (f)
@@ -239,28 +239,28 @@ done:
 }
 
 /* returns the number of changes that were successfully parsed */
-__private int uci_load_history(struct uci_context *ctx, struct uci_package *p, bool flush)
+__private int uci_load_delta(struct uci_context *ctx, struct uci_package *p, bool flush)
 {
 	struct uci_element *e;
 	char *filename = NULL;
 	FILE *f = NULL;
 	int changes = 0;
 
-	if (!p->has_history)
+	if (!p->has_delta)
 		return 0;
 
-	uci_foreach_element(&ctx->history_path, e) {
+	uci_foreach_element(&ctx->delta_path, e) {
 		if ((asprintf(&filename, "%s/%s", e->name, p->e.name) < 0) || !filename)
 			UCI_THROW(ctx, UCI_ERR_MEM);
 
-		uci_load_history_file(ctx, p, filename, NULL, false);
+		uci_load_delta_file(ctx, p, filename, NULL, false);
 		free(filename);
 	}
 
 	if ((asprintf(&filename, "%s/%s", ctx->savedir, p->e.name) < 0) || !filename)
 		UCI_THROW(ctx, UCI_ERR_MEM);
 
-	changes = uci_load_history_file(ctx, p, filename, &f, flush);
+	changes = uci_load_delta_file(ctx, p, filename, &f, flush);
 	if (flush && f && (changes > 0)) {
 		rewind(f);
 		if (ftruncate(fileno(f), 0) < 0) {
@@ -275,7 +275,7 @@ __private int uci_load_history(struct uci_context *ctx, struct uci_package *p, b
 	return changes;
 }
 
-static void uci_filter_history(struct uci_context *ctx, const char *name, const char *section, const char *option)
+static void uci_filter_delta(struct uci_context *ctx, const char *name, const char *section, const char *option)
 {
 	struct uci_parse_context *pctx;
 	struct uci_element *e, *tmp;
@@ -304,12 +304,12 @@ static void uci_filter_history(struct uci_context *ctx, const char *name, const 
 			continue;
 
 		/* NB: need to allocate the element before the call to 
-		 * uci_parse_history_tuple, otherwise the original string 
+		 * uci_parse_delta_tuple, otherwise the original string 
 		 * gets modified before it is saved */
-		e = uci_alloc_generic(ctx, UCI_TYPE_HISTORY, pctx->buf, sizeof(struct uci_element));
+		e = uci_alloc_generic(ctx, UCI_TYPE_DELTA, pctx->buf, sizeof(struct uci_element));
 		uci_list_add(&list, &e->list);
 
-		uci_parse_history_tuple(ctx, &buf, &ptr);
+		uci_parse_delta_tuple(ctx, &buf, &ptr);
 		if (section) {
 			if (!ptr.section || (strcmp(section, ptr.section) != 0))
 				continue;
@@ -322,7 +322,7 @@ static void uci_filter_history(struct uci_context *ctx, const char *name, const 
 		uci_free_element(e);
 	}
 
-	/* rebuild the history file */
+	/* rebuild the delta file */
 	rewind(f);
 	if (ftruncate(fileno(f), 0) < 0)
 		UCI_THROW(ctx, UCI_ERR_IO);
@@ -350,13 +350,13 @@ int uci_revert(struct uci_context *ctx, struct uci_ptr *ptr)
 
 	UCI_HANDLE_ERR(ctx);
 	expand_ptr(ctx, ptr, false);
-	UCI_ASSERT(ctx, ptr->p->has_history);
+	UCI_ASSERT(ctx, ptr->p->has_delta);
 
 	/* 
 	 * - flush unwritten changes
 	 * - save the package name
 	 * - unload the package
-	 * - filter the history
+	 * - filter the delta
 	 * - reload the package
 	 */
 	UCI_TRAP_SAVE(ctx, error);
@@ -371,7 +371,7 @@ int uci_revert(struct uci_context *ctx, struct uci_ptr *ptr)
 		option = uci_strdup(ctx, ptr->option);
 
 	uci_free_package(&ptr->p);
-	uci_filter_history(ctx, package, section, option);
+	uci_filter_delta(ctx, package, section, option);
 
 	UCI_INTERNAL(uci_load, ctx, package, &ptr->p);
 	UCI_TRAP_RESTORE(ctx);
@@ -401,14 +401,14 @@ int uci_save(struct uci_context *ctx, struct uci_package *p)
 
 	/* 
 	 * if the config file was outside of the /etc/config path,
-	 * don't save the history to a file, update the real file
+	 * don't save the delta to a file, update the real file
 	 * directly.
 	 * does not modify the uci_package pointer
 	 */
-	if (!p->has_history)
+	if (!p->has_delta)
 		return uci_commit(ctx, &p, false);
 
-	if (uci_list_empty(&p->history))
+	if (uci_list_empty(&p->delta))
 		return 0;
 
 	if (stat(ctx->savedir, &statbuf) < 0)
@@ -425,8 +425,8 @@ int uci_save(struct uci_context *ctx, struct uci_package *p)
 		if (!hook->ops->set)
 			continue;
 
-		uci_foreach_element(&p->history, e) {
-			hook->ops->set(hook->ops, p, uci_to_history(e));
+		uci_foreach_element(&p->delta, e) {
+			hook->ops->set(hook->ops, p, uci_to_delta(e));
 		}
 	}
 
@@ -435,8 +435,8 @@ int uci_save(struct uci_context *ctx, struct uci_package *p)
 	f = uci_open_stream(ctx, filename, SEEK_END, true, true);
 	UCI_TRAP_RESTORE(ctx);
 
-	uci_foreach_element_safe(&p->history, tmp, e) {
-		struct uci_history *h = uci_to_history(e);
+	uci_foreach_element_safe(&p->delta, tmp, e) {
+		struct uci_delta *h = uci_to_delta(e);
 		char *prefix = "";
 
 		switch(h->cmd) {
@@ -467,7 +467,7 @@ int uci_save(struct uci_context *ctx, struct uci_package *p)
 			fprintf(f, "\n");
 		else
 			fprintf(f, "=%s\n", h->value);
-		uci_free_history(h);
+		uci_free_delta(h);
 	}
 
 done:
