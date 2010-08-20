@@ -36,7 +36,7 @@ static inline void uci_list_fixup(struct uci_list *ptr)
  * uci_alloc_generic allocates a new uci_element with payload
  * payload is appended to the struct to save memory and reduce fragmentation
  */
-static struct uci_element *
+__private struct uci_element *
 uci_alloc_generic(struct uci_context *ctx, int type, const char *name, int size)
 {
 	struct uci_element *e;
@@ -62,7 +62,7 @@ done:
 	return e;
 }
 
-static void
+__private void
 uci_free_element(struct uci_element *e)
 {
 	if (e->name)
@@ -417,8 +417,8 @@ notfound:
 	return 0;
 }
 
-static struct uci_element *
-expand_ptr(struct uci_context *ctx, struct uci_ptr *ptr, bool complete)
+__private struct uci_element *
+uci_expand_ptr(struct uci_context *ctx, struct uci_ptr *ptr, bool complete)
 {
 	UCI_ASSERT(ctx, ptr != NULL);
 
@@ -469,7 +469,7 @@ int uci_rename(struct uci_context *ctx, struct uci_ptr *ptr)
 
 	UCI_HANDLE_ERR(ctx);
 
-	e = expand_ptr(ctx, ptr, true);
+	e = uci_expand_ptr(ctx, ptr, true);
 	p = ptr->p;
 
 	UCI_ASSERT(ctx, ptr->s);
@@ -530,7 +530,7 @@ int uci_delete(struct uci_context *ctx, struct uci_ptr *ptr)
 
 	UCI_HANDLE_ERR(ctx);
 
-	e = expand_ptr(ctx, ptr, true);
+	e = uci_expand_ptr(ctx, ptr, true);
 	p = ptr->p;
 
 	UCI_ASSERT(ctx, ptr->s);
@@ -557,7 +557,7 @@ int uci_add_list(struct uci_context *ctx, struct uci_ptr *ptr)
 
 	UCI_HANDLE_ERR(ctx);
 
-	expand_ptr(ctx, ptr, false);
+	uci_expand_ptr(ctx, ptr, false);
 	UCI_ASSERT(ctx, ptr->s);
 	UCI_ASSERT(ctx, ptr->value);
 
@@ -595,7 +595,7 @@ int uci_set(struct uci_context *ctx, struct uci_ptr *ptr)
 	bool internal = ctx->internal;
 
 	UCI_HANDLE_ERR(ctx);
-	expand_ptr(ctx, ptr, false);
+	uci_expand_ptr(ctx, ptr, false);
 	UCI_ASSERT(ctx, ptr->value);
 	UCI_ASSERT(ctx, ptr->s || (!ptr->option && ptr->section));
 	if (!ptr->option && ptr->value[0]) {

@@ -26,9 +26,6 @@
 #include <glob.h>
 #include "uci.h"
 
-static const char *uci_confdir = UCI_CONFDIR;
-static const char *uci_savedir = UCI_SAVEDIR;
-
 static const char *uci_errstr[] = {
 	[UCI_OK] =            "Success",
 	[UCI_ERR_MEM] =       "Out of memory",
@@ -44,7 +41,9 @@ static void uci_unload_plugin(struct uci_context *ctx, struct uci_plugin *p);
 
 #include "uci_internal.h"
 #include "list.c"
-#include "delta.c"
+
+__private const char *uci_confdir = UCI_CONFDIR;
+__private const char *uci_savedir = UCI_SAVEDIR;
 
 /* exported functions */
 struct uci_context *uci_alloc_context(void)

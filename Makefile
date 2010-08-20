@@ -19,11 +19,11 @@ $(1).shared.o: $(2)
 $(1).static.o: $(2)
 endef
 
-SOURCES = libuci.c file.c ucimap.c util.c
+SOURCES = libuci.c file.c ucimap.c util.c delta.c
 
 all: uci libuci.$(SHLIB_EXT) uci-static ucimap-example
 
-$(eval $(call add_dep,libuci,delta.c list.c uci.h uci_config.h uci_internal.h))
+$(eval $(call add_dep,libuci,list.c uci.h uci_config.h uci_internal.h))
 $(eval $(call add_dep,ucimap,uci.h uci_config.h ucimap.h))
 
 cli.o: cli.c uci.h uci_config.h

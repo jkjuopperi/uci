@@ -40,6 +40,9 @@ struct uci_parse_context
 	int bufsz;
 };
 
+extern const char *uci_confdir;
+extern const char *uci_savedir;
+
 __plugin void *uci_malloc(struct uci_context *ctx, size_t size);
 __plugin void *uci_realloc(struct uci_context *ctx, void *ptr, size_t size);
 __plugin char *uci_strdup(struct uci_context *ctx, const char *str);
@@ -59,6 +62,9 @@ __private void uci_cleanup(struct uci_context *ctx);
 __private struct uci_element *uci_lookup_list(struct uci_list *list, const char *name);
 __private void uci_fixup_section(struct uci_context *ctx, struct uci_section *s);
 __private void uci_free_package(struct uci_package **package);
+__private struct uci_element *uci_alloc_generic(struct uci_context *ctx, int type, const char *name, int size);
+__private void uci_free_element(struct uci_element *e);
+__private struct uci_element *uci_expand_ptr(struct uci_context *ctx, struct uci_ptr *ptr, bool complete);
 
 __private int uci_load_delta(struct uci_context *ctx, struct uci_package *p, bool flush);
 

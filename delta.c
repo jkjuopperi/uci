@@ -25,6 +25,11 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <string.h>
+#include <stdlib.h>
+
+#include "uci.h"
+#include "uci_internal.h"
 
 /* record a change that was done to a package */
 void
@@ -157,7 +162,7 @@ static void uci_parse_delta_line(struct uci_context *ctx, struct uci_package *p,
 
 	switch(cmd) {
 	case UCI_CMD_REORDER:
-		expand_ptr(ctx, &ptr, true);
+		uci_expand_ptr(ctx, &ptr, true);
 		if (!ptr.s)
 			UCI_THROW(ctx, UCI_ERR_NOTFOUND);
 		UCI_INTERNAL(uci_reorder_section, ctx, ptr.s, strtoul(ptr.value, NULL, 10));
@@ -349,7 +354,7 @@ int uci_revert(struct uci_context *ctx, struct uci_ptr *ptr)
 	char *option = NULL;
 
 	UCI_HANDLE_ERR(ctx);
-	expand_ptr(ctx, ptr, false);
+	uci_expand_ptr(ctx, ptr, false);
 	UCI_ASSERT(ctx, ptr->p->has_delta);
 
 	/* 
