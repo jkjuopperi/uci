@@ -387,10 +387,14 @@ uci_lookup_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str, bool ext
 
 	/* if the section name validates as a regular name, pass through
 	 * to the regular uci_lookup function call */
-	if (ptr->flags & UCI_LOOKUP_EXTENDED)
-		e = uci_lookup_ext_section(ctx, ptr);
-	else
+	if (ptr->flags & UCI_LOOKUP_EXTENDED) {
+		if (extended)
+			e = uci_lookup_ext_section(ctx, ptr);
+		else
+			UCI_THROW(ctx, UCI_ERR_INVAL);
+	} else {
 		e = uci_lookup_list(&ptr->p->sections, ptr->section);
+	}
 
 	if (!e)
 		goto abort;
