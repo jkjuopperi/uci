@@ -371,7 +371,11 @@ uci_lookup_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str, bool ext
 	ptr->flags |= UCI_LOOKUP_DONE;
 
 	/* look up the package first */
-	e = uci_lookup_list(&ctx->root, ptr->package);
+	if (ptr->p)
+		e = &ptr->p->e;
+	else
+		e = uci_lookup_list(&ctx->root, ptr->package);
+
 	if (!e) {
 		UCI_INTERNAL(uci_load, ctx, ptr->package, &ptr->p);
 		if (!ptr->p)
@@ -382,12 +386,14 @@ uci_lookup_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str, bool ext
 		ptr->last = e;
 	}
 
-	if (!ptr->section)
+	if (!ptr->section && !ptr->s)
 		goto complete;
 
 	/* if the section name validates as a regular name, pass through
 	 * to the regular uci_lookup function call */
-	if (ptr->flags & UCI_LOOKUP_EXTENDED) {
+	if (ptr->s) {
+		e = &ptr->s->e;
+	} else if (ptr->flags & UCI_LOOKUP_EXTENDED) {
 		if (extended)
 			e = uci_lookup_ext_section(ctx, ptr);
 		else
