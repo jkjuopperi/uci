@@ -358,6 +358,18 @@ done:
 }
 
 int
+uci_lookup_next(struct uci_context *ctx, struct uci_element **e, struct uci_list *list, const char *name)
+{
+	UCI_HANDLE_ERR(ctx);
+
+	*e = uci_lookup_list(list, name);
+	if (!*e)
+		UCI_THROW(ctx, UCI_ERR_NOTFOUND);
+
+	return 0;
+}
+
+int
 uci_lookup_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str, bool extended)
 {
 	struct uci_element *e;

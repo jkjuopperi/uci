@@ -104,7 +104,7 @@ extern void uci_get_errorstr(struct uci_context *ctx, char **dest, const char *s
  * @single: ignore the 'package' keyword and parse everything into a single package
  *
  * the name parameter is for config files that don't explicitly use the 'package <...>' keyword
- * if 'package' points to a non-null struct pointer, enable delta tracking and merge 
+ * if 'package' points to a non-null struct pointer, enable delta tracking and merge
  */
 extern int uci_import(struct uci_context *ctx, FILE *stream, const char *name, struct uci_package **package, bool single);
 
@@ -141,7 +141,7 @@ extern int uci_unload(struct uci_context *ctx, struct uci_package *p);
  * @str: uci tuple string to look up
  * @extended: allow extended syntax lookup
  *
- * if extended is set to true, uci_lookup_ptr supports the following 
+ * if extended is set to true, uci_lookup_ptr supports the following
  * extended syntax:
  *
  * Examples:
@@ -165,7 +165,7 @@ extern int uci_add_section(struct uci_context *ctx, struct uci_package *p, const
 /**
  * uci_set: Set an element's value; create the element if necessary
  * @ctx: uci context
- * @ptr: uci pointer 
+ * @ptr: uci pointer
  *
  * The updated/created element is stored in ptr->last
  */
@@ -199,7 +199,7 @@ extern int uci_rename(struct uci_context *ctx, struct uci_ptr *ptr);
 /**
  * uci_delete: Delete a section or option
  * @ctx: uci context
- * @ptr: uci pointer 
+ * @ptr: uci pointer
  */
 extern int uci_delete(struct uci_context *ctx, struct uci_ptr *ptr);
 
@@ -229,14 +229,14 @@ extern int uci_commit(struct uci_context *ctx, struct uci_package **p, bool over
  */
 extern int uci_list_configs(struct uci_context *ctx, char ***list);
 
-/** 
+/**
  * uci_set_savedir: override the default delta save directory
  * @ctx: uci context
  * @dir: directory name
  */
 extern int uci_set_savedir(struct uci_context *ctx, const char *dir);
 
-/** 
+/**
  * uci_set_savedir: override the default config storage directory
  * @ctx: uci context
  * @dir: directory name
@@ -332,6 +332,18 @@ int uci_load_plugins(struct uci_context *ctx, const char *pattern);
  * str is modified by this function
  */
 int uci_parse_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str);
+
+/**
+ * uci_lookup_next: lookup a child element
+ * @ctx: uci context
+ * @e: target element pointer
+ * @list: list of elements
+ * @name: name of the child element
+ *
+ * if parent is NULL, the function looks up the package with the given name
+ */
+int uci_lookup_next(struct uci_context *ctx, struct uci_element **e, struct uci_list *list, const char *name);
+
 
 /* UCI data structures */
 enum uci_type {
@@ -638,5 +650,46 @@ BUILD_CAST(plugin)
 
 #define uci_dataptr(ptr) \
 	(((char *) ptr) + sizeof(*ptr))
+
+/**
+ * uci_lookup_package: look up a package
+ * @ctx: uci context
+ * @name: name of the package
+ */
+static inline struct uci_package *
+uci_lookup_package(struct uci_context *ctx, const char *name)
+{
+	struct uci_element *e = NULL;
+	if (uci_lookup_next(ctx, &e, &ctx->root, name) == 0)
+		return uci_to_package(e);
+}
+
+/**
+ * uci_lookup_section: look up a section
+ * @ctx: uci context
+ * @p: package that the section belongs to
+ * @name: name of the section
+ */
+static inline struct uci_section *
+uci_lookup_section(struct uci_context *ctx, struct uci_package *p, const char *name)
+{
+	struct uci_element *e = NULL;
+	if (uci_lookup_next(ctx, &e, &p->sections, name) == 0)
+		return uci_to_section(e);
+}
+
+/**
+ * uci_lookup_option: look up an option
+ * @ctx: uci context
+ * @section: section that the option belongs to
+ * @name: name of the option
+ */
+static inline struct uci_option *
+uci_lookup_option(struct uci_context *ctx, struct uci_section *s, const char *name)
+{
+	struct uci_element *e = NULL;
+	if (uci_lookup_next(ctx, &e, &s->options, name) == 0)
+		return uci_to_option(e);
+}
 
 #endif
