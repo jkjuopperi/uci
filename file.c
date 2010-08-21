@@ -266,7 +266,7 @@ int uci_parse_argument(struct uci_context *ctx, FILE *stream, char **str, char *
 }
 
 static int
-uci_fill_ptr(struct uci_context *ctx, struct uci_ptr *ptr, struct uci_element *e, bool complete)
+uci_fill_ptr(struct uci_context *ctx, struct uci_ptr *ptr, struct uci_element *e)
 {
 	UCI_ASSERT(ctx, ptr != NULL);
 	UCI_ASSERT(ctx, e != NULL);
@@ -296,8 +296,6 @@ fill_package:
 	ptr->package = ptr->p->e.name;
 
 	ptr->flags |= UCI_LOOKUP_DONE;
-	if (complete)
-		ptr->flags |= UCI_LOOKUP_COMPLETE;
 
 	return 0;
 }
@@ -404,7 +402,7 @@ static void uci_parse_config(struct uci_context *ctx, char **str)
 		ctx->internal = !pctx->merge;
 		UCI_NESTED(uci_add_section, ctx, pctx->package, type, &pctx->section);
 	} else {
-		uci_fill_ptr(ctx, &ptr, &pctx->package->e, false);
+		uci_fill_ptr(ctx, &ptr, &pctx->package->e);
 		e = uci_lookup_list(&pctx->package->sections, name);
 		if (e)
 			ptr.s = uci_to_section(e);
@@ -438,7 +436,7 @@ static void uci_parse_option(struct uci_context *ctx, char **str, bool list)
 	value = next_arg(ctx, str, false, false);
 	assert_eol(ctx, str);
 
-	uci_fill_ptr(ctx, &ptr, &pctx->section->e, false);
+	uci_fill_ptr(ctx, &ptr, &pctx->section->e);
 	e = uci_lookup_list(&pctx->section->options, name);
 	if (e)
 		ptr.o = uci_to_option(e);
