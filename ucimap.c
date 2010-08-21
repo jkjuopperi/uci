@@ -884,6 +884,7 @@ ucimap_parse(struct uci_map *map, struct uci_package *pkg)
 			} else {
 				sd = malloc(sm->alloc_len);
 				memset(sd, 0, sm->alloc_len);
+				sd = ucimap_ptr_section(sm, sd);
 			}
 			if (!sd)
 				continue;
