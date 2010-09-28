@@ -662,6 +662,8 @@ uci_lookup_package(struct uci_context *ctx, const char *name)
 	struct uci_element *e = NULL;
 	if (uci_lookup_next(ctx, &e, &ctx->root, name) == 0)
 		return uci_to_package(e);
+	else
+		return NULL;
 }
 
 /**
@@ -676,6 +678,8 @@ uci_lookup_section(struct uci_context *ctx, struct uci_package *p, const char *n
 	struct uci_element *e = NULL;
 	if (uci_lookup_next(ctx, &e, &p->sections, name) == 0)
 		return uci_to_section(e);
+	else
+		return NULL;
 }
 
 /**
@@ -690,6 +694,8 @@ uci_lookup_option(struct uci_context *ctx, struct uci_section *s, const char *na
 	struct uci_element *e = NULL;
 	if (uci_lookup_next(ctx, &e, &s->options, name) == 0)
 		return uci_to_option(e);
+	else
+		return NULL;
 }
 
 #endif
