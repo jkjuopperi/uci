@@ -698,4 +698,16 @@ uci_lookup_option(struct uci_context *ctx, struct uci_section *s, const char *na
 		return NULL;
 }
 
+static inline const char *
+uci_lookup_option_string(struct uci_context *ctx, struct uci_section *s, const char *name)
+{
+	struct uci_option *o;
+
+	o = uci_lookup_option(ctx, s, name);
+	if (!o || o->type != UCI_TYPE_STRING)
+		return NULL;
+
+	return o->v.string;
+}
+
 #endif
