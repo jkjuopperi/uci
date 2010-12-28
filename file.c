@@ -675,7 +675,7 @@ static char *uci_config_path(struct uci_context *ctx, const char *name)
 	return filename;
 }
 
-void uci_file_commit(struct uci_context *ctx, struct uci_package **package, bool overwrite)
+static void uci_file_commit(struct uci_context *ctx, struct uci_package **package, bool overwrite)
 {
 	struct uci_package *p = *package;
 	FILE *f = NULL;
