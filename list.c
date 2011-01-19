@@ -19,11 +19,12 @@ static void uci_list_set_pos(struct uci_list *head, struct uci_list *ptr, int po
 
 	uci_list_del(ptr);
 	uci_foreach_element(head, p) {
-		new_head = &p->list;
 		if (pos-- <= 0)
 			break;
+		new_head = &p->list;
 	}
-	uci_list_add(new_head, ptr);
+
+	uci_list_add(new_head->next, ptr);
 }
 
 static inline void uci_list_fixup(struct uci_list *ptr)
