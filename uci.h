@@ -15,6 +15,10 @@
 #ifndef __LIBUCI_H
 #define __LIBUCI_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "uci_config.h"
 
 /*
@@ -709,5 +713,9 @@ uci_lookup_option_string(struct uci_context *ctx, struct uci_section *s, const c
 
 	return o->v.string;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
