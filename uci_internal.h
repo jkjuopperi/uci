@@ -20,7 +20,7 @@
 #ifdef UCI_PLUGIN_SUPPORT
 #define __plugin extern
 #else
-#define __plugin static
+#define __plugin __private
 #endif
 
 struct uci_parse_context
