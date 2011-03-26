@@ -23,16 +23,16 @@ SET_TARGET_PROPERTIES(uci-static PROPERTIES OUTPUT_NAME uci)
 
 ADD_EXECUTABLE(cli cli.c)
 SET_TARGET_PROPERTIES(cli PROPERTIES OUTPUT_NAME uci)
-TARGET_LINK_LIBRARIES(cli uci-shared)
+TARGET_LINK_LIBRARIES(cli uci-shared dl)
 
 ADD_EXECUTABLE(cli-static cli.c)
 SET_TARGET_PROPERTIES(cli-static PROPERTIES OUTPUT_NAME uci-static)
-TARGET_LINK_LIBRARIES(cli-static uci-static)
+TARGET_LINK_LIBRARIES(cli-static uci-static dl)
 
 ADD_LIBRARY(ucimap STATIC ucimap.c)
 
 ADD_EXECUTABLE(ucimap-example ucimap-example.c)
-TARGET_LINK_LIBRARIES(ucimap-example uci-static ucimap)
+TARGET_LINK_LIBRARIES(ucimap-example uci-static ucimap dl)
 
 ADD_SUBDIRECTORY(lua)
 
