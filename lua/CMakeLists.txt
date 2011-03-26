@@ -10,15 +10,17 @@ IF(APPLE)
 	SET(CMAKE_SHARED_MODULE_CREATE_C_FLAGS "${CMAKE_SHARED_MODULE_CREATE_C_FLAGS} -undefined dynamic_lookup")
 ENDIF(APPLE)
 
-EXECUTE_PROCESS(
-	COMMAND  lua -e "for k in string.gmatch(package.cpath .. \";\", \"([^;]+)/..so;\") do if k:sub(1,1) == \"/\" then print(k) break end end"
-	OUTPUT_VARIABLE LUAPATH
-	RESULT_VARIABLE LUA_CHECK_RES
-	OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+IF(NOT LUAPATH)
+	EXECUTE_PROCESS(
+		COMMAND  lua -e "for k in string.gmatch(package.cpath .. \";\", \"([^;]+)/..so;\") do if k:sub(1,1) == \"/\" then print(k) break end end"
+		OUTPUT_VARIABLE LUAPATH
+		RESULT_VARIABLE LUA_CHECK_RES
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+	)
 
-IF(NOT ${LUA_CHECK_RES} EQUAL 0 OR ${LUAPATH} EQUAL "")
-	MESSAGE(SEND_ERROR "Lua was not found on your system")
+	IF(NOT ${LUA_CHECK_RES} EQUAL 0 OR ${LUAPATH} EQUAL "")
+		MESSAGE(SEND_ERROR "Lua was not found on your system")
+	ENDIF()
 ENDIF()
 
 ADD_LIBRARY(uci_lua MODULE uci.c)
