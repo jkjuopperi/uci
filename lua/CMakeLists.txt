@@ -4,7 +4,7 @@ PROJECT(uci C)
 
 SET(CMAKE_INSTALL_PREFIX /)
 
-ADD_DEFINITIONS(-Os -Wall -Werror --std=gnu99 -g3)
+ADD_DEFINITIONS(-Os -Wall -Werror --std=gnu99 -g3 -I..)
 
 IF(APPLE)
 	SET(CMAKE_SHARED_MODULE_CREATE_C_FLAGS "${CMAKE_SHARED_MODULE_CREATE_C_FLAGS} -undefined dynamic_lookup")
