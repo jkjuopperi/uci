@@ -13,7 +13,7 @@ OPTION(BUILD_LUA "build Lua plugin" ON)
 
 CONFIGURE_FILE( ${CMAKE_SOURCE_DIR}/uci_config.h.in ${CMAKE_SOURCE_DIR}/uci_config.h )
 
-SET(LIB_SOURCES libuci.c file.c ucimap.c util.c delta.c)
+SET(LIB_SOURCES libuci.c file.c util.c delta.c)
 
 ADD_LIBRARY(uci-shared SHARED ${LIB_SOURCES})
 SET_TARGET_PROPERTIES(uci-shared PROPERTIES OUTPUT_NAME uci)
@@ -29,8 +29,10 @@ ADD_EXECUTABLE(cli-static cli.c)
 SET_TARGET_PROPERTIES(cli-static PROPERTIES OUTPUT_NAME uci-static)
 TARGET_LINK_LIBRARIES(cli-static uci-static)
 
+ADD_LIBRARY(ucimap STATIC ucimap.c)
+
 ADD_EXECUTABLE(ucimap-example ucimap-example.c)
-TARGET_LINK_LIBRARIES(ucimap-example uci-static)
+TARGET_LINK_LIBRARIES(ucimap-example uci-static ucimap)
 
 ADD_SUBDIRECTORY(lua)
 
