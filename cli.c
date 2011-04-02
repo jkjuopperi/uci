@@ -687,10 +687,9 @@ int main(int argc, char **argv)
 	ret = uci_cmd(argc - 1, argv + 1);
 	if (input != stdin)
 		fclose(input);
-	if (ret == 255) {
+
+	if (ret == 255)
 		uci_usage();
-		return 0;
-	}
 
 	uci_free_context(ctx);
 
