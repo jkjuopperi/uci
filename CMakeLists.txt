@@ -13,7 +13,7 @@ OPTION(BUILD_LUA "build Lua plugin" ON)
 
 CONFIGURE_FILE( ${CMAKE_SOURCE_DIR}/uci_config.h.in ${CMAKE_SOURCE_DIR}/uci_config.h )
 
-SET(LIB_SOURCES libuci.c file.c util.c delta.c)
+SET(LIB_SOURCES libuci.c file.c util.c delta.c parse.c)
 
 ADD_LIBRARY(uci-shared SHARED ${LIB_SOURCES})
 SET_TARGET_PROPERTIES(uci-shared PROPERTIES OUTPUT_NAME uci)

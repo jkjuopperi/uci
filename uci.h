@@ -33,6 +33,7 @@ extern "C" {
 #include <stdbool.h>
 #include <setjmp.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #define UCI_CONFDIR "/etc/config"
 #define UCI_SAVEDIR "/tmp/.uci"
@@ -69,6 +70,7 @@ struct uci_option;
 struct uci_delta;
 struct uci_context;
 struct uci_backend;
+struct uci_parse_option;
 struct uci_parse_context;
 
 
@@ -348,6 +350,23 @@ int uci_parse_ptr(struct uci_context *ctx, struct uci_ptr *ptr, char *str);
  */
 int uci_lookup_next(struct uci_context *ctx, struct uci_element **e, struct uci_list *list, const char *name);
 
+/**
+ * uci_parse_section: look up a set of options
+ * @s: uci section
+ * @opts: list of options to look up
+ * @n_opts: number of options to look up
+ * @tb: array of pointers to found options
+ */
+void uci_parse_section(struct uci_section *s, struct uci_parse_option *opts,
+		       int n_opts, struct uci_option **tb);
+
+/**
+ * uci_hash_options: build a hash over a list of options
+ * @tb: list of option pointers
+ * @n_opts: number of options
+ */
+uint32_t uci_hash_options(struct uci_option **tb, int n_opts);
+
 
 /* UCI data structures */
 enum uci_type {
@@ -523,6 +542,11 @@ struct uci_plugin
 	struct uci_element e;
 	const struct uci_plugin_ops *ops;
 	void *dlh;
+};
+
+struct uci_parse_option {
+	const char *name;
+	enum uci_option_type type;
 };
 
 
