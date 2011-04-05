@@ -357,7 +357,7 @@ int uci_lookup_next(struct uci_context *ctx, struct uci_element **e, struct uci_
  * @n_opts: number of options to look up
  * @tb: array of pointers to found options
  */
-void uci_parse_section(struct uci_section *s, struct uci_parse_option *opts,
+void uci_parse_section(struct uci_section *s, const struct uci_parse_option *opts,
 		       int n_opts, struct uci_option **tb);
 
 /**

@@ -17,7 +17,7 @@
 
 #include "uci.h"
 
-void uci_parse_section(struct uci_section *s, struct uci_parse_option *opts,
+void uci_parse_section(struct uci_section *s, const struct uci_parse_option *opts,
 		       int n_opts, struct uci_option **tb)
 {
 	struct uci_element *e;
@@ -90,9 +90,9 @@ static uint32_t hash_murmur2(uint32_t h, const void * key, int len)
 	return h;
 }
 
-static uint32_t uci_hash_list(uint32_t h, struct uci_list *list)
+static uint32_t uci_hash_list(uint32_t h, const struct uci_list *list)
 {
-	struct uci_element *e;
+	const struct uci_element *e;
 
 	uci_foreach_element(list, e) {
 		h = hash_murmur2(h, e->name, strlen(e->name) + 1);
@@ -106,7 +106,7 @@ uint32_t uci_hash_options(struct uci_option **tb, int n_opts)
 	int i;
 
 	for (i = 0; i < n_opts; i++) {
-		struct uci_option *o = tb[i];
+		const struct uci_option *o = tb[i];
 
 		if (!tb[i])
 			continue;
