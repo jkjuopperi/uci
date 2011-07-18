@@ -207,7 +207,6 @@ static bool
 ucimap_handle_fixup(struct uci_map *map, struct ucimap_fixup *f)
 {
 	void *ptr = ucimap_find_section(map, f);
-	struct ucimap_list *list;
 	union ucimap_data *data;
 
 	if (!ptr)
@@ -218,7 +217,6 @@ ucimap_handle_fixup(struct uci_map *map, struct ucimap_fixup *f)
 		f->data->ptr = ptr;
 		break;
 	case UCIMAP_LIST:
-		list = f->data->list;
 		data = ucimap_list_append(f->data->list);
 		if (!data)
 			return false;
