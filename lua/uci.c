@@ -418,14 +418,13 @@ uci_lua_delete(lua_State *L)
 	struct uci_ptr ptr;
 	int offset = 0;
 	char *s = NULL;
-	int err = UCI_ERR_NOTFOUND;
 
 	ctx = find_context(L, &offset);
 
 	if (lookup_args(L, ctx, offset, &ptr, &s))
 		goto error;
 
-	err = uci_delete(ctx, &ptr);
+	uci_delete(ctx, &ptr);
 
 error:
 	if (s)
@@ -627,7 +626,6 @@ uci_lua_package_cmd(lua_State *L, enum pkg_cmd cmd)
 	struct uci_element *e, *tmp;
 	struct uci_ptr ptr;
 	char *s = NULL;
-	int failed = 0;
 	int nargs, offset = 0;
 
 	ctx = find_context(L, &offset);
@@ -659,9 +657,6 @@ uci_lua_package_cmd(lua_State *L, enum pkg_cmd cmd)
 			ret = uci_revert(ctx, &ptr);
 			break;
 		}
-
-		if (ret != 0)
-			failed = 1;
 	}
 
 err:
@@ -793,11 +788,11 @@ static int
 uci_lua_set_confdir(lua_State *L)
 {
 	struct uci_context *ctx;
-	int ret, offset = 0;
+	int offset = 0;
 
 	ctx = find_context(L, &offset);
 	luaL_checkstring(L, 1 + offset);
-	ret = uci_set_confdir(ctx, lua_tostring(L, -1));
+	uci_set_confdir(ctx, lua_tostring(L, -1));
 	return uci_push_status(L, ctx, false);
 }
 
@@ -813,11 +808,11 @@ static int
 uci_lua_add_delta(lua_State *L)
 {
 	struct uci_context *ctx;
-	int ret, offset = 0;
+	int offset = 0;
 
 	ctx = find_context(L, &offset);
 	luaL_checkstring(L, 1 + offset);
-	ret = uci_add_delta_path(ctx, lua_tostring(L, -1));
+	uci_add_delta_path(ctx, lua_tostring(L, -1));
 	return uci_push_status(L, ctx, false);
 }
 
@@ -825,13 +820,13 @@ static int
 uci_lua_load_plugins(lua_State *L)
 {
 	struct uci_context *ctx;
-	int ret, offset = 0;
+	int offset = 0;
 	const char *str = NULL;
 
 	ctx = find_context(L, &offset);
 	if (lua_isstring(L, -1))
 		str = lua_tostring(L, -1);
-	ret = uci_load_plugins(ctx, str);
+	uci_load_plugins(ctx, str);
 	return uci_push_status(L, ctx, false);
 }
 
@@ -839,11 +834,11 @@ static int
 uci_lua_set_savedir(lua_State *L)
 {
 	struct uci_context *ctx;
-	int ret, offset = 0;
+	int offset = 0;
 
 	ctx = find_context(L, &offset);
 	luaL_checkstring(L, 1 + offset);
-	ret = uci_set_savedir(ctx, lua_tostring(L, -1));
+	uci_set_savedir(ctx, lua_tostring(L, -1));
 	return uci_push_status(L, ctx, false);
 }
 
