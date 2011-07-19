@@ -640,7 +640,6 @@ uci_lua_package_cmd(lua_State *L, enum pkg_cmd cmd)
 
 	uci_foreach_element_safe(&ctx->root, tmp, e) {
 		struct uci_package *p = uci_to_package(e);
-		int ret = UCI_ERR_INVAL;
 
 		if (ptr.p && (ptr.p != p))
 			continue;
@@ -648,13 +647,13 @@ uci_lua_package_cmd(lua_State *L, enum pkg_cmd cmd)
 		ptr.p = p;
 		switch(cmd) {
 		case CMD_COMMIT:
-			ret = uci_commit(ctx, &p, false);
+			uci_commit(ctx, &p, false);
 			break;
 		case CMD_SAVE:
-			ret = uci_save(ctx, p);
+			uci_save(ctx, p);
 			break;
 		case CMD_REVERT:
-			ret = uci_revert(ctx, &ptr);
+			uci_revert(ctx, &ptr);
 			break;
 		}
 	}
