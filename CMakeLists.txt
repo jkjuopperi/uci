@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.6)
 
 PROJECT(uci C)
 
-SET(CMAKE_INSTALL_PREFIX /usr)
+OPTION(CMAKE_INSTALL_PREFIX "install prefix" /usr)
 
 ADD_DEFINITIONS(-Os -Wall -Werror --std=gnu99 -g3 -I. -DUCI_PREFIX="${CMAKE_INSTALL_PREFIX}")
 
