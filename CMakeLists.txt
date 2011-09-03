@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 2.6)
 
 PROJECT(uci C)
 
+OPTION(CMAKE_INSTALL_PREFIX "Install prefix" /usr)
+OPTION(UCI_CONFDIR "Global directory" "/etc/config")
+OPTION(UCI_SAVEDIR "Temporary save directory" "/tmp/.uci")
+
 ADD_DEFINITIONS(-Os -Wall -Werror --std=gnu99 -g3 -I. -DUCI_PREFIX="${CMAKE_INSTALL_PREFIX}")
 
 OPTION(UCI_PLUGIN_SUPPORT "plugin support" ON)
